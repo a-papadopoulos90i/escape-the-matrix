@@ -1,0 +1,29 @@
+rules_version = '2';
+
+// Escape the Matrix — Firestore security rules.
+// Each signed-in user owns exactly one document, users/{uid} = { doc, updatedAt, email }.
+// Only that user may read or write it; every other path is denied.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // The app writes the whole envelope every time; keep it to the known shape.
+    function isEnvelope() {
+      let data = request.resource.data;
+      return data.keys().hasOnly(['doc', 'updatedAt', 'email'])
+        && data.doc is map
+        && data.updatedAt is string;
+    }
+
+    match /users/{uid} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && isEnvelope();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

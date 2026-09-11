@@ -1,0 +1,95 @@
+/* tokens.css — design tokens from SPEC §7 (colours), plus type, spacing, radii, shadows, motion.
+   Light theme only. Every other stylesheet reads these custom properties. */
+:root {
+  color-scheme: light;
+
+  /* Quadrant fills / borders */
+  --red-fill: #ffc7c2;
+  --red: #f24822;
+  --yellow-fill: #ffecbd;
+  --yellow: #ffcd29;
+  --blue-fill: #c2e5ff;
+  --blue: #3dadff;
+  --gray-fill: #d9d9d9;
+  --gray: #a5a5a5;
+
+  /* Calendar */
+  --green-fill: #66d575;
+  --green-stripe: #4eb25c;
+  --green: #3e9b4b;
+  --today: #4da3ff;
+  --tray: #d9d9d9;
+  --border: #757575;
+
+  /* Text & surfaces */
+  --ink: #1c1c1e;
+  --muted: #6b6b6b;
+  --card-border: #333;
+  --bg: #fff;
+  --surface: #fff;
+  --line: #e6e6e6;
+  --line-strong: #d0d0d0;
+  --hover: #f2f2f2;
+  --accent: #3dadff;
+  --focus: #4da3ff;
+  --warning-bg: #fff8e1;
+  --warning-line: #ffe08a;
+
+  /* Speech bubbles */
+  --bubble-khaki: #b9b098;
+  --bubble-green: #cdf4d3;
+  --bubble-green-border: #4cd964;
+  --bubble-dark: #5b5b5b;
+
+  /* Action buttons (stage 5) */
+  --play: #3fa34d;
+  --forward: #f28c1f;
+
+  /* Typography */
+  --font: -apple-system, BlinkMacSystemFont, Inter, "Segoe UI", Roboto, sans-serif;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-md: 0.9375rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 1.875rem;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 40px;
+  --space-8: 48px;
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.18);
+
+  /* Motion */
+  --dur: 250ms;
+  --dur-fast: 120ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+
+  /* Layout */
+  --content-max: 1040px;
+  --header-h: 56px;
+  --touch: 44px;
+
+  /* Layers */
+  --z-header: 20;
+  --z-bubble: 30;
+  --z-popover: 40;
+  --z-toast: 50;
+  --z-modal: 60;
+}

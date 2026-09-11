@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Escape the Matrix</title>
+    <meta name="description" content="A daily planner built on the Eisenhower Matrix: write everything down, sort it by urgency and importance, then work the board." />
+    <meta name="theme-color" content="#ffffff" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Escape the Matrix" />
+    <meta property="og:description" content="A daily planner built on the Eisenhower Matrix: write everything down, sort it by urgency and importance, then work the board." />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='1' y='1' width='10' height='10' rx='2.5' fill='%23f24822'/%3E%3Crect x='13' y='1' width='10' height='10' rx='2.5' fill='%23ffcd29'/%3E%3Crect x='1' y='13' width='10' height='10' rx='2.5' fill='%233dadff'/%3E%3Crect x='13' y='13' width='10' height='10' rx='2.5' fill='%23a5a5a5'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="./css/tokens.css" />
+    <link rel="stylesheet" href="./css/base.css" />
+    <link rel="stylesheet" href="./css/calendar.css" />
+    <link rel="stylesheet" href="./css/dump.css" />
+    <link rel="stylesheet" href="./css/sort.css" />
+    <link rel="stylesheet" href="./css/board.css" />
+    <link rel="stylesheet" href="./css/account.css" />
+  </head>
+  <body>
+    <a id="skip-link" class="skip-link" href="#stage">Skip to content</a>
+    <div class="app">
+      <header class="app-header">
+        <div class="app-header__inner">
+          <a class="brand" href="./">
+            <svg class="brand__mark" viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="1" y="1" width="10" height="10" rx="2.5" fill="#f24822" />
+              <rect x="13" y="1" width="10" height="10" rx="2.5" fill="#ffcd29" />
+              <rect x="1" y="13" width="10" height="10" rx="2.5" fill="#3dadff" />
+              <rect x="13" y="13" width="10" height="10" rx="2.5" fill="#a5a5a5" />
+            </svg>
+            <span class="brand__name">Escape the Matrix</span>
+          </a>
+          <nav id="stepper-nav" class="stepper-nav">
+            <ol id="stepper" class="stepper"></ol>
+          </nav>
+          <div class="header-actions">
+            <div id="account" class="account-slot"></div>
+            <button id="tip-button" class="btn-icon" type="button">?</button>
+          </div>
+        </div>
+      </header>
+      <div id="daybar" class="daybar"></div>
+      <div id="banner" class="banner" hidden></div>
+      <main id="stage" class="stage" tabindex="-1"></main>
+    </div>
+    <div id="announcer" class="sr-only" aria-live="polite"></div>
+    <div id="toast-root" class="toast-root" aria-live="polite"></div>
+    <div id="modal-root"></div>
+    <div id="popover-root" class="popover-root"></div>
+    <noscript>Escape the Matrix needs JavaScript to run.</noscript>
+    <script type="module" src="./js/app.js"></script>
+  </body>
+</html>

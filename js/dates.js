@@ -1,0 +1,131 @@
+// Local-calendar date helpers. A "key" is a 'YYYY-MM-DD' string in the user's local time zone;
+// a "month key" is 'YYYY-MM'. Months passed as numbers are 0-based (January = 0), like Date.
+
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+const KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const MONTH_KEY_RE = /^\d{4}-\d{2}$/;
+const GRID_ROWS = 6;
+
+/** Short weekday labels for calendar column headers, Monday first. */
+export const WEEKDAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+const pad = (n) => String(n).padStart(2, '0');
+
+export function toKey(date) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+export function fromKey(key) {
+  const [year, month, day] = key.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+export function todayKey(now = new Date()) {
+  return toKey(now);
+}
+
+/** True for a well-formed key that names a real calendar day. */
+export function isValidKey(key) {
+  return typeof key === 'string' && KEY_RE.test(key) && toKey(fromKey(key)) === key;
+}
+
+export function addDays(key, n) {
+  const date = fromKey(key);
+  date.setDate(date.getDate() + n);
+  return toKey(date);
+}
+
+export function isWeekend(key) {
+  const day = fromKey(key).getDay();
+  return day === 0 || day === 6;
+}
+
+/** 0 = Monday … 6 = Sunday. */
+export function weekdayIndex(key) {
+  return (fromKey(key).getDay() + 6) % 7;
+}
+
+export function nextVisibleDay(key, showWeekends) {
+  return stepVisible(key, 1, showWeekends);
+}
+
+export function prevVisibleDay(key, showWeekends) {
+  return stepVisible(key, -1, showWeekends);
+}
+
+function stepVisible(key, direction, showWeekends) {
+  let next = addDays(key, direction);
+  while (!showWeekends && isWeekend(next)) next = addDays(next, direction);
+  return next;
+}
+
+/** "Wednesday, 11 March 2026" */
+export function formatLong(key) {
+  const date = fromKey(key);
+  return `${WEEKDAYS[date.getDay()]}, ${date.getDate()} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+/** "Tue 15 Sep" */
+export function formatShort(key) {
+  const date = fromKey(key);
+  return `${WEEKDAYS[date.getDay()].slice(0, 3)} ${date.getDate()} ${MONTHS[date.getMonth()].slice(0, 3)}`;
+}
+
+export function monthName(month) {
+  return MONTHS[month];
+}
+
+export function toMonthKey(year, month) {
+  return `${year}-${pad(month + 1)}`;
+}
+
+export function fromMonthKey(monthKey) {
+  const [year, month] = monthKey.split('-').map(Number);
+  return { year, month: month - 1 };
+}
+
+export function isValidMonthKey(monthKey) {
+  if (typeof monthKey !== 'string' || !MONTH_KEY_RE.test(monthKey)) return false;
+  const { month } = fromMonthKey(monthKey);
+  return month >= 0 && month <= 11;
+}
+
+export function addMonths(monthKey, n) {
+  const { year, month } = fromMonthKey(monthKey);
+  const date = new Date(year, month + n, 1);
+  return toMonthKey(date.getFullYear(), date.getMonth());
+}
+
+/** Month key of a day key: '2026-03-11' → '2026-03'. */
+export function monthOfKey(key) {
+  return key.slice(0, 7);
+}
+
+/**
+ * Six rows of day keys for the month view. Rows hold Mon–Fri (weekends hidden) or Mon–Sun.
+ * The first row is the week containing the 1st, unless the 1st falls on a hidden weekend day,
+ * in which case the grid starts on the following Monday (SPEC §2).
+ */
+export function monthGrid(year, month, showWeekends) {
+  const first = new Date(year, month, 1);
+  const offset = (first.getDay() + 6) % 7; // days since Monday
+  const start = new Date(year, month, 1 - offset);
+  if (!showWeekends && offset > 4) start.setDate(start.getDate() + 7);
+
+  const perRow = showWeekends ? 7 : 5;
+  const rows = [];
+  for (let row = 0; row < GRID_ROWS; row += 1) {
+    const cells = [];
+    for (let col = 0; col < perRow; col += 1) {
+      const date = new Date(start);
+      date.setDate(start.getDate() + row * 7 + col);
+      cells.push(toKey(date));
+    }
+    rows.push(cells);
+  }
+  return rows;
+}

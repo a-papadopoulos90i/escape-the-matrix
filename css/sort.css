@@ -1,0 +1,251 @@
+/* sort.css — Stage 3 (place by priority): axis captions, coloured matrix, centre pile, drag ghost. */
+
+.sort__bullets {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: disc inside;
+  font-size: clamp(1.25rem, 1rem + 1.4vw, 1.75rem);
+  line-height: 1.45;
+  text-transform: uppercase;
+}
+
+/* Board grid: [ . | x-axis ] / [ y-axis | matrix + pile ] */
+.sort__board {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: var(--space-2);
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.sort__axis {
+  display: flex;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.sort__axis--x {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.sort__axis--y {
+  grid-column: 1;
+  grid-row: 2;
+  flex-direction: column;
+  width: 20px;
+}
+
+.sort__axis-cell {
+  flex: 1;
+  display: grid;
+  place-items: center;
+}
+
+.sort__axis--y .sort__axis-text {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+}
+
+/* The matrix and the pile share one cell, so a tall pile grows the matrix instead of spilling. */
+.sort__stage {
+  grid-column: 2;
+  grid-row: 2;
+  display: grid;
+}
+
+.sort__stage > .matrix {
+  grid-area: 1 / 1;
+  max-width: none;
+}
+
+.sort__pile {
+  grid-area: 1 / 1;
+  place-self: center;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: min(240px, 70%);
+  pointer-events: none; /* let taps between cards reach the quadrants underneath */
+}
+
+.sort__pile > .sort-card {
+  pointer-events: auto;
+}
+
+.sort__pile > .sort-card + .sort-card {
+  margin-top: -6px; /* overlapping pile */
+}
+
+.sort__done {
+  justify-self: center;
+  padding: 6px 14px;
+  border: 1.5px solid var(--bubble-green-border);
+  border-radius: var(--radius-pill);
+  background: var(--bubble-green);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-align: center;
+}
+
+/* ---------- Cards ---------- */
+.sort-card {
+  padding: 4px 4px 4px 10px;
+  box-shadow: var(--shadow-sm);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.sort-card__grab {
+  flex: 1;
+  min-width: 0;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  cursor: grab;
+  text-align: center;
+}
+
+.sort-card__grab:focus-visible {
+  outline-offset: 0;
+}
+
+.sort-card__menu {
+  position: relative;
+  width: 28px;
+  height: 28px;
+}
+
+.sort-card__menu::after {
+  content: "";
+  position: absolute;
+  inset: -8px; /* 44px hit area on a 28px control */
+}
+
+.sort-card__menu svg {
+  width: 16px;
+  height: 16px;
+}
+
+@media (hover: hover) {
+  .sort-card__menu {
+    opacity: 0;
+    transition: opacity var(--dur-fast);
+  }
+
+  .sort-card:hover .sort-card__menu,
+  .sort-card:focus-within .sort-card__menu,
+  .task-card--selected .sort-card__menu {
+    opacity: 1;
+  }
+}
+
+/* .sort-card's own shadow would otherwise win over the shared selected / dragging looks. */
+.sort-card.task-card--selected {
+  box-shadow: 0 0 0 3px var(--focus), var(--shadow-sm);
+}
+
+.sort-card.task-card--dragging {
+  box-shadow: var(--shadow-lg);
+}
+
+.sort-card--lifted {
+  opacity: 0.35;
+}
+
+.sort--dragging,
+.sort--dragging .sort-card__grab {
+  cursor: grabbing;
+}
+
+/* Fixed clone that follows the pointer during a drag. */
+.sort-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  margin: 0;
+  z-index: var(--z-modal);
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* Tap-to-place: quadrants advertise themselves as targets while a card is selected. */
+.sort--selecting .quadrant {
+  cursor: pointer;
+  outline: 2px dashed rgba(77, 163, 255, 0.55);
+  outline-offset: -6px;
+}
+
+.sort--selecting .quadrant:hover {
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+.sort .quadrant__caption {
+  display: none;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-align: center;
+  color: var(--muted);
+}
+
+.sort__hint {
+  margin-top: var(--space-3);
+  font-size: var(--text-xs);
+  text-align: center;
+}
+
+@media (pointer: coarse) {
+  .sort-card__grab {
+    min-height: 36px;
+  }
+}
+
+/* Narrow screens: the matrix stacks (base.css); the pile moves above it and each quadrant names
+   itself since the axis captions no longer line up. */
+@media (max-width: 639px) {
+  .sort__axis {
+    display: none;
+  }
+
+  .sort__board {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+  }
+
+  .sort__stage {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+
+  .sort__pile {
+    order: -1;
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    justify-content: center;
+  }
+
+  .sort__pile > .sort-card {
+    flex: 1 1 45%;
+  }
+
+  .sort__pile > .sort-card + .sort-card {
+    margin-top: 0;
+  }
+
+  .sort .quadrant__caption {
+    display: block;
+  }
+}

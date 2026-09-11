@@ -1,0 +1,13 @@
+{
+  "name": "escape-the-matrix-tests",
+  "private": true,
+  "type": "module",
+  "description": "Dev-only Playwright e2e + node:test unit tests for Escape the Matrix (not deployed).",
+  "scripts": {
+    "test": "playwright test",
+    "unit": "node --test unit/*.test.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}
