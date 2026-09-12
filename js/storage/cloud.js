@@ -148,11 +148,21 @@ export function createCloudAdapter({
     if (queued !== null) flush();
   }
 
-  /** Applies a server envelope when it is newer than what we last wrote or applied. */
+  /**
+   * Applies a server envelope when it is newer than what we last wrote or applied. A doc queued
+   * before this version arrived (e.g. the local copy reconciled while load() was offline) is
+   * dropped first: the merge the callback performs re-queues whatever the local side still adds,
+   * so the stale pre-merge doc can never overwrite the newer server copy.
+   */
   function applyEnvelope(envelope, callback) {
     if (!envelope || envelope.updatedAt <= syncedAt) return;
     syncedAt = envelope.updatedAt;
     remoteSig = docSignature(envelope.doc);
+    if (queued !== null) {
+      queued = null;
+      pending?.resolve();
+      pending = null;
+    }
     callback(envelope.doc);
   }
 
@@ -185,9 +195,14 @@ export function createCloudAdapter({
     save,
     flush,
 
-    /** Writes `localDoc` unless the server already holds the same content. */
+    /**
+     * Writes `localDoc` unless the server already holds the same content. A merge result can only
+     * be empty when the server holds nothing, so an empty doc (a device that was just cleared)
+     * is never reconciled over an account that has tasks.
+     */
     reconcile(localDoc) {
       if (docSignature(localDoc) === remoteSig) return;
+      if (!normalizeDoc(localDoc).tasks.length && remoteSig !== null && remoteSig !== docSignature(null)) return;
       save(localDoc);
     },
 

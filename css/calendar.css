@@ -99,6 +99,14 @@
   outline-offset: 2px;
 }
 
+/* Shown while weekend columns are on only because today is a weekend day. */
+.calendar__note {
+  max-width: var(--calendar-width);
+  margin: calc(var(--space-2) * -1) auto var(--space-3);
+  font-size: var(--text-xs);
+  text-align: right;
+}
+
 /* ---------- Grid ---------- */
 .calendar__grid {
   display: grid;

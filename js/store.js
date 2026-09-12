@@ -1,12 +1,19 @@
 // Immutable document store (SPEC §4/§5). Every mutation builds a new doc, stamps `updatedAt` on
 // the touched tasks and the doc, notifies subscribers and schedules a debounced save to every
 // attached adapter. No DOM access — the same code runs in the browser and in node tests.
+//
+// Deletes are tombstones: removeTask() keeps the task with `deleted: true` so that mergeDocs()
+// (a union by id where the newer version wins) propagates the deletion to other devices instead
+// of resurrecting the task from their copy. Tombstones are hidden from every query and pruned by
+// normalizeDoc() once they are older than TOMBSTONE_TTL_MS.
 
 export const QUADRANTS = ['do', 'plan', 'delegate', 'delete'];
 export const TIMER_MODES = ['stopwatch', 'countdown'];
+export const TOMBSTONE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 const QUADRANT_RANK = { do: 0, plan: 1, delegate: 2, delete: 3 };
 const SAVE_DELAY_MS = 150;
+const UNDO_LIMIT = 5; // one entry per visible Undo toast, with some slack
 const EPOCH = '1970-01-01T00:00:00.000Z';
 const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -39,6 +46,7 @@ function normalizeTimer(raw) {
     elapsedSec: Number.isFinite(raw.elapsedSec) ? Math.max(0, raw.elapsedSec) : 0,
     running: raw.running === true && startedAt !== null,
     stoppedAt: typeof raw.stoppedAt === 'string' ? raw.stoppedAt : null,
+    alarmedAt: typeof raw.alarmedAt === 'string' ? raw.alarmedAt : null, // countdown alarm already raised
   };
 }
 
@@ -46,6 +54,7 @@ function normalizeTimer(raw) {
 function normalizeTask(raw) {
   if (!isObject(raw) || typeof raw.id !== 'string' || !isDateKey(raw.date)) return null;
   const updatedAt = typeof raw.updatedAt === 'string' ? raw.updatedAt : EPOCH;
+  const deleted = raw.deleted === true;
   return {
     id: raw.id,
     title: typeof raw.title === 'string' ? raw.title : '',
@@ -57,20 +66,26 @@ function normalizeTask(raw) {
     createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : updatedAt,
     updatedAt,
     timer: normalizeTimer(raw.timer),
+    deleted,
+    deletedAt: deleted ? (typeof raw.deletedAt === 'string' ? raw.deletedAt : updatedAt) : null,
   };
 }
 
-/** Coerces any value into a valid doc: fills defaults, drops broken tasks, dedupes ids. */
-export function normalizeDoc(raw) {
+/**
+ * Coerces any value into a valid doc: fills defaults, drops broken tasks, dedupes ids and prunes
+ * tombstones older than TOMBSTONE_TTL_MS (`nowMs` is the reference clock, for tests).
+ */
+export function normalizeDoc(raw, nowMs = Date.now()) {
   const base = createEmptyDoc();
   if (!isObject(raw)) return base;
   const settings = isObject(raw.settings) ? raw.settings : {};
   const tipsSeen = isObject(settings.tipsSeen) ? settings.tipsSeen : {};
+  const expired = isoAt(nowMs - TOMBSTONE_TTL_MS);
   const tasks = new Map();
   if (Array.isArray(raw.tasks)) {
     for (const item of raw.tasks) {
       const task = normalizeTask(item);
-      if (task) tasks.set(task.id, task);
+      if (task && !(task.deleted && task.deletedAt < expired)) tasks.set(task.id, task);
     }
   }
   return {
@@ -81,10 +96,13 @@ export function normalizeDoc(raw) {
   };
 }
 
-/** Union of tasks by id (newer updatedAt wins); settings come from the newer doc. Pure. */
-export function mergeDocs(a, b) {
-  const left = normalizeDoc(a);
-  const right = normalizeDoc(b);
+/**
+ * Union of tasks by id (newer updatedAt wins — so a newer tombstone beats an older live copy and
+ * a later edit elsewhere revives a task); settings come from the newer doc. Pure.
+ */
+export function mergeDocs(a, b, nowMs = Date.now()) {
+  const left = normalizeDoc(a, nowMs);
+  const right = normalizeDoc(b, nowMs);
   const byId = new Map();
   for (const task of [...left.tasks, ...right.tasks]) {
     const current = byId.get(task.id);
@@ -139,15 +157,17 @@ function randomId(taken) {
  * @param {{ now?: () => number }} [options] clock override for tests
  */
 export function createStore(initialDoc, { now = Date.now } = {}) {
-  let doc = normalizeDoc(initialDoc);
+  let doc = normalizeDoc(initialDoc, now());
   const listeners = new Set();
   const errorListeners = new Set();
   const adapters = new Map(); // adapter → detach-remote function
-  let undoEntry = null;
+  let undoEntries = []; // oldest first; each entry is the token handed out by undoable()
+  let undoDepth = 0;
   let saveHandle = null;
 
   const stamp = () => isoAt(now());
-  const find = (id) => doc.tasks.find((task) => task.id === id) ?? null;
+  const live = (task) => !task.deleted;
+  const find = (id) => doc.tasks.find((task) => task.id === id && live(task)) ?? null;
 
   function notify(meta) {
     for (const listener of listeners) listener(doc, meta);
@@ -158,14 +178,22 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
     saveHandle = setTimeout(flush, SAVE_DELAY_MS);
   }
 
-  /** Saves immediately to every adapter; errors go to onError listeners, never throw. */
-  function flush() {
+  /**
+   * Saves now to every adapter; errors go to onError listeners, never throw. `immediate` also
+   * asks adapters with their own write debounce (the cloud) to write at once — for pagehide,
+   * where no timer will ever fire again.
+   */
+  function flush({ immediate = false } = {}) {
     clearTimeout(saveHandle);
     saveHandle = null;
     const snapshot = doc;
     const saves = [...adapters.keys()].map((adapter) =>
       Promise.resolve()
-        .then(() => adapter.save(snapshot))
+        .then(() => {
+          const saved = adapter.save(snapshot);
+          if (immediate && typeof adapter.flush === 'function') adapter.flush();
+          return saved;
+        })
         .catch((error) => {
           for (const listener of errorListeners) listener(error, adapter);
         }),
@@ -205,36 +233,68 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
     );
   }
 
-  /** Runs `mutate` and remembers the prior state of every task it touched, for undo(). */
+  /**
+   * Runs `mutate` and records, per touched task, the fields it changed (their prior values).
+   * Returns a token for undo(token), or null when nothing changed. Nested calls fold into the
+   * outermost one so a batch reverts as a single step.
+   */
   function undoable(mutate) {
     const before = doc.tasks;
-    mutate();
+    undoDepth += 1;
+    try {
+      mutate();
+    } finally {
+      undoDepth -= 1;
+    }
+    if (undoDepth > 0) return null;
     const beforeById = new Map(before.map((task) => [task.id, task]));
-    const afterIds = new Set(doc.tasks.map((task) => task.id));
-    const changed = [];
+    const changes = [];
     for (const task of doc.tasks) {
-      if (beforeById.get(task.id) !== task) changed.push({ id: task.id, task: beforeById.get(task.id) ?? null });
+      const prior = beforeById.get(task.id);
+      if (prior === task) continue;
+      if (!prior) {
+        changes.push({ id: task.id, patch: null, prior: null }); // created inside: undo deletes it
+        continue;
+      }
+      const patch = {};
+      for (const key of Object.keys(prior)) {
+        if (key !== 'updatedAt' && prior[key] !== task[key]) patch[key] = prior[key];
+      }
+      changes.push({ id: task.id, patch, prior });
     }
-    for (const task of before) {
-      if (!afterIds.has(task.id)) changed.push({ id: task.id, task });
-    }
-    if (changed.length) undoEntry = changed;
+    if (!changes.length) return null;
+    undoEntries.push(changes);
+    if (undoEntries.length > UNDO_LIMIT) undoEntries.shift();
+    return changes;
   }
 
-  function undo() {
-    if (!undoEntry) return false;
-    const entry = undoEntry;
-    undoEntry = null;
+  /**
+   * Reverts one recorded step. With a token, that step (each Undo toast reverts its own action);
+   * without one, the most recent step, after which nothing older can be undone (single-level).
+   * Only the fields the step changed are restored, so edits made since survive.
+   */
+  function undo(token) {
+    let entry;
+    if (token === undefined) {
+      entry = undoEntries.pop();
+      undoEntries = [];
+    } else {
+      const index = undoEntries.indexOf(token);
+      if (index < 0) return false;
+      [entry] = undoEntries.splice(index, 1);
+    }
+    if (!entry) return false;
     const at = stamp();
-    const restore = new Map(entry.map(({ id, task }) => [id, task]));
-    const kept = doc.tasks
-      .filter((task) => !(restore.has(task.id) && restore.get(task.id) === null))
-      .map((task) => (restore.has(task.id) ? { ...restore.get(task.id), updatedAt: at } : task));
-    const present = new Set(kept.map((task) => task.id));
-    const revived = entry
-      .filter(({ id, task }) => task && !present.has(id))
-      .map(({ task }) => ({ ...task, updatedAt: at }));
-    commit([...kept, ...revived], { reason: 'undo' });
+    const pending = new Map(entry.map((change) => [change.id, change]));
+    const tasks = doc.tasks.map((task) => {
+      const change = pending.get(task.id);
+      if (!change) return task;
+      pending.delete(task.id);
+      if (change.patch === null) return { ...task, deleted: true, deletedAt: at, updatedAt: at };
+      return { ...task, ...change.patch, updatedAt: at };
+    });
+    const revived = [...pending.values()].filter((change) => change.prior).map((change) => ({ ...change.prior, updatedAt: at }));
+    commit([...tasks, ...revived], { reason: 'undo' });
     return true;
   }
 
@@ -259,9 +319,12 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
 
     /** Swaps the whole doc (remote change). Notifies subscribers but never saves. */
     replace(nextDoc) {
-      doc = normalizeDoc(nextDoc);
+      doc = normalizeDoc(nextDoc, now());
       notify({ reason: 'replace' });
     },
+
+    /** The live (not deleted) task with this id, or null. */
+    findTask: find,
 
     addTask({ title, date, quadrant = null }) {
       if (!isDateKey(date)) throw new Error(`addTask: invalid date "${date}"`);
@@ -277,6 +340,8 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
         createdAt: at,
         updatedAt: at,
         timer: null,
+        deleted: false,
+        deletedAt: null,
       };
       commit([...doc.tasks, task], { reason: 'addTask', id: task.id });
       return task;
@@ -294,11 +359,23 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
       );
     },
 
+    /** Tombstones the task (stops its timer); the task disappears from every query. Returns an undo token. */
     removeTask(id) {
-      undoable(() => {
+      return undoable(() => {
         if (!find(id)) return;
+        const ms = now();
         commit(
-          doc.tasks.filter((task) => task.id !== id),
+          doc.tasks.map((task) =>
+            task.id === id
+              ? {
+                  ...task,
+                  timer: task.timer && !task.timer.stoppedAt ? stoppedTimer(task.timer, ms) : task.timer,
+                  deleted: true,
+                  deletedAt: isoAt(ms),
+                  updatedAt: isoAt(ms),
+                }
+              : task,
+          ),
           { reason: 'removeTask', id },
         );
       });
@@ -306,7 +383,7 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
 
     setQuadrant(id, quadrant) {
       const next = QUADRANTS.includes(quadrant) ? quadrant : null;
-      undoable(() => patchTask(id, () => ({ quadrant: next }), 'setQuadrant'));
+      return undoable(() => patchTask(id, () => ({ quadrant: next }), 'setQuadrant'));
     },
 
     /** Marking done also stops a live timer on that task. */
@@ -328,7 +405,7 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
 
     moveTaskToDate(id, date) {
       if (!isDateKey(date)) throw new Error(`moveTaskToDate: invalid date "${date}"`);
-      undoable(() => patchTask(id, () => ({ date }), 'moveTaskToDate'));
+      return undoable(() => patchTask(id, () => ({ date }), 'moveTaskToDate'));
     },
 
     reorderTask(id, order) {
@@ -338,11 +415,11 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
 
     /** Tasks of a day sorted by quadrant (do, plan, delegate, delete, unsorted), done last, then order. */
     tasksForDate(date) {
-      return doc.tasks.filter((task) => task.date === date).sort(compareTasks);
+      return doc.tasks.filter((task) => task.date === date && live(task)).sort(compareTasks);
     },
 
     statsForDate(date) {
-      const tasks = doc.tasks.filter((task) => task.date === date);
+      const tasks = doc.tasks.filter((task) => task.date === date && live(task));
       return { total: tasks.length, done: tasks.filter((task) => task.done).length };
     },
 
@@ -351,8 +428,9 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
     },
 
     undo,
-    canUndo: () => undoEntry !== null,
-    /** Wraps any batch of mutations so a single undo() reverts all of them. */
+    /** True when undo() has something to revert (or, with a token, when that step still can be). */
+    canUndo: (token) => (token === undefined ? undoEntries.length > 0 : undoEntries.includes(token)),
+    /** Wraps any batch of mutations so a single undo reverts all of them; returns the undo token. */
     undoable,
 
     // ----- timers -----
@@ -369,6 +447,7 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
         elapsedSec: 0,
         running: true,
         stoppedAt: null,
+        alarmedAt: null,
       };
       const next = { ...task, timer, updatedAt: at };
       commit(
@@ -406,9 +485,16 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
       return patchTask(id, ({ timer }) => ({ timer: stoppedTimer(timer, now()) }), 'stopTimer');
     },
 
-    /** The task whose timer is running or paused (not stopped), or null. */
+    /** Records that the countdown alarm was raised, so a reload does not raise it again. */
+    markTimerAlarmed(id) {
+      const task = find(id);
+      if (!task?.timer || task.timer.alarmedAt) return null;
+      return patchTask(id, ({ timer }) => ({ timer: { ...timer, alarmedAt: stamp() } }), 'alarmTimer');
+    },
+
+    /** The live task whose timer is running or paused (not stopped), or null. */
     activeTimer() {
-      return doc.tasks.find((task) => task.timer && !task.timer.stoppedAt) ?? null;
+      return doc.tasks.find((task) => live(task) && task.timer && !task.timer.stoppedAt) ?? null;
     },
 
     // ----- persistence -----
@@ -418,7 +504,7 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
       const detachRemote =
         typeof adapter.onRemote === 'function'
           ? adapter.onRemote((remoteDoc, { merge = true } = {}) =>
-              store.replace(merge ? mergeDocs(doc, remoteDoc) : remoteDoc),
+              store.replace(merge ? mergeDocs(doc, remoteDoc, now()) : remoteDoc),
             )
           : null;
       adapters.set(adapter, detachRemote);

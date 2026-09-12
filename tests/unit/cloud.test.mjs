@@ -128,6 +128,46 @@ test('a newer remote version replaces a doc queued before it arrived (no stale o
   assert.deepEqual(ids(fake.state.writes[0].doc), ['local', 'remote'], 'the merged doc was written, not the stale one');
 });
 
+test('a device that started offline does not overwrite a newer server doc it merely subsets', async () => {
+  const fake = fakeFirestore(null);
+  fake.state.readError = new Error('client is offline');
+  const { cloud } = adapterFor(fake);
+  assert.equal(await cloud.load(), null);
+
+  const store = createStore(docWith(T(1), task('old')));
+  store.attach(cloud);
+  store.subscribe((doc, meta) => meta.reason === 'replace' && cloud.reconcile(doc));
+  cloud.reconcile(store.get()); // the stale local doc is queued, held until the server is known
+
+  fake.push({ doc: docWith(T(5), task('old'), task('fromPhone')), updatedAt: T(5), email: null });
+  await sleep(25);
+  assert.deepEqual(ids(store.get()), ['fromPhone', 'old']);
+  assert.equal(fake.state.writes.length, 0, 'nothing to add: the pre-merge doc was dropped, not written');
+
+  // A local edit made meanwhile is still pushed, merged on top of the server version.
+  store.addTask({ title: 'typed here', date: '2026-03-11' });
+  await store.flush();
+  await sleep(25);
+  assert.equal(fake.state.writes.length, 1);
+  assert.equal(fake.state.writes[0].doc.tasks.length, 3);
+});
+
+test('reconcile() never pushes an empty doc over an account that has tasks (cleared device, other tab)', async () => {
+  const fake = fakeFirestore({ doc: docWith(T(2), task('r')), updatedAt: T(2), email: null });
+  const { cloud } = adapterFor(fake);
+  await cloud.load();
+  cloud.reconcile(createEmptyDoc());
+  await sleep(25);
+  assert.equal(fake.state.writes.length, 0);
+
+  const fresh = fakeFirestore(null);
+  const empty = adapterFor(fresh);
+  await empty.cloud.load();
+  empty.cloud.reconcile(docWith(T(3), task('a')));
+  await sleep(25);
+  assert.equal(fresh.state.writes.length, 1, 'a first document for a new account is still written');
+});
+
 test('onRemote applies only versions newer than the last one written or applied', async () => {
   const fake = fakeFirestore({ doc: docWith(T(2), task('r')), updatedAt: T(2), email: null });
   const { cloud } = adapterFor(fake);

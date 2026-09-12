@@ -16,7 +16,9 @@ const { t } = i18n;
 const STAGE_COUNT = 5;
 const STAGE_MODULES = { 1: calendar, 2: dump, 3: sort, 4: board, 5: board };
 // Default bubble look per stage (SPEC §2); a stage may override via data-tip-tone / data-tip-tail
-// on its [data-tip-anchor] element. Without an anchor the bubble sits under the stage header.
+// on its [data-tip-anchor] element. Without an anchor the bubble sits under the stage header —
+// which is also where every tip goes on narrow screens, where an anchored bubble would cover the
+// title, the bullet list or the very cards it explains.
 const TIP_STYLE = {
   1: { tone: 'khaki', tail: 'bottom' },
   2: { tone: 'khaki', tail: 'bottom' },
@@ -27,6 +29,7 @@ const TIP_STYLE = {
 const TRANSITION_FALLBACK_MS = 350;
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+const narrowScreen = window.matchMedia('(max-width: 639px)');
 const local = createLocalAdapter();
 let store;
 const els = {};
@@ -105,7 +108,12 @@ function renderDayBar() {
         ui.h('h2', { class: 'daybar__date' }, dates.formatLong(key)),
         isToday
           ? ui.h('span', { class: 'chip chip--today' }, t('day.today'))
-          : ui.h('button', { class: 'btn btn-ghost btn-sm', type: 'button', dataset: { focusKey: 'today' }, onClick: () => selectDay(dates.todayKey()) }, t('day.goToToday')),
+          : ui.h(
+              'button',
+              { class: 'btn btn-ghost btn-sm daybar__today', type: 'button', 'aria-label': t('day.goToToday'), title: t('day.goToToday'), dataset: { focusKey: 'today' }, onClick: () => selectDay(dates.todayKey()) },
+              ui.icon('calendar', { size: 16 }),
+              ui.h('span', { class: 'daybar__today-label' }, t('day.goToToday')), // icon only on phones
+            ),
       ),
       ui.h('button', { class: 'btn-icon', type: 'button', 'aria-label': t('day.next'), dataset: { focusKey: 'next' }, onClick: () => shiftDay(1) }, ui.icon('chevron-right')),
       ui.h(
@@ -160,10 +168,11 @@ function selectDay(key) {
   mountStage(state.stage, null);
 }
 
+/** The arrows walk the days the calendar shows (weekends are also shown while today is one). */
 function shiftDay(direction) {
-  const { showWeekends } = store.get().settings;
+  const visible = dates.weekendsVisible(store.get().settings.showWeekends);
   const step = direction > 0 ? dates.nextVisibleDay : dates.prevVisibleDay;
-  selectDay(step(state.selectedDate, showWeekends));
+  selectDay(step(state.selectedDate, visible));
 }
 
 // ---------- Tips ----------
@@ -186,16 +195,17 @@ function closeTip() {
   state.tip = null;
 }
 
-function showTip(stage = state.stage) {
+/** Shows the stage's tip; `focus` moves keyboard focus into it (when the user asked for it). */
+function showTip(stage = state.stage, { focus = false } = {}) {
   closeTip();
   const spec = i18n.tips[stage];
   const panel = state.mounted?.panel;
   if (!spec || !panel || state.mounted.stage !== stage) return;
-  const anchor = panel.querySelector('[data-tip-anchor]');
+  const anchor = narrowScreen.matches ? null : panel.querySelector('[data-tip-anchor]');
   const style = TIP_STYLE[stage];
   const tip = ui.bubble({
     content: tipContent(spec),
-    tone: anchor?.dataset.tipTone || style.tone,
+    tone: anchor?.dataset.tipTone || panel.querySelector('[data-tip-anchor]')?.dataset.tipTone || style.tone,
     tail: anchor ? anchor.dataset.tipTail || style.tail : 'bottom',
     anchor: anchor ?? undefined,
     within: panel,
@@ -207,6 +217,7 @@ function showTip(stage = state.stage) {
     const slot = panel.querySelector('[data-tip-slot]') ?? panel.querySelector('.stage-header') ?? panel;
     slot === panel ? panel.prepend(tip.el) : slot.after(tip.el);
   }
+  if (focus) tip.el.focus({ preventScroll: true });
   state.tip = tip;
 }
 
@@ -231,7 +242,7 @@ function makeCtx(stage) {
     getCalendarMonth: () => state.calendarMonth,
     setCalendarMonth,
     goTo,
-    showTip: () => showTip(state.stage),
+    showTip: () => showTip(state.stage, { focus: true }),
   };
 }
 
@@ -286,6 +297,10 @@ function goTo(stage) {
   persistUiState();
   renderStepper();
   mountStage(next, direction);
+  // The user was at the bottom of the previous stage ("Next →"): start the new one at its top,
+  // and move keyboard focus to its title so Tab continues inside the stage, not from the header.
+  window.scrollTo({ top: 0, behavior: 'auto' });
+  state.mounted.panel.querySelector('.stage-title')?.focus({ preventScroll: true });
   els.announcer.textContent = t('app.stageAnnounce', { n: next, label: i18n.stepperLabel(next) });
 }
 
@@ -306,7 +321,7 @@ function bindKeyboard() {
     if (isTyping(event.target) || ui.hasOpenOverlay()) return;
     if (event.key === 'ArrowLeft' && state.stage > 1) goTo(state.stage - 1);
     else if (event.key === 'ArrowRight' && !nextBlocked()) goTo(state.stage < STAGE_COUNT ? state.stage + 1 : 1);
-    else if (event.key === '?') showTip();
+    else if (event.key === '?') showTip(state.stage, { focus: true });
     else return;
     event.preventDefault();
   });
@@ -353,14 +368,14 @@ async function boot() {
     renderDayBar();
     renderBanner();
   });
-  window.addEventListener('pagehide', () => store.flush());
+  window.addEventListener('pagehide', () => store.flush({ immediate: true })); // no timer fires after this
 
   restoreUiState();
   els.stepperNav.setAttribute('aria-label', t('stepper.label'));
   els.skipLink.textContent = t('app.skip');
   els.tipButton.setAttribute('aria-label', t('app.tipButton'));
   els.tipButton.replaceChildren(ui.icon('question'));
-  els.tipButton.addEventListener('click', () => showTip());
+  els.tipButton.addEventListener('click', () => showTip(state.stage, { focus: true }));
 
   renderStepper();
   renderDayBar();

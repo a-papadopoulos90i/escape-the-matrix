@@ -133,7 +133,7 @@ function blankRow({ extra = false } = {}) {
 // ---------- Existing task rows ----------
 
 function findTask(id) {
-  return state.ctx.store.get().tasks.find((task) => task.id === id) ?? null;
+  return state.ctx.store.findTask(id);
 }
 
 /** Saves an edited title; an emptied row deletes the task (undoable via the toast). */
@@ -165,9 +165,9 @@ function deleteTask(id) {
   if (!findTask(id)) return;
   const row = state.tasksEl.querySelector(`[data-id="${id}"]`);
   const next = row?.contains(document.activeElement) ? inputAfter(row) : null;
-  store.removeTask(id);
+  const token = store.removeTask(id);
   next?.focus();
-  ui.toast(i18n.t('toast.deleted'), { action: { label: i18n.t('toast.undo'), onClick: () => store.undo() } });
+  ui.toast(i18n.t('toast.deleted'), { action: { label: i18n.t('toast.undo'), onClick: () => store.undo(token) } }); // this toast reverts this delete only
 }
 
 /** The input of the row below `row` (falls back to the first placeholder). */

@@ -154,7 +154,7 @@ test('"…" menu: add here, mark all done, clear done with undo, delete all only
   await page.locator('[role="menuitem"]', { hasText: 'Delete all tasks here' }).click();
   await dialog.locator('button', { hasText: 'Delete' }).click();
   await expect(card(page, 'Sort old emails')).toHaveCount(0);
-  await expect.poll(async () => (await readDoc(page)).tasks.map((t) => t.title).sort()).toEqual(['Invoice Send', 'Make - Excel Report', 'Marketing Order A5']);
+  await expect.poll(async () => (await readDoc(page)).tasks.filter((t) => !t.deleted).map((t) => t.title).sort()).toEqual(['Invoice Send', 'Make - Excel Report', 'Marketing Order A5']);
   expect(errors).toEqual([]);
 });
 
@@ -357,6 +357,128 @@ test('⏩ sends Friday tasks to Saturday when weekends are shown', async ({ page
   await popover(page).locator('.action-btn--forward').click();
   await expect(card(page, 'Invoice Send')).toHaveCount(0);
   await expect(page.locator('.toast')).toContainText(`Moved to ${formatShort(saturday)}`);
+});
+
+test('two "Undo" toasts each revert their own delete, in any order', async ({ page }) => {
+  await seed(page, { tasks: [...SORTED(), task('t_5', 'Call supplier', 'do')], stage: 5 });
+  await page.goto('/');
+  const del = async (title) => {
+    await openPopover(page, title);
+    await popover(page).locator('.task-popover__link', { hasText: 'Delete' }).click();
+    await page.locator('[role="dialog"].modal button', { hasText: 'Delete' }).click();
+    await expect(card(page, title)).toHaveCount(0);
+  };
+  await del('Marketing Order A5');
+  await del('Call supplier');
+  const undos = page.locator('.toast__action', { hasText: 'Undo' });
+  await expect(undos).toHaveCount(2);
+  await undos.first().click(); // the older toast → the older delete
+  await expect(quadrant(page, 'do').locator('.task-card')).toHaveText(['Marketing Order A5']);
+  await undos.first().click();
+  await expect(quadrant(page, 'do').locator('.task-card')).toHaveText(['Marketing Order A5', 'Call supplier']);
+  await expect(undos).toHaveCount(0);
+});
+
+test('📅 to a hidden weekend day switches weekends on so the task stays reachable', async ({ page }) => {
+  const saturday = nextWeekday(new Date(), 6);
+  await seed(page, { tasks: SORTED(), stage: 5 });
+  await page.goto('/');
+  await openPopover(page, 'Invoice Send');
+  await popover(page).locator('.action-btn--calendar').click();
+  await popover(page).locator('input[type="date"]').fill(toKey(saturday));
+  await popover(page).locator('button[type="submit"]').click();
+  await expect(card(page, 'Invoice Send')).toHaveCount(0);
+  await expect(page.locator('.toast')).toContainText(`Moved to ${formatShort(saturday)} — weekends are now shown`);
+  await waitForSaved(page, (doc) => doc.settings.showWeekends === true && taskById(doc, 't_2').date === toKey(saturday));
+  await page.locator('#stepper .step').nth(0).click();
+  await panel(page).locator('.calendar__today').click();
+  await expect(panel(page).locator('.switch__input')).toBeChecked();
+  await expect(panel(page).locator(`.calendar__day[data-key="${toKey(saturday)}"]`)).toHaveAttribute('title', '0 of 1 done');
+});
+
+test('the clock icon opens the timer picker directly; presets carry the "min" unit', async ({ page }) => {
+  await seed(page, { tasks: SORTED(), stage: 4 });
+  await page.goto('/');
+  const clock = card(page, 'Invoice Send').locator('.task-card__clock');
+  expect(await clock.evaluate((el) => el.tagName)).toBe('BUTTON');
+  await clock.click();
+  await expect(popover(page)).toBeVisible();
+  await expect(popover(page).locator('.timer-picker__preset')).toHaveText(['5', '15', '25', '45', '60']);
+  await expect(popover(page).locator('.timer-picker__unit')).toHaveText('min');
+  await popover(page).locator('.timer-picker__stopwatch').click();
+  await expect(bar(page)).toBeVisible();
+  await card(page, 'Invoice Send').locator('.task-card__clock').click();
+  await expect(popover(page).locator('.action-btn')).toHaveCount(3, 'a live timer opens the actions');
+});
+
+test('a countdown that ran out while the page was closed alarms once after the reload', async ({ page }) => {
+  const errors = collectErrors(page);
+  const timer = { mode: 'countdown', durationSec: 60, startedAt: new Date(Date.now() - 120_000).toISOString(), elapsedSec: 0, running: true, stoppedAt: null };
+  await seed(page, { tasks: [task('t_1', 'Marketing Order A5', 'do', { timer })], stage: 4 });
+  await page.goto('/');
+  await expect(bar(page)).toHaveClass(/timer-bar--finished/);
+  await expect(bar(page)).toHaveClass(/timer-bar--flash/);
+  await expect(bar(page).locator('.timer-bar__status')).toHaveText("Time's up!");
+  await waitForSaved(page, (doc) => typeof taskById(doc, 't_1').timer.alarmedAt === 'string');
+  await page.reload();
+  await expect(bar(page)).toHaveClass(/timer-bar--finished/);
+  await page.waitForTimeout(1500);
+  await expect(bar(page)).not.toHaveClass(/timer-bar--flash/, 'already acknowledged: no second alarm');
+  expect(errors).toEqual([]);
+});
+
+test('a stage change starts at the top of the page and moves focus to the new stage title', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 700 });
+  const many = Array.from({ length: 8 }, (_, i) => task(`t_${i + 1}`, `Task ${i + 1}`, 'do'));
+  await seed(page, { tasks: many, stage: 4, settings: { tipsSeen: { 1: true, 2: true, 3: true, 4: true, 5: false } } });
+  await page.goto('/');
+  const next = panel(page).locator('.stage-nav__next');
+  await next.scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
+  await next.click();
+  await expect(panel(page).locator('.stage-title')).toHaveText('fast organize');
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await expect(panel(page).locator('.stage-title')).toBeFocused();
+  const tip = page.locator('.bubble');
+  await expect(tip).toBeVisible();
+  const [tipBox, titleBox, firstCard] = await Promise.all([tip.boundingBox(), panel(page).locator('.stage-title').boundingBox(), card(page, 'Task 1').boundingBox()]);
+  expect(tipBox.y).toBeGreaterThanOrEqual(titleBox.y + titleBox.height - 1);
+  expect(firstCard.y).toBeGreaterThanOrEqual(tipBox.y + tipBox.height - 1);
+});
+
+test('keyboard: ? focuses the tip, Escape closes it and returns focus; Tab stays inside the popover', async ({ page }) => {
+  await seed(page, { tasks: SORTED(), stage: 5 });
+  await page.goto('/');
+  await page.locator('#tip-button').focus();
+  await page.keyboard.press('Enter');
+  const tip = page.locator('.bubble');
+  await expect(tip).toBeVisible();
+  await expect(tip).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(tip).toHaveCount(0);
+  await expect(page.locator('#tip-button')).toBeFocused();
+
+  await openPopover(page, 'Marketing Order A5');
+  const links = popover(page).locator('.task-popover__link');
+  await links.last().focus();
+  await page.keyboard.press('Tab');
+  await expect(popover(page)).toBeVisible();
+  expect(await page.evaluate(() => document.activeElement.closest('.popover--task') !== null)).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(popover(page)).toHaveCount(0);
+});
+
+test('desktop: one long quadrant does not stretch the other three', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const many = Array.from({ length: 25 }, (_, i) => task(`t_${i + 10}`, `Task ${i + 1}`, 'do'));
+  await seed(page, { tasks: [...many, task('t_2', 'Invoice Send', 'delegate'), task('t_3', 'Make - Excel Report', 'plan')], stage: 4 });
+  await page.goto('/');
+  const heights = {};
+  for (const q of ['do', 'plan', 'delegate', 'delete']) heights[q] = (await quadrant(page, q).boundingBox()).height;
+  expect(heights.do).toBeGreaterThan(900);
+  expect(heights.plan).toBeLessThan(400);
+  expect(heights.delegate).toBeLessThan(400);
+  expect(heights.delete).toBeLessThan(400);
 });
 
 test('tips: "Done mark ✅" on stage 4 and the dark list on stage 5; ? re-opens them', async ({ page }) => {

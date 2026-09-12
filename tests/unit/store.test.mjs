@@ -4,6 +4,7 @@ import { QUADRANTS, createEmptyDoc, createStore, mergeDocs, normalizeDoc, timerE
 
 const DAY = '2026-03-11';
 const OTHER_DAY = '2026-03-12';
+const T = (day) => `2026-03-${day}T00:00:00.000Z`;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Controllable clock so timer maths is deterministic. */
@@ -93,18 +94,56 @@ test('setQuadrant validates and is undoable', () => {
   assert.equal(store.get().tasks[0].quadrant, null);
 });
 
-test('removeTask + undo restores the task with its fields', () => {
+test('removeTask leaves a hidden tombstone; undo restores the task with its fields', () => {
   const { store } = makeStore();
   const task = store.addTask({ title: 'keep me', date: DAY, quadrant: 'delegate' });
+  store.startTimer(task.id, { mode: 'stopwatch' });
   store.removeTask(task.id);
-  assert.equal(store.get().tasks.length, 0);
+  assert.equal(store.tasksForDate(DAY).length, 0);
+  assert.deepEqual(store.statsForDate(DAY), { total: 0, done: 0 });
+  assert.equal(store.findTask(task.id), null);
+  assert.equal(store.activeTimer(), null, 'a deleted task cannot keep the only timer slot');
+  const tombstone = store.get().tasks[0];
+  assert.equal(tombstone.deleted, true);
+  assert.equal(typeof tombstone.deletedAt, 'string');
   assert.equal(store.undo(), true);
-  const restored = store.get().tasks[0];
-  assert.equal(restored.id, task.id);
+  const restored = store.findTask(task.id);
   assert.equal(restored.title, 'keep me');
   assert.equal(restored.quadrant, 'delegate');
-  store.removeTask('missing-id');
-  assert.equal(store.get().tasks.length, 1);
+  assert.equal(restored.deleted, false);
+  assert.equal(restored.deletedAt, null);
+  assert.equal(store.removeTask('missing-id'), null);
+  assert.equal(store.tasksForDate(DAY).length, 1);
+});
+
+test('each undo token reverts its own step, so stacked "Undo" toasts never revert the wrong delete', () => {
+  const { store } = makeStore();
+  const a = store.addTask({ title: 'a', date: DAY });
+  const b = store.addTask({ title: 'b', date: DAY });
+  const tokenA = store.removeTask(a.id);
+  const tokenB = store.removeTask(b.id);
+  assert.ok(tokenA && tokenB && tokenA !== tokenB);
+  assert.equal(store.canUndo(tokenA), true);
+  assert.equal(store.undo(tokenA), true, 'the older step is still undoable by its token');
+  assert.deepEqual(store.tasksForDate(DAY).map((task) => task.title), ['a']);
+  assert.equal(store.undo(tokenA), false, 'a token works once');
+  assert.equal(store.canUndo(tokenA), false);
+  assert.equal(store.undo(tokenB), true);
+  assert.deepEqual(store.tasksForDate(DAY).map((task) => task.title).sort(), ['a', 'b']);
+  assert.equal(store.undo({}), false, 'unknown tokens are ignored');
+});
+
+test('undo restores only the fields the step changed: later edits survive', () => {
+  const { store } = makeStore();
+  const task = store.addTask({ title: 'old title', date: DAY, quadrant: 'do' });
+  const token = store.moveTaskToDate(task.id, OTHER_DAY);
+  store.updateTask(task.id, { title: 'new title' });
+  store.toggleDone(task.id, true);
+  assert.equal(store.undo(token), true);
+  const back = store.findTask(task.id);
+  assert.equal(back.date, DAY);
+  assert.equal(back.title, 'new title');
+  assert.equal(back.done, true);
 });
 
 test('moveTaskToDate + undo', () => {
@@ -125,7 +164,7 @@ test('undo is single-level: only the last undoable mutation reverts', () => {
   store.removeTask(a.id);
   store.removeTask(b.id);
   assert.equal(store.undo(), true);
-  assert.deepEqual(store.get().tasks.map((task) => task.id), [b.id]);
+  assert.deepEqual(store.tasksForDate(DAY).map((task) => task.id), [b.id]);
   assert.equal(store.undo(), false);
 });
 
@@ -232,6 +271,34 @@ test('timers: countdown remaining and only one live timer at a time', () => {
   assert.throws(() => store.startTimer(a.id, { mode: 'nope' }));
 });
 
+test('markTimerAlarmed stamps the countdown once; a fresh timer starts unstamped', () => {
+  const { store, clock } = makeStore();
+  const task = store.addTask({ title: 'a', date: DAY });
+  store.startTimer(task.id, { mode: 'countdown', durationSec: 5 });
+  assert.equal(store.findTask(task.id).timer.alarmedAt, null);
+  clock.tick(10);
+  assert.equal(typeof store.markTimerAlarmed(task.id).timer.alarmedAt, 'string');
+  assert.equal(store.markTimerAlarmed(task.id), null, 'second call is a no-op');
+  const reloaded = createStore(JSON.parse(JSON.stringify(store.get())), { now: clock.now });
+  assert.equal(typeof reloaded.activeTimer().timer.alarmedAt, 'string', 'the stamp persists');
+  store.startTimer(task.id, { mode: 'countdown', durationSec: 5 });
+  assert.equal(store.findTask(task.id).timer.alarmedAt, null);
+});
+
+test('flush({ immediate: true }) also asks adapters with their own debounce to write now', async () => {
+  const { store } = makeStore();
+  const adapter = fakeAdapter();
+  adapter.flushes = 0;
+  adapter.flush = () => { adapter.flushes += 1; };
+  store.attach(adapter);
+  store.addTask({ title: 'a', date: DAY });
+  await store.flush();
+  assert.equal(adapter.flushes, 0);
+  await store.flush({ immediate: true });
+  assert.equal(adapter.flushes, 1);
+  assert.equal(adapter.saves.length, 2);
+});
+
 test('timer state survives a reload through normalizeDoc', () => {
   const { store, clock } = makeStore();
   const task = store.addTask({ title: 'a', date: DAY });
@@ -326,6 +393,52 @@ test('mergeDocs unions tasks by id, newer updatedAt wins, settings from the newe
   const reversed = mergeDocs(b, a);
   assert.equal(reversed.settings.showWeekends, true, 'order of arguments does not matter');
   assert.deepEqual(mergeDocs(null, undefined).tasks, []);
+});
+
+test('mergeDocs propagates deletions: a newer tombstone beats an older live copy and vice versa', () => {
+  const live = { id: 't_1', date: DAY, title: 'x', quadrant: 'do', order: 1, done: false, createdAt: T('01'), updatedAt: T('05') };
+  const tombstone = { ...live, deleted: true, deletedAt: T('06'), updatedAt: T('06') };
+  const deviceA = { updatedAt: T('06'), tasks: [tombstone] }; // deleted here
+  const deviceB = { updatedAt: T('05'), tasks: [live, { ...live, id: 't_2', title: 'only on B' }] }; // still has it
+  const NOW = Date.UTC(2026, 2, 11); // the merge prunes tombstones against this clock
+  for (const merged of [mergeDocs(deviceA, deviceB, NOW), mergeDocs(deviceB, deviceA, NOW)]) {
+    assert.equal(merged.tasks.find((task) => task.id === 't_1').deleted, true, 'the delete wins and syncs');
+    assert.equal(merged.tasks.find((task) => task.id === 't_2').deleted, false, 'unknown tasks are still unioned');
+  }
+  const edited = { ...live, title: 'edited after the delete', updatedAt: T('07') };
+  const revived = mergeDocs({ tasks: [tombstone] }, { tasks: [edited] }, NOW).tasks[0];
+  assert.equal(revived.deleted, false, 'a later edit elsewhere revives the task (newer wins)');
+  assert.equal(revived.title, 'edited after the delete');
+
+  // A store receiving a remote snapshot with the tombstone hides the task at once.
+  const { store } = makeStore();
+  const adapter = fakeAdapter();
+  store.attach(adapter);
+  store.replace(deviceB);
+  assert.equal(store.tasksForDate(DAY).length, 2);
+  adapter.remote(deviceA);
+  assert.deepEqual(store.tasksForDate(DAY).map((task) => task.id), ['t_2']);
+  assert.equal(store.get().tasks.length, 2, 'the tombstone stays in the doc to be written back');
+});
+
+test('normalizeDoc prunes tombstones older than 30 days and keeps fresh ones', () => {
+  const nowMs = Date.UTC(2026, 2, 11);
+  const base = { id: 't', date: DAY, title: 'x', deleted: true, updatedAt: '2026-01-01T00:00:00.000Z' };
+  const doc = normalizeDoc(
+    {
+      tasks: [
+        { ...base, id: 't_old', deletedAt: new Date(nowMs - 31 * 24 * 3600 * 1000).toISOString() },
+        { ...base, id: 't_fresh', deletedAt: new Date(nowMs - 29 * 24 * 3600 * 1000).toISOString() },
+        { ...base, id: 't_live', deleted: false },
+      ],
+    },
+    nowMs,
+  );
+  assert.deepEqual(doc.tasks.map((task) => task.id), ['t_fresh', 't_live']);
+  assert.equal(doc.tasks[1].deleted, false);
+  assert.equal(doc.tasks[1].deletedAt, null);
+  const legacy = normalizeDoc({ tasks: [{ id: 't_legacy', date: DAY, title: 'from v1 without the field' }] }, nowMs);
+  assert.equal(legacy.tasks[0].deleted, false, 'documents written before tombstones existed load as live tasks');
 });
 
 test('normalizeDoc drops invalid tasks, dedupes ids and keeps valid quadrants', () => {

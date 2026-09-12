@@ -295,6 +295,10 @@ a {
   white-space: nowrap;
 }
 
+.daybar__today {
+  gap: 6px;
+}
+
 .meter {
   width: 64px;
   height: 6px;
@@ -434,6 +438,11 @@ a {
   font-weight: 400;
   line-height: 1.25;
   text-wrap: balance;
+}
+
+.stage-title:focus-visible {
+  outline-offset: 6px;
+  border-radius: var(--radius-sm);
 }
 
 .stage-title__accent {
@@ -582,6 +591,17 @@ a {
     width: var(--touch);
     height: var(--touch);
   }
+
+  .bubble {
+    padding-right: 52px;
+  }
+
+  .bubble__close {
+    top: 0;
+    right: 0;
+    width: var(--touch);
+    height: var(--touch);
+  }
 }
 
 /* ---------- Speech bubbles ---------- */
@@ -604,8 +624,15 @@ a {
   box-shadow: var(--shadow-md);
 }
 
+/* Anchored bubbles float over the stage; they must never block what they point at (a quadrant
+   being dragged into, a card being tapped), so pointer input passes through everything but ✕. */
 .bubble--positioned {
   position: absolute;
+  pointer-events: none;
+}
+
+.bubble--positioned .bubble__close {
+  pointer-events: auto;
 }
 
 /* Un-anchored tips (a stage without [data-tip-anchor]) sit centred under the stage header. */
@@ -928,7 +955,11 @@ body.has-modal {
 .menu__item:hover,
 .menu__item:focus-visible {
   background: var(--hover);
-  outline: none;
+}
+
+.menu__item:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
 }
 
 .menu__item:disabled {
@@ -1049,7 +1080,6 @@ body.has-modal {
   color: var(--ink);
   font-size: var(--text-sm);
   text-align: center;
-  touch-action: none;
 }
 
 .task-card__title {
@@ -1085,6 +1115,12 @@ body.has-modal {
 }
 
 @media (max-width: 767px) {
+  /* Two header rows would keep ~130px of a phone screen pinned; stage changes start at the top
+     anyway, so the header simply scrolls with the page here. */
+  .app-header {
+    position: static;
+  }
+
   .app-header__inner {
     grid-template-columns: 1fr auto;
     grid-template-areas:
@@ -1126,6 +1162,9 @@ body.has-modal {
     display: grid;
     grid-template-columns: auto 1fr auto;
     justify-items: center;
+    row-gap: var(--space-1);
+    padding-top: var(--space-1);
+    padding-bottom: var(--space-1);
   }
 
   .daybar__center {
@@ -1156,10 +1195,26 @@ body.has-modal {
   }
 
   .brand__name {
-    display: none;
+    font-size: var(--text-sm);
   }
 
   .daybar__date {
     font-size: var(--text-sm);
+  }
+
+  /* "Go to today" shrinks to its icon so the date row stays a single line. */
+  .daybar__today {
+    width: var(--touch);
+    min-height: var(--touch);
+    padding: 0;
+  }
+
+  .daybar__today-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 }

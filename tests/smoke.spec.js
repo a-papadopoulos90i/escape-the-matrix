@@ -143,6 +143,7 @@ test('per-device UI state (stage + selected day) is restored and day arrows move
       ],
     },
   });
+  await page.clock.setFixedTime(new Date(2026, 2, 11, 9, 0, 0)); // a weekday: on a real weekend the arrows would show Sat/Sun
   await page.goto('/');
   await expect(activeTitle(page)).toHaveText(TITLES[3]);
   await expect(page.locator('.daybar__date')).toHaveText('Wednesday, 11 March 2026');
@@ -165,7 +166,7 @@ test('"Sign in with Google" opens the not-connected modal when firebaseConfig is
   await page.locator('#account button').click();
   const dialog = page.locator('[role="dialog"]');
   await expect(dialog).toContainText('Google sign-in is not connected yet');
-  await expect(dialog.locator('a[href="./SETUP.md"]')).toBeVisible();
+  await expect(dialog.locator('a[href="https://github.com/a-papadopoulos90i/escape-the-matrix/blob/main/SETUP.md"]')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
 });

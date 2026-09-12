@@ -69,6 +69,9 @@ function collectErrors(page) {
   return errors;
 }
 
+/** Pins "today" to Wednesday 11 March 2026: on a real weekend the calendar shows Sat/Sun columns. */
+const onAWeekday = (page) => page.clock.setFixedTime(new Date(2026, 2, 11, 9, 0, 0));
+
 const panel = (page) => page.locator('#stage .panel:not(.panel--ghost)');
 const cells = (page) => panel(page).locator('.calendar__day');
 const cell = (page, key) => panel(page).locator(`.calendar__day[data-key="${key}"]`);
@@ -95,6 +98,7 @@ const metrics = (page, key) =>
 
 test('March 2026 renders Mon–Fri, six rows, starting on Mar 2 (SPEC §2 grid rule)', async ({ page }) => {
   const errors = collectErrors(page);
+  await onAWeekday(page);
   await seed(page);
   await page.goto('/');
 
@@ -172,6 +176,7 @@ test('today gets the 2px blue border and aria-current="date"', async ({ page }) 
 });
 
 test('"Show weekends" adds Sat/Sun columns and persists across reload', async ({ page }) => {
+  await onAWeekday(page);
   await seed(page);
   await page.goto('/');
   const toggle = weekendSwitch(page);
@@ -196,6 +201,7 @@ test('"Show weekends" adds Sat/Sun columns and persists across reload', async ({
 });
 
 test('‹ › change the displayed month, update the title and persist the month', async ({ page }) => {
+  await onAWeekday(page);
   await seed(page);
   await page.goto('/');
   const next = panel(page).locator('[aria-label="Next month"]');
@@ -237,6 +243,7 @@ test('clicking an empty day opens Stage 2, a day with tasks opens Stage 4', asyn
 });
 
 test('keyboard: arrows move between cells without leaving the stage; Enter opens the day', async ({ page }) => {
+  await onAWeekday(page);
   await seed(page);
   await page.goto('/');
 
@@ -276,6 +283,48 @@ test('re-renders when the document changes underneath (cross-tab storage event)'
   expect((await metrics(page, '2026-03-02')).ratio).toBeCloseTo(1, 1);
   await expect(cell(page, '2026-03-16')).toHaveClass(/calendar__day--planned/);
   await expect(cell(page, '2026-03-05')).toHaveAttribute('title', 'No tasks yet');
+});
+
+test('on a weekend, weekends are shown (with a note) so today is outlined and reachable; the setting stays off', async ({ page }) => {
+  await page.clock.setFixedTime(new Date(2026, 2, 14, 9, 0, 0)); // Saturday 14 March 2026
+  await seed(page, { ui: { selectedDate: '2026-03-14', stage: 1, calendarMonth: '2026-03' } });
+  await page.goto('/');
+  await expect(weekdays(page)).toHaveCount(7);
+  await expect(weekendSwitch(page)).not.toBeChecked();
+  await expect(panel(page).locator('.calendar__note')).toHaveText('Today is Saturday, so weekends are shown.');
+  const today = panel(page).locator('.calendar__day--today');
+  await expect(today).toHaveAttribute('data-key', '2026-03-14');
+  expect((await metrics(page, '2026-03-14')).borderColor).toBe(TODAY_BLUE);
+  await panel(page).locator('.calendar__today').click();
+  await expect(today).toBeFocused();
+  await expect(page.locator('#daybar .chip--today')).toHaveText('Today');
+
+  // The day-bar arrows walk through the weekend too.
+  await page.locator('#daybar [aria-label="Previous day"]').click();
+  await expect(page.locator('.daybar__date')).toHaveText('Friday, 13 March 2026');
+  await page.locator('#daybar [aria-label="Next day"]').click();
+  await expect(page.locator('.daybar__date')).toHaveText('Saturday, 14 March 2026');
+
+  // Tasks written for Saturday show up on its cell.
+  await cell(page, '2026-03-14').click();
+  await expect(panel(page)).toHaveAttribute('data-stage', '2');
+  await panel(page).locator('.dump-row--blank input').first().fill('Weekend chore');
+  await page.keyboard.press('Enter');
+  await page.locator('#stepper .step').nth(0).click();
+  await expect(cell(page, '2026-03-14')).toHaveClass(/calendar__day--planned/);
+  await expect(panel(page).locator('.calendar__note')).toBeVisible();
+});
+
+test('another tab clearing the saved document empties this one too (cross-tab "clear this device")', async ({ page }) => {
+  await seed(page);
+  await page.goto('/');
+  await expect(cell(page, '2026-03-02')).toHaveAttribute('title', '3 of 5 done');
+  await page.evaluate((docKey) => {
+    localStorage.removeItem(docKey);
+    window.dispatchEvent(new StorageEvent('storage', { key: docKey, oldValue: '{}', newValue: null, storageArea: localStorage }));
+  }, DOC_KEY);
+  await expect(cell(page, '2026-03-02')).toHaveAttribute('title', 'No tasks yet');
+  await expect(panel(page).locator('.calendar__day--planned')).toHaveCount(0);
 });
 
 test('stage tip shows on first visit, anchored inside the panel', async ({ page }) => {

@@ -14,6 +14,11 @@ const CANCELLED_CODES = new Set(['auth/popup-closed-by-user', 'auth/cancelled-po
 const STATUS_KEYS = { synced: 'account.synced', syncing: 'account.syncing', offline: 'account.offline', error: 'account.syncError' };
 const FLUSH_TIMEOUT_MS = 3000; // a save stuck offline must not block signing out (localStorage has the data)
 
+/** Firestore rejects a document over 1 MiB with invalid-argument; retrying cannot fix that, so the user is told. */
+function isTooLarge(error) {
+  return error?.code === 'invalid-argument' || /exceeds the maximum size|too large/i.test(error?.message ?? '');
+}
+
 /** Loads the Firebase v10 modular SDK from gstatic and returns its functions as one flat object. */
 export async function loadFirebase() {
   const modules = await Promise.all(SDK_MODULES.map((file) => import(SDK_BASE + file)));
@@ -124,7 +129,12 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignO
       user = null;
       statusNodes = [];
       slot.replaceChildren(
-        ui.h('button', { class: 'btn btn-google', type: 'button', onClick: onSignIn }, ui.icon('google', { size: 18 }), t('account.signIn')),
+        ui.h(
+          'button',
+          { class: 'btn btn-google', type: 'button', onClick: onSignIn },
+          ui.icon('google', { size: 18 }),
+          ui.h('span', { class: 'btn-google__label' }, t('account.signIn')), // visually hidden on phones, still the accessible name
+        ),
       );
     },
 
@@ -175,7 +185,8 @@ function showNotConnected(ui, i18n) {
       'div',
       null,
       ui.h('p', null, t('account.notConnected.body')),
-      ui.h('p', null, ui.h('a', { href: './SETUP.md', target: '_blank', rel: 'noopener' }, t('account.notConnected.link'))),
+      // The rendered guide on GitHub: GitHub Pages would serve ./SETUP.md as raw Markdown.
+      ui.h('p', null, ui.h('a', { href: t('account.notConnected.url'), target: '_blank', rel: 'noopener' }, t('account.notConnected.link'))),
     ),
     actions: [{ label: t('common.ok'), primary: true }],
   });
@@ -196,6 +207,7 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
   const local = createLocalAdapter();
   let link = null; // { cloud, detach, unsubscribe } while a cloud adapter is attached
   let generation = 0; // bumps on every connect/disconnect so stale async work bails out
+  let warnedTooLarge = false;
 
   async function connect(user) {
     const current = ++generation;
@@ -206,7 +218,14 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
       uid: user.uid,
       email: user.email,
       firestore: sdk,
-      onStatus: (status) => current === generation && view.setStatus(status),
+      onStatus: (status, error) => {
+        if (current !== generation) return;
+        view.setStatus(status);
+        if (status === 'error' && isTooLarge(error) && !warnedTooLarge) {
+          warnedTooLarge = true;
+          ui.toast(t('account.tooLarge'), { duration: 0 });
+        }
+      },
     });
     const remote = await cloud.load();
     if (current !== generation) return cloud.dispose(); // signed out meanwhile

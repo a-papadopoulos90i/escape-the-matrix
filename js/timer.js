@@ -1,7 +1,9 @@
 // Timer engine for the board (SPEC §2 Stage 5). The persisted state lives in the store
 // (task.timer: startedAt + elapsedSec, so it survives reloads); this module ticks once a second,
 // keeps the task-card clocks and the floating bottom bar in sync, and raises the countdown alarm
-// (WebAudio beep, bar flash, browser notification when permission was granted earlier).
+// (WebAudio beep, bar flash, browser notification when permission was granted). The alarm is
+// stamped on the timer (`alarmedAt`), so a countdown that ran out while the page was closed still
+// alarms once on the next load — and never twice.
 // Mounted once at document level by app.js at boot, so the bar shows on every stage after a reload.
 import { timerElapsed, timerRemaining } from './store.js';
 import { h, icon, confirm } from './ui.js';
@@ -11,7 +13,7 @@ const TICK_MS = 1000;
 const FLASH_MS = 3000;
 const BEEP_HZ = 880;
 const BEEP_OFFSETS = [0, 0.25, 0.5]; // three short beeps
-const TIMER_REASONS = new Set(['startTimer', 'pauseTimer', 'resumeTimer', 'stopTimer']);
+const TIMER_REASONS = new Set(['startTimer', 'pauseTimer', 'resumeTimer', 'stopTimer', 'alarmTimer']);
 
 let store = null;
 let bar = null; // { el, title, status, time, pause }
@@ -19,7 +21,6 @@ let unsubscribe = null;
 let interval = null;
 let flashHandle = null;
 let audio = null;
-let watched = { id: null, remaining: 0 }; // last seen countdown remaining, to detect the 0 crossing
 
 // ---------- Public API ----------
 
@@ -44,7 +45,6 @@ export function destroy() {
   bar.el.remove();
   bar = null;
   store = null;
-  watched = { id: null, remaining: 0 };
 }
 
 /** True for store changes that only touch timers (the board refreshes clocks instead of re-rendering). */
@@ -97,17 +97,29 @@ export function renderClock(el, task, now = Date.now()) {
  */
 export async function start(task, { mode, durationSec = 0 }) {
   unlockAudio(); // must happen inside the user gesture, before any await
+  if (mode === 'countdown') requestNotificationPermission(); // likewise
   const active = store.activeTimer();
   if (active && active.id !== task.id && !(await confirm(t('timer.replace')))) return false;
   store.startTimer(task.id, { mode, durationSec });
   return true;
 }
 
+/** Asks once (per account) for notification permission, from inside the gesture that starts a countdown. */
+function requestNotificationPermission() {
+  if (typeof Notification === 'undefined' || Notification.permission !== 'default') return;
+  if (store.get().settings.notificationsAsked) return;
+  store.setSetting('notificationsAsked', true);
+  try {
+    Promise.resolve(Notification.requestPermission()).catch(() => {});
+  } catch {
+    /* unavailable in this context */
+  }
+}
+
 // ---------- Store sync & ticking ----------
 
 function sync() {
   const task = store.activeTimer();
-  if (task?.id !== watched.id) watched = { id: task?.id ?? null, remaining: task ? timerRemaining(task.timer) : 0 };
   renderBar(task);
   tick();
   setTicking(task?.timer.running === true);
@@ -130,10 +142,9 @@ function tick() {
     renderClock(el, task, now);
   }
   updateBarTime(task, now);
-  if (task.timer.mode !== 'countdown' || !task.timer.running) return;
-  const remaining = timerRemaining(task.timer, now);
-  if (watched.remaining > 0 && remaining <= 0) raiseAlarm(task);
-  watched.remaining = remaining;
+  const { timer } = task;
+  if (timer.mode !== 'countdown' || !timer.running || timer.alarmedAt) return;
+  if (timerRemaining(timer, now) <= 0) raiseAlarm(task);
 }
 
 function onVisibilityChange() {
@@ -199,6 +210,7 @@ function updateBarTime(task, now) {
 // ---------- Alarm ----------
 
 function raiseAlarm(task) {
+  store.markTimerAlarmed(task.id); // first: the store change re-enters tick(), which must not alarm again
   beep();
   flashBar();
   notify(task);
@@ -233,10 +245,14 @@ function unlockAudio() {
   }
 }
 
-/** Three short sine beeps generated with an OscillatorNode — no audio files. */
+/**
+ * Three short sine beeps generated with an OscillatorNode — no audio files. Skipped while the
+ * context is still suspended (no user gesture yet, e.g. an alarm raised right after a reload):
+ * queued beeps would otherwise all fire at once on the user's next click.
+ */
 function beep() {
   unlockAudio();
-  if (!audio) return;
+  if (!audio || audio.state !== 'running') return;
   try {
     const at = audio.currentTime;
     for (const offset of BEEP_OFFSETS) {

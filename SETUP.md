@@ -130,7 +130,7 @@ works locally too once Parts A–F are done. Stop the server with `Ctrl+C`.
 
 - The site is served by **GitHub Pages** straight from the repository: **Settings → Pages →
   Build and deployment → Source: Deploy from a branch → Branch: `main`, folder `/ (root)`**.
-- Every push to `main` republishes the site at `https://a-papadopoulos90i.github.io/<repository-name>/`.
+- Every push to `main` republishes the site at <https://a-papadopoulos90i.github.io/escape-the-matrix/>.
 - Nothing is compiled or bundled: `index.html`, `css/` and `js/` are served as-is. All URLs inside
   the app are relative (`./js/app.js`, `./css/base.css`), which is what makes the sub-path work.
 - The `tests/` folder is development-only and is never referenced by the site.
@@ -140,7 +140,8 @@ works locally too once Parts A–F are done. Stop the server with `Ctrl+C`.
 - Each user has **one** Firestore document, `users/{uid}`, holding `{ doc, updatedAt, email }` —
   `doc` is exactly the same JSON the app keeps in `localStorage`.
 - **Signing in** loads that document, merges it with the local free-mode data (union of tasks; the
-  newer copy of a task wins) and writes the result back to both places.
+  newer copy of a task wins) and writes the result back to both places. A deleted task is kept for
+  30 days as a hidden "deleted" marker so the deletion reaches your other devices too.
 - While signed in, every change is written to **localStorage and Firestore** (saves are debounced
   and coalesced). Firestore pushes other devices' changes back live; echoes of the device's own
   writes are ignored.
@@ -156,7 +157,7 @@ works locally too once Parts A–F are done. Stop the server with `Ctrl+C`.
 | Clicking **Sign in with Google** shows "Google sign-in is not connected yet" | `firebaseConfig` is still `null` in `js/firebase-config.js` (Part D), or the deployed site does not have your change yet. |
 | Popup says **`auth/unauthorized-domain`** | The site's domain is not in **Authentication → Settings → Authorized domains** (Part E). |
 | Popup opens and closes, toast "Sign-in failed" | Google provider not enabled (Part B), or the browser blocked third-party cookies for the popup. Try again or allow popups for the site. |
-| The popup is blocked | The app automatically falls back to a full-page redirect sign-in. If the redirect returns you signed out, check that `authDomain` in the config is your `*.firebaseapp.com` domain. |
+| The popup is blocked | The app falls back to a full-page redirect sign-in. Current browsers (Chrome 115+, Safari, Firefox) block the storage that redirect needs when the site (`github.io`) and the `authDomain` (`*.firebaseapp.com`) differ, so the redirect may bring you back signed out. In that case allow pop-ups for the site and click **Sign in with Google** again. |
 | Signed in, but the dot is red and the menu says "Not synced — will retry" | Firestore rejects the write: rules not published (Part F) or the database was not created. Check **Firestore Database → Rules**. |
 | Dot is gray / "Offline" | The browser reports no network. Changes are kept locally and sent when you are back online. |
 | Tasks from another device do not appear | Make sure both devices are signed in with the **same** Google account and both show "Synced ✓". |

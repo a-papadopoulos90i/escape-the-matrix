@@ -14,6 +14,7 @@ export function mount(container, context) {
 
   els.grid = ui.h('div', { class: 'calendar__grid', role: 'group', onKeydown: onGridKeydown });
   els.month = ui.h('p', { class: 'calendar__month', 'aria-live': 'polite' });
+  els.note = ui.h('p', { class: 'calendar__note text-muted', hidden: true });
   els.toggle = ui.h('input', {
     class: 'switch__input',
     type: 'checkbox',
@@ -26,6 +27,7 @@ export function mount(container, context) {
     { class: 'stage-body calendar' },
     ui.stageHeader({ stage: 1, title: '' }),
     toolbar(),
+    els.note,
     els.grid,
     legend(),
     ui.stageNav({ onNext: () => ctx.goTo(2) }),
@@ -89,10 +91,15 @@ function legend() {
 
 // ---------- Rendering ----------
 
-/** Rebuilds the title, month label and every day cell for the displayed month. */
+/**
+ * Rebuilds the title, month label and every day cell for the displayed month. Weekend columns
+ * follow the setting — except while today is a weekend day, when they are shown regardless
+ * (with a note) so today's cell always exists; the switch keeps reflecting the setting.
+ */
 function render() {
   const { store, dates, i18n: { t }, ui } = ctx;
   const { showWeekends } = store.get().settings;
+  const weekendsShown = dates.weekendsVisible(showWeekends);
   const { year, month } = dates.fromMonthKey(ctx.getCalendarMonth());
   const monthLabel = `${dates.monthName(month)} ${year}`;
 
@@ -100,12 +107,14 @@ function render() {
   els.month.textContent = monthLabel;
   els.grid.setAttribute('aria-label', monthLabel);
   els.toggle.checked = showWeekends;
+  els.note.hidden = !(weekendsShown && !showWeekends);
+  els.note.textContent = els.note.hidden ? '' : t('calendar.weekendNote', { weekday: dates.weekdayName(dates.todayKey()) });
 
-  const rows = dates.monthGrid(year, month, showWeekends);
+  const rows = dates.monthGrid(year, month, weekendsShown);
   const keys = rows.flat();
   cols = rows[0].length;
   root.style.setProperty('--cols', cols);
-  root.classList.toggle('calendar--weekends', showWeekends);
+  root.classList.toggle('calendar--weekends', weekendsShown);
 
   // Roving tabindex: one cell is tabbable — the focused one (re-render), else selected, today, first.
   const focusedKey = document.activeElement?.dataset?.key;

@@ -49,6 +49,19 @@ export function weekdayIndex(key) {
   return (fromKey(key).getDay() + 6) % 7;
 }
 
+/**
+ * Whether the calendar and day-bar arrows should show weekend days: the setting, or — so that
+ * "today" is never a hidden day — whenever today itself falls on a weekend.
+ */
+export function weekendsVisible(showWeekends, now = new Date()) {
+  return Boolean(showWeekends) || isWeekend(todayKey(now));
+}
+
+/** Weekday name of a key, e.g. "Saturday". */
+export function weekdayName(key) {
+  return WEEKDAYS[fromKey(key).getDay()];
+}
+
 export function nextVisibleDay(key, showWeekends) {
   return stepVisible(key, 1, showWeekends);
 }

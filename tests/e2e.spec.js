@@ -117,9 +117,11 @@ async function mouseDrag(page, from, to) {
   await page.mouse.move(to.x, to.y, { steps: 12 });
 }
 
+/** A touch drag starts with a short press (so a plain swipe still scrolls), then the finger moves. */
 async function touchDrag(page, from, to) {
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [from] });
+  await page.waitForTimeout(350);
   for (let i = 1; i <= 8; i += 1) {
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: from.x + ((to.x - from.x) * i) / 8, y: from.y + ((to.y - from.y) * i) / 8 }] });
   }
@@ -297,7 +299,7 @@ test('4. typing 3 tasks + Enter creates 3 rows; + adds a row; ✕ deletes; reloa
   await rows.nth(1).locator('.dump-row__delete').click();
   await expect(rows).toHaveCount(2);
   await expect(page.locator('.toast')).toContainText('Task deleted');
-  await waitForSaved(page, (doc) => doc.tasks.length === 2);
+  await waitForSaved(page, (doc) => doc.tasks.filter((item) => !item.deleted).length === 2);
 
   await page.reload();
   await expect(stageTitle(page)).toHaveText('Write down everything you have for today — all of it!');
@@ -588,7 +590,8 @@ test('11. the … menu works in each quadrant; "Delete all tasks here" only in t
   await expect(dialog).toContainText('Delete all tasks in this quadrant?');
   await dialog.locator('button', { hasText: 'Delete' }).click();
   await expect(quadrant(page, 'delete').locator('.task-card')).toHaveCount(0);
-  await waitForSaved(page, (doc) => !taskById(doc, 't_7') && !taskById(doc, 't_8'));
+  // Deleted tasks persist as tombstones (so the deletion syncs to other devices), hidden everywhere.
+  await waitForSaved(page, (doc) => taskById(doc, 't_7')?.deleted === true && taskById(doc, 't_8')?.deleted === true);
 });
 
 // ---------- 12–13: tips, stepper, keys, transitions ----------
@@ -715,7 +718,7 @@ test('15. "Sign in with Google" is present; with firebaseConfig = null it opens 
   const dialog = page.locator('[role="dialog"].modal');
   await expect(dialog.locator('.modal__title')).toHaveText('Google sign-in is not connected yet');
   await expect(dialog).toContainText('Your tasks stay saved in this browser.');
-  await expect(dialog.locator('a[href="./SETUP.md"]')).toBeVisible();
+  await expect(dialog.locator('a[href="https://github.com/a-papadopoulos90i/escape-the-matrix/blob/main/SETUP.md"]')).toBeVisible();
   await dialog.locator('button', { hasText: 'OK' }).click();
   await expect(dialog).toHaveCount(0);
   await expect(button).toBeFocused();
@@ -736,6 +739,13 @@ test.describe('mobile', () => {
       await expect(bubble(page)).toHaveCount(1);
       expect(await overflow(page), `stage ${n}`).toBeLessThanOrEqual(0);
       await expect(panel(page).locator('.stage-nav__next')).toBeVisible();
+      // On a phone the tip sits in the flow under the stage header: it hides neither the title
+      // (nor stage 3's bullet list) nor the cards it explains.
+      const tip = await bubble(page).boundingBox();
+      const header = await panel(page).locator('.stage-header').boundingBox();
+      expect(tip.y, `stage ${n} tip below the header`).toBeGreaterThanOrEqual(header.y + header.height - 1);
+      const firstCard = panel(page).locator('.task-card, .dump-row').first();
+      if (await firstCard.count()) expect((await firstCard.boundingBox()).y, `stage ${n} tip above the content`).toBeGreaterThanOrEqual(tip.y + tip.height - 1);
     }
     const matrix = panel(page).locator('.matrix');
     expect((await matrix.evaluate((el) => getComputedStyle(el).gridTemplateColumns)).split(' ')).toHaveLength(1);

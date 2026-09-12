@@ -162,7 +162,8 @@ test.describe('free mode (firebaseConfig = null)', () => {
       await expect(dialog).toBeVisible();
       await expect(dialog.locator('.modal__title')).toHaveText('Google sign-in is not connected yet');
       await expect(dialog).toContainText('Your tasks stay saved in this browser');
-      await expect(dialog.locator('a[href="./SETUP.md"]')).toHaveText('How to connect it (SETUP.md)');
+      // GitHub Pages would serve ./SETUP.md as raw Markdown, so the link opens the rendered guide.
+      await expect(dialog.locator('a[href="https://github.com/a-papadopoulos90i/escape-the-matrix/blob/main/SETUP.md"]')).toHaveText('How to connect it (SETUP.md)');
     };
 
     await open();

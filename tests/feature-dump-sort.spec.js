@@ -244,6 +244,7 @@ test.describe('touch', () => {
 
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [from] });
+    await page.waitForTimeout(350); // a touch drag starts with a short press
     for (let step = 1; step <= 8; step += 1) {
       const x = from.x + ((to.x - from.x) * step) / 8;
       const y = from.y + ((to.y - from.y) * step) / 8;
@@ -290,6 +291,7 @@ test.describe('mobile', () => {
     const to = await centre(target);
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [from] });
+    await page.waitForTimeout(350); // a touch drag starts with a short press
     for (let step = 1; step <= 8; step += 1) {
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: from.x + ((to.x - from.x) * step) / 8, y: from.y + ((to.y - from.y) * step) / 8 }] });
     }
@@ -297,6 +299,53 @@ test.describe('mobile', () => {
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await expect(quadrantCards(page, 'do')).toHaveText([TITLES[0]]);
     expect(await noOverflow(page)).toBeLessThanOrEqual(0);
+  });
+
+  test('375px: a plain swipe over a full pile scrolls the page instead of lifting a card', async ({ page }) => {
+    const many = Array.from({ length: 25 }, (_, i) => `Task number ${i + 1}`);
+    await seed(page, { stage: 3, tasks: many });
+    await page.goto('/');
+    await expect(pileCards(page)).toHaveCount(25);
+    const pile = panel(page).locator('.sort__pile');
+    await pile.scrollIntoViewIfNeeded();
+    const before = await page.evaluate(() => window.scrollY);
+    const from = await centre(pileCards(page).nth(8));
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [from] });
+    for (let step = 1; step <= 8; step += 1) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: from.x, y: from.y - step * 30 }] });
+    }
+    await expect(page.locator('.sort-ghost')).toHaveCount(0);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
+    await expect(pileCards(page)).toHaveCount(25);
+  });
+});
+
+test.describe('tips over the board (desktop)', () => {
+  test.use({ viewport: { width: 1280, height: 1100 } });
+
+  test('stage 3: the tip does not block a drop or a tap under it', async ({ page }) => {
+    await seed(page, { stage: 3, tasks: TITLES.slice(0, 2), tipsSeen: false });
+    await page.goto('/');
+    const tip = page.locator('.bubble');
+    await expect(tip).toBeVisible();
+    const box = await tip.boundingBox();
+    const under = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    const targetQuadrant = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('.quadrant')?.dataset.quadrant ?? null, under);
+    expect(targetQuadrant).not.toBeNull(); // the bubble lets pointer input through
+
+    await mouseDrag(page, await centre(pileCards(page).first()), under);
+    await expect(panel(page).locator(`.quadrant--${targetQuadrant}`)).toHaveClass(/is-drop-target/);
+    await page.mouse.up();
+    await expect(quadrantCards(page, targetQuadrant)).toHaveText([TITLES[0]]);
+
+    await pileCards(page).first().locator('.sort-card__grab').click();
+    await page.mouse.click(under.x, under.y);
+    await expect(quadrantCards(page, targetQuadrant)).toHaveText([TITLES[0], TITLES[1]]);
+    await expect(tip).toBeVisible();
+    await tip.locator('.bubble__close').click();
+    await expect(tip).toHaveCount(0);
   });
 });
 

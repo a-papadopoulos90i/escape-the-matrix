@@ -100,8 +100,8 @@
   }
 
   .dump-row__delete {
-    width: 40px;
-    height: 40px;
+    width: var(--touch);
+    height: var(--touch);
   }
 }
 

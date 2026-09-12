@@ -86,9 +86,9 @@
   --header-h: 56px;
   --touch: 44px;
 
-  /* Layers */
+  /* Layers (tips stay below the sticky header so a scrolled bubble never paints over it) */
+  --z-bubble: 10;
   --z-header: 20;
-  --z-bubble: 30;
   --z-popover: 40;
   --z-toast: 50;
   --z-modal: 60;

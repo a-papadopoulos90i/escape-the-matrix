@@ -187,9 +187,12 @@ const SIDES = ['top', 'bottom', 'left', 'right'];
 /**
  * Dismissible tip bubble. Content: `text`, `html`, or `content` (Node). With `anchor` the bubble is
  * absolutely positioned inside `within` (default document.body) with its tail pointing at the
- * anchor; without one the caller places the returned element. Returns { el, close }.
+ * anchor; without one the caller places the returned element. Escape closes it (unless a modal,
+ * popover or menu is open — they own Escape), and closing it from inside (its ✕, or after being
+ * focused) hands focus back to where it was. Returns { el, close }.
  */
 export function bubble({ text, html, content, tone = 'khaki', tail = 'bottom', anchor, within = document.body, onClose, align = 'start' } = {}) {
+  const previousFocus = document.activeElement;
   const body = h('div', { class: 'bubble__body' });
   if (content) body.append(content);
   else if (html) body.innerHTML = html;
@@ -197,7 +200,7 @@ export function bubble({ text, html, content, tone = 'khaki', tail = 'bottom', a
 
   const el = h(
     'div',
-    { class: `bubble bubble--${tone} bubble--tail-${tail}`, role: 'note' },
+    { class: `bubble bubble--${tone} bubble--tail-${tail}`, role: 'note', tabindex: -1 },
     body,
     h('button', { class: 'btn-icon bubble__close', type: 'button', 'aria-label': t('common.close'), onClick: () => close() }, icon('close', { size: 16 })),
     h('span', { class: 'bubble__tail', 'aria-hidden': 'true' }),
@@ -210,14 +213,23 @@ export function bubble({ text, html, content, tone = 'khaki', tail = 'bottom', a
     if (!anchor.isConnected) return close();
     swapClass(el, 'bubble--tail-', placeNear(el, anchor, within, tail, align), SIDES);
   };
+  const onKeydown = (event) => {
+    if (event.key !== 'Escape' || event.defaultPrevented || overlayStack.length) return;
+    event.preventDefault();
+    close();
+  };
   const close = () => {
     if (closed) return;
     closed = true;
     observer?.disconnect();
     window.removeEventListener('resize', reposition);
+    document.removeEventListener('keydown', onKeydown);
+    const hadFocus = el.contains(document.activeElement);
     el.remove();
+    if (hadFocus) restoreFocus(previousFocus);
     onClose?.();
   };
+  document.addEventListener('keydown', onKeydown);
 
   if (anchor) {
     el.classList.add('bubble--positioned');
@@ -379,6 +391,7 @@ export function popover({ anchor, content, onClose, tail = 'top', className = ''
     const layers = [root, anchor, document.getElementById('modal-root')];
     if (!layers.some((layer) => layer.contains(event.target))) close();
   };
+  const onKeydown = (event) => trapTab(event, el); // Tab cycles inside while the popover is open
 
   let closed = false;
   const popOverlay = pushOverlay(() => close());
@@ -388,11 +401,13 @@ export function popover({ anchor, content, onClose, tail = 'top', className = ''
     popOverlay();
     document.removeEventListener('pointerdown', onOutside, true);
     window.removeEventListener('resize', reposition);
+    el.removeEventListener('keydown', onKeydown);
     el.remove();
     restoreFocus(previousFocus);
     onClose?.();
   };
 
+  el.addEventListener('keydown', onKeydown);
   root.append(el);
   reposition();
   window.addEventListener('resize', reposition);
@@ -445,13 +460,13 @@ export function menu({ anchor, items, onClose } = {}) {
 
 // ---------- Stage chrome ----------
 
-/** "Stage N" kicker + large title. `title` may be a string or node(s). */
+/** "Stage N" kicker + large title (focusable: the shell moves focus there on a stage change). */
 export function stageHeader({ stage, title, subtitle }) {
   return h(
     'header',
     { class: 'stage-header' },
     h('p', { class: 'stage-kicker' }, t('stage.heading', { n: stage })),
-    h('h1', { class: 'stage-title', id: `stage-title-${stage}` }, title),
+    h('h1', { class: 'stage-title', id: `stage-title-${stage}`, tabindex: -1 }, title),
     subtitle && h('p', { class: 'stage-subtitle' }, subtitle),
   );
 }

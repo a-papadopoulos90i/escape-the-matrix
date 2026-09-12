@@ -55,7 +55,7 @@ function currentTasks() {
 }
 
 function findTask(id) {
-  return ctx.store.get().tasks.find((task) => task.id === id) ?? null;
+  return ctx.store.findTask(id);
 }
 
 function render() {
@@ -140,7 +140,18 @@ function taskCard(task) {
     },
     task.title,
   );
-  const clock = ui.h('span', { class: 'task-card__clock', dataset: { timerId: task.id } });
+  // The clock is a button: it opens the popover straight on the timer picker (or on the actions
+  // while a timer is live), so a timer is one tap away instead of three.
+  const clock = ui.h('button', {
+    class: 'task-card__clock',
+    type: 'button',
+    'aria-haspopup': 'dialog',
+    dataset: { timerId: task.id, focusKey: `clock:${task.id}` },
+    onClick: (event) => {
+      const current = findTask(task.id); // timer changes refresh clocks in place, so read the live task
+      openTaskPopover(task.id, event.currentTarget, { view: current?.timer && !current.timer.stoppedAt ? 'actions' : 'timer' });
+    },
+  });
   timer.renderClock(clock, task);
   return ui.h(
     'div',
@@ -188,21 +199,21 @@ function addRow(quadrant) {
 
 // ---------- Tip anchor ----------
 
-/** Stage 4 points at the first checkbox, stage 5 at the first title; the tail side depends on room. */
+/**
+ * Stage 4's "Done mark ✅" points at the first checkbox from the free space left of the matrix,
+ * as on the design board. Without that space (and on stage 5, whose bubble would otherwise
+ * cover the next card or the neighbouring quadrant) the shell shows the tip under the stage
+ * header instead, where it hides nothing.
+ */
 function markTipAnchor() {
+  if (ctx.stage !== 4 || narrowScreen.matches) return;
   const card = boardEl.querySelector('.task-card:not(.task-card--new)');
   if (!card) return;
-  const narrow = narrowScreen.matches;
-  if (ctx.stage === 5) {
-    const anchor = card.querySelector('.task-card__title');
-    anchor.dataset.tipAnchor = '';
-    anchor.dataset.tipTail = narrow ? 'top' : 'left';
-    return;
-  }
-  const anchor = card.querySelector('.task-card__check');
   const room = (root.clientWidth - boardEl.querySelector('.matrix').offsetWidth) / 2;
+  if (room < TIP_ROOM) return;
+  const anchor = card.querySelector('.task-card__check');
   anchor.dataset.tipAnchor = '';
-  anchor.dataset.tipTail = room >= TIP_ROOM ? 'right' : 'top';
+  anchor.dataset.tipTail = 'right';
 }
 
 // ---------- Focus bookkeeping across re-renders ----------
@@ -251,18 +262,26 @@ async function deleteAll(tasks) {
 
 // ---------- Undoable batch actions ----------
 
-function undoToast(message) {
-  ctx.ui.toast(message, { action: { label: ctx.i18n.t('toast.undo'), onClick: () => ctx.store.undo() } });
+/** Each toast reverts its own step (`token` from store.undoable), even with several toasts open. */
+function undoToast(message, token) {
+  if (!token) return;
+  ctx.ui.toast(message, { action: { label: ctx.i18n.t('toast.undo'), onClick: () => ctx.store.undo(token) } });
 }
 
 function nextVisibleDay(fromKey) {
   return ctx.dates.nextVisibleDay(fromKey, ctx.store.get().settings.showWeekends);
 }
 
+/**
+ * Moves tasks to another day. A day the calendar hides (a weekend while "Show weekends" is off)
+ * would make them unreachable, so weekends are switched on then and the toast says so.
+ */
 function moveTasks(tasks, dateKey) {
   const { store, dates, i18n } = ctx;
-  store.undoable(() => tasks.forEach((task) => store.moveTaskToDate(task.id, dateKey)));
-  undoToast(i18n.t('toast.movedTo', { date: dates.formatShort(dateKey) }));
+  const hidden = dates.isWeekend(dateKey) && !store.get().settings.showWeekends;
+  const token = store.undoable(() => tasks.forEach((task) => store.moveTaskToDate(task.id, dateKey)));
+  if (hidden) store.setSetting('showWeekends', true);
+  undoToast(i18n.t(hidden ? 'toast.movedToWeekend' : 'toast.movedTo', { date: dates.formatShort(dateKey) }), token);
 }
 
 function moveToNextDay(tasks) {
@@ -271,8 +290,8 @@ function moveToNextDay(tasks) {
 
 function deleteTasks(tasks) {
   const { store, i18n } = ctx;
-  store.undoable(() => tasks.forEach((task) => store.removeTask(task.id)));
-  undoToast(tasks.length === 1 ? i18n.t('toast.deleted') : i18n.t('toast.deletedMany', { n: tasks.length }));
+  const token = store.undoable(() => tasks.forEach((task) => store.removeTask(task.id)));
+  undoToast(tasks.length === 1 ? i18n.t('toast.deleted') : i18n.t('toast.deletedMany', { n: tasks.length }), token);
 }
 
 // ---------- Task popover (stage 5 "fast organize"; also works on stage 4) ----------
@@ -282,13 +301,14 @@ function closePopover() {
   popover = null;
 }
 
-function openTaskPopover(id, anchor) {
+function openTaskPopover(id, anchor, { view = 'actions' } = {}) {
   closePopover();
   const task = findTask(id);
   if (!task) return;
   const body = ctx.ui.h('div', { class: 'task-popover' });
   popover = ctx.ui.popover({ anchor, content: body, className: 'popover--task', label: task.title, onClose: () => { popover = null; } });
-  showActions(task, body);
+  if (view === 'timer') showTimerPicker(task, body);
+  else showActions(task, body);
 }
 
 /** Swaps the popover content, re-positions it and focuses `focusEl`. */
@@ -418,6 +438,7 @@ function showTimerPicker(task, body) {
               String(minutes),
             ),
           ),
+          ui.h('span', { class: 'timer-picker__unit', 'aria-hidden': 'true' }, i18n.t('timer.unit')), // "5 · 15 · 25 · 45 · 60 min"
         ),
         ui.h(
           'form',

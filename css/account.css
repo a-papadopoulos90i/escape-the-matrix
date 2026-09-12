@@ -156,6 +156,22 @@
   .account-name {
     display: none;
   }
+
+  /* The Google button keeps only its "G" so the product name fits next to it; the label stays
+     in the accessibility tree. */
+  .btn-google {
+    width: var(--touch);
+    padding: 0;
+  }
+
+  .btn-google__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

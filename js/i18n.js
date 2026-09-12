@@ -53,7 +53,9 @@ export const strings = {
   'account.notConnected.body':
     'This deployment has no Firebase configuration, so Google sign-in is not available. Your tasks stay saved in this browser.',
   'account.notConnected.link': 'How to connect it (SETUP.md)',
+  'account.notConnected.url': 'https://github.com/a-papadopoulos90i/escape-the-matrix/blob/main/SETUP.md',
   'account.syncError': 'Not synced — will retry',
+  'account.tooLarge': 'Your account holds too many tasks to sync. Delete old tasks to resume syncing; this browser keeps saving.',
   'account.clearConfirm': 'Sign out and delete the tasks saved in this browser? Your data stays in your Google account.',
 
   'axis.urgent': 'URGENT',
@@ -79,6 +81,7 @@ export const strings = {
   'calendar.legend.today': 'blue = today',
   'calendar.legend.empty': 'gray = empty',
   'calendar.cellLabel': '{date}: {status}',
+  'calendar.weekendNote': 'Today is {weekday}, so weekends are shown.',
 
   'dump.placeholder': '......',
   'dump.addRow': 'Add another task',
@@ -104,7 +107,7 @@ export const strings = {
   'board.newTask': 'New task',
   'board.markDone': 'Mark done',
   'board.markUndone': 'Mark not done',
-  'board.timerIdle': 'No timer',
+  'board.timerIdle': 'No timer — start one',
   'board.timerRunning': 'Timer running: {time}',
   'board.timerPaused': 'Timer paused: {time}',
   'board.timerDone': 'Time spent: {time}',
@@ -121,6 +124,7 @@ export const strings = {
   'timer.stopwatch': 'Stopwatch',
   'timer.countdown': 'Countdown',
   'timer.presets': 'Minutes',
+  'timer.unit': 'min',
   'timer.custom': 'Custom minutes',
   'timer.start': 'Start',
   'timer.pause': 'Pause',
@@ -133,6 +137,7 @@ export const strings = {
   'timer.label': 'Task timer',
 
   'toast.movedTo': 'Moved to {date}',
+  'toast.movedToWeekend': 'Moved to {date} — weekends are now shown',
   'toast.deleted': 'Task deleted',
   'toast.deletedMany': '{n} tasks deleted',
   'toast.undo': 'Undo',
@@ -149,7 +154,8 @@ export const strings = {
   'common.delete': 'Delete',
 };
 
-/** Speech bubbles per stage — verbatim from the design board (stage 1 has none on the board). */
+/** Speech bubbles per stage — verbatim from the design board for stages 2–5; stage 1 has none on
+ *  the board, so its entry is a short hint written for this app. */
 export const tips = {
   1: { text: 'Pick a day to plan. Green shows how much of that day is done, blue is today.' },
   2: { html: 'Write down everything you have for today — <strong>all of it!</strong>' },

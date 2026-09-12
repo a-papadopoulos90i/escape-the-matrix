@@ -7,6 +7,8 @@ tick things off, start a timer, postpone, or push a task to tomorrow.
 It is a static web app: plain HTML, CSS and ES modules, no build step, no frameworks. It runs from
 GitHub Pages and works offline in the browser.
 
+**Live app:** <https://a-papadopoulos90i.github.io/escape-the-matrix/>
+
 ## The five stages
 
 1. **Calendar** — pick a day in the month view. Each day cell fills up green as its tasks get done;
@@ -21,8 +23,8 @@ GitHub Pages and works offline in the browser.
 5. **Organize** — click a task title for the quick actions: start a stopwatch or countdown,
    postpone to another day, or send it to the next day's list.
 
-Every stage has the explanatory speech bubble from the original design; close it and reopen it any
-time with the `?` button.
+Stages 2–5 reproduce the speech bubbles from the original design word for word; stage 1 shows a
+short hint instead. Close a bubble and reopen it any time with the `?` button.
 
 ## Free mode vs Google mode
 
@@ -49,7 +51,7 @@ required; any other one works too.)
 ## Deploy
 
 Push to `main`. GitHub Pages serves the repository root as-is at
-`https://a-papadopoulos90i.github.io/<repository-name>/` — all asset URLs are relative, so the
+<https://a-papadopoulos90i.github.io/escape-the-matrix/> — all asset URLs are relative, so the
 sub-path just works.
 
 ## Tests (development only)

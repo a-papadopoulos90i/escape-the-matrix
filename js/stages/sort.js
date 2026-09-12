@@ -2,9 +2,14 @@
 // labels inside) with the day's unsorted tasks piled in the centre. A card is placed by dragging
 // it with a mouse or finger (Pointer Events), by tap-to-place (select it, then tap a quadrant),
 // with the keys 1–4, or through its "Place in ▾" menu. Placed cards can be moved again.
+//
+// Touch: a drag starts after a short press (LONG_PRESS_MS) so that a plain swipe over the cards
+// still scrolls the page. Cards allow vertical panning (touch-action: pan-y in sort.css); once a
+// card is lifted the touchmove events are cancelled so the page stays put under the finger.
 import { QUADRANTS } from '../store.js';
 
 const DRAG_THRESHOLD = 6; // px of movement before a press becomes a drag
+const LONG_PRESS_MS = 250; // touch: hold this long (without moving) to lift a card
 const SCROLL_EDGE = 56; // px from the viewport edge where a drag auto-scrolls the page
 const SCROLL_STEP = 10;
 const HINT_ID = 'sort-key-hint';
@@ -40,6 +45,7 @@ export function mount(container, ctx) {
       onPointermove: onPointerMove,
       onPointerup: onPointerUp,
       onPointercancel: onPointerCancel,
+      onContextmenu: onContextMenu,
       onClick: onClick,
       onKeydown: onKeydown,
     },
@@ -69,6 +75,7 @@ export function mount(container, ctx) {
     suppressClick: false,
     unsubscribe: null,
   };
+  root.addEventListener('touchmove', onTouchMove, { passive: false }); // must be cancelable
   state.unsubscribe = ctx.store.subscribe(() => render());
   render();
   container.append(root);
@@ -135,7 +142,7 @@ function focusCard(id) {
 // ---------- Placing ----------
 
 function findTask(id) {
-  return state.ctx.store.get().tasks.find((task) => task.id === id) ?? null;
+  return state.ctx.store.findTask(id);
 }
 
 /** Moves a task into `quadrant` (null = back to the pile) and announces it. */
@@ -214,10 +221,12 @@ function onPointerDown(event) {
   if (!state || event.button !== 0 || !event.isPrimary || state.drag) return;
   const card = event.target.closest('.sort-card');
   if (!card || event.target.closest('.sort-card__menu')) return;
+  const touch = event.pointerType === 'touch';
   state.drag = {
     card,
     id: card.dataset.id,
     pointerId: event.pointerId,
+    touch,
     startX: event.clientX,
     startY: event.clientY,
     lastX: event.clientX,
@@ -228,8 +237,17 @@ function onPointerDown(event) {
     ghost: null,
     target: null,
     raf: 0,
+    press: 0,
   };
-  card.setPointerCapture(event.pointerId);
+  if (!touch) return card.setPointerCapture(event.pointerId);
+  // Touch: lift after a still press; the pointer is captured then (a swipe before that scrolls).
+  state.drag.press = setTimeout(() => {
+    const drag = state?.drag;
+    if (!drag || drag.active) return;
+    drag.card.setPointerCapture(drag.pointerId);
+    liftCard(drag);
+    drag.ghost.style.transform = `translate(${drag.lastX - drag.offsetX}px, ${drag.lastY - drag.offsetY}px)`;
+  }, LONG_PRESS_MS);
 }
 
 function onPointerMove(event) {
@@ -239,10 +257,21 @@ function onPointerMove(event) {
   drag.lastY = event.clientY;
   if (!drag.active) {
     if (Math.hypot(drag.lastX - drag.startX, drag.lastY - drag.startY) < DRAG_THRESHOLD) return;
+    if (drag.touch) return endDrag(); // moved before the press completed: a scroll, not a drag
     liftCard(drag);
   }
   drag.ghost.style.transform = `translate(${drag.lastX - drag.offsetX}px, ${drag.lastY - drag.offsetY}px)`;
   setDropTarget(drag, quadrantAt(drag.lastX, drag.lastY));
+}
+
+/** While a card is lifted the page must not scroll under the finger (touch-action allows pan-y). */
+function onTouchMove(event) {
+  if (state?.drag?.active && event.cancelable) event.preventDefault();
+}
+
+/** A long press is how a touch drag starts, so the browser's long-press menu must not open. */
+function onContextMenu(event) {
+  if (state?.drag?.touch) event.preventDefault();
 }
 
 function onPointerUp(event) {
@@ -307,6 +336,7 @@ function endDrag() {
   const drag = state?.drag;
   if (!drag) return;
   state.drag = null;
+  clearTimeout(drag.press);
   cancelAnimationFrame(drag.raf);
   drag.ghost?.remove();
   drag.target?.classList.remove('is-drop-target');
