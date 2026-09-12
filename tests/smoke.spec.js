@@ -44,6 +44,15 @@ test('loads with the title, a 4-step stepper and no console errors', async ({ pa
   expect(errors).toEqual([]);
 });
 
+test('clicking the logo returns to the calendar (Stage 1)', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('#stepper .step').nth(2).click();
+  await expect(activePanel(page)).toHaveAttribute('data-stage', '3');
+  await page.locator('.brand').click();
+  await expect(activePanel(page)).toHaveAttribute('data-stage', '1');
+  await expect(activeTitle(page)).toHaveText(TITLES[1]);
+});
+
 test('clicking each stepper step shows the right stage title', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/');

@@ -363,6 +363,7 @@ async function boot() {
     tipButton: document.getElementById('tip-button'),
     announcer: document.getElementById('announcer'),
     skipLink: document.getElementById('skip-link'),
+    brand: document.querySelector('.brand'),
   });
 
   store = createStore(await local.load());
@@ -381,6 +382,11 @@ async function boot() {
   els.tipButton.setAttribute('aria-label', t('app.tipButton'));
   els.tipButton.replaceChildren(ui.icon('question'));
   els.tipButton.addEventListener('click', () => showTip(state.stage, { focus: true }));
+  // The logo goes home to the calendar (Stage 1) in-app, instead of reloading the page.
+  els.brand?.addEventListener('click', (event) => {
+    event.preventDefault();
+    goTo(1);
+  });
 
   renderStepper();
   renderDayBar();
