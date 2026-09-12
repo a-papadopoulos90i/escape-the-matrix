@@ -30,6 +30,21 @@
   position: relative;
 }
 
+/* The "×n" badge of a task pulled forward sits inside the row, left of the centred text. */
+.dump-row > .attempt-badge {
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  z-index: 1;
+  margin: 0;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.dump__carry:empty {
+  display: none;
+}
+
 .dump-row__input {
   width: 100%;
   min-height: 40px;

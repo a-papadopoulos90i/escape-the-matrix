@@ -1,12 +1,14 @@
 // Stage 3 — place by priority (SPEC §2). The coloured 2×2 matrix (axis captions around it, no
-// labels inside) with the day's unsorted tasks piled in the centre. A card is placed by dragging
+// labels inside) with the day's waiting list piled in the centre. A card is placed by dragging
 // it with a mouse or finger (Pointer Events), by tap-to-place (select it, then tap a quadrant),
-// with the keys 1–4, or through its "Place in ▾" menu. Placed cards can be moved again.
+// with the keys 1–4, or through its "Place in ▾" menu. Placed cards can be moved again; what is
+// left in the pile stays on hold for the day (the owner picks the day's essentials out of many).
 //
 // Touch: a drag starts after a short press (LONG_PRESS_MS) so that a plain swipe over the cards
 // still scrolls the page. Cards allow vertical panning (touch-action: pan-y in sort.css); once a
 // card is lifted the touchmove events are cancelled so the page stays put under the finger.
-import { QUADRANTS } from '../store.js';
+import { QUADRANTS, isRecord } from '../store.js';
+import { attemptBadge } from '../carry.js';
 
 const DRAG_THRESHOLD = 6; // px of movement before a press becomes a drag
 const LONG_PRESS_MS = 250; // touch: hold this long (without moving) to lift a card
@@ -106,12 +108,16 @@ function render(focusId) {
   const { ui, i18n } = ctx;
   endDrag(); // a remote change mid-drag would detach the dragged card
   const focused = focusId ?? document.activeElement?.closest?.('.sort-card')?.dataset.id;
-  const tasks = ctx.store.tasksForDate(state.date);
-  const unsorted = tasks.filter((task) => task.quadrant === null);
+  const tasks = ctx.store.tasksForDate(state.date).filter((task) => !isRecord(task)); // records are history, shown on stage 4
+  const waiting = tasks.filter((task) => task.quadrant === null);
 
   for (const quadrant of QUADRANTS) bodies[quadrant].replaceChildren(...tasks.filter((task) => task.quadrant === quadrant).map(cardEl));
-  pile.replaceChildren(...(unsorted.length ? unsorted.map(cardEl) : [ui.h('p', { class: 'sort__done' }, i18n.t('sort.allPlaced'))]));
-  nextButton.textContent = unsorted.length ? i18n.t('nav.nextUnsorted', { n: unsorted.length }) : i18n.t('nav.next');
+  pile.replaceChildren(
+    ...(waiting.length
+      ? [ui.h('p', { class: 'sort__pile-hint' }, i18n.t('sort.pileHint')), ...waiting.map(cardEl)]
+      : [ui.h('p', { class: 'sort__done' }, i18n.t('sort.allPlaced'))]),
+  );
+  nextButton.textContent = waiting.length ? i18n.t('nav.nextWaiting', { n: waiting.length }) : i18n.t('nav.next');
   if (focused) focusCard(focused);
 }
 
@@ -125,6 +131,7 @@ function cardEl(task) {
     ui.h(
       'button',
       { class: 'sort-card__grab', type: 'button', 'aria-pressed': String(selected), 'aria-describedby': HINT_ID },
+      attemptBadge(state.ctx, task),
       ui.h('span', { class: 'task-card__title' }, task.title),
     ),
     ui.h(

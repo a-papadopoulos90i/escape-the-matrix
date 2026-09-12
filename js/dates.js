@@ -10,8 +10,13 @@ const KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MONTH_KEY_RE = /^\d{4}-\d{2}$/;
 const GRID_ROWS = 6;
 
-/** Short weekday labels for calendar column headers, Monday first. */
-export const WEEKDAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+/** Short weekday labels, Sunday first (the owner's week starts on Sunday). */
+export const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/** Column headers of the month grid: Sun–Sat with weekends, Mon–Fri without. */
+export function weekdayLabels(showWeekends) {
+  return showWeekends ? WEEKDAY_SHORT : WEEKDAY_SHORT.slice(1, 6);
+}
 
 const pad = (n) => String(n).padStart(2, '0');
 
@@ -119,15 +124,17 @@ export function monthOfKey(key) {
 }
 
 /**
- * Six rows of day keys for the month view. Rows hold Mon–Fri (weekends hidden) or Mon–Sun.
- * The first row is the week containing the 1st, unless the 1st falls on a hidden weekend day,
- * in which case the grid starts on the following Monday (SPEC §2).
+ * Six rows of day keys for the month view. With weekends the week runs Sun–Sat and the first row
+ * is the week containing the 1st. Without weekends rows hold Mon–Fri; the first row is the week
+ * containing the 1st unless the 1st falls on a weekend, in which case the grid starts on the
+ * following Monday (SPEC §2).
  */
 export function monthGrid(year, month, showWeekends) {
   const first = new Date(year, month, 1);
-  const offset = (first.getDay() + 6) % 7; // days since Monday
+  const sinceMonday = (first.getDay() + 6) % 7;
+  const offset = showWeekends ? first.getDay() : sinceMonday; // days since the week's first column
   const start = new Date(year, month, 1 - offset);
-  if (!showWeekends && offset > 4) start.setDate(start.getDate() + 7);
+  if (!showWeekends && sinceMonday > 4) start.setDate(start.getDate() + 7);
 
   const perRow = showWeekends ? 7 : 5;
   const rows = [];

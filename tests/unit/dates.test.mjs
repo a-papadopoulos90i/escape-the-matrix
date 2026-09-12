@@ -31,23 +31,23 @@ test('monthGrid: March 2026 with weekends hidden starts Mar 2 and ends Apr 10', 
   assert.equal(rows[5][4], '2026-04-10');
 });
 
-test('monthGrid: March 2026 with weekends starts on the Monday of the week containing the 1st', () => {
+test('monthGrid: March 2026 with weekends starts on the Sunday of the week containing the 1st', () => {
   const rows = monthGrid(2026, 2, true);
   assert.equal(rows.length, 6);
   for (const row of rows) assert.equal(row.length, 7);
-  assert.equal(rows[0][0], '2026-02-23');
-  assert.equal(rows[0][6], '2026-03-01');
-  assert.equal(rows[5][6], '2026-04-05');
+  assert.equal(rows[0][0], '2026-03-01');
+  assert.equal(rows[0][6], '2026-03-07'); // Saturday closes the Sunday-first week
+  assert.equal(rows[5][6], '2026-04-11'); // last row Apr 5–11
 });
 
 test('monthGrid: a month starting on Monday keeps its 1st in the first cell', () => {
   assert.equal(monthGrid(2026, 5, false)[0][0], '2026-06-01');
-  assert.equal(monthGrid(2026, 5, true)[0][0], '2026-06-01');
+  assert.equal(monthGrid(2026, 5, true)[0][0], '2026-05-31'); // Sunday-first week
 });
 
 test('monthGrid: a month starting on Saturday skips to the next Monday when weekends are hidden', () => {
   assert.equal(monthGrid(2026, 7, false)[0][0], '2026-08-03');
-  assert.equal(monthGrid(2026, 7, true)[0][0], '2026-07-27');
+  assert.equal(monthGrid(2026, 7, true)[0][0], '2026-07-26'); // Sunday-first week
 });
 
 test('formatLong / formatShort', () => {

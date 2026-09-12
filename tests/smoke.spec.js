@@ -8,7 +8,6 @@ const TITLES = {
   2: 'Write down everything you have for today — all of it!',
   3: 'Place them by priority:',
   4: 'Ready to start',
-  5: 'fast organize',
 };
 
 const activePanel = (page) => page.locator('#stage .panel:not(.panel--ghost)');
@@ -32,11 +31,11 @@ function seed(page, { ui, doc } = {}) {
   );
 }
 
-test('loads with the title, a 5-step stepper and no console errors', async ({ page }) => {
+test('loads with the title, a 4-step stepper and no console errors', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/');
   await expect(page).toHaveTitle('Escape the Matrix');
-  await expect(page.locator('#stepper .step')).toHaveCount(5);
+  await expect(page.locator('#stepper .step')).toHaveCount(4);
   await expect(page.locator('#stepper .step').nth(0)).toHaveAttribute('aria-current', 'step');
   await expect(activeTitle(page)).toHaveText(TITLES[1]);
   await expect(page.locator('#daybar .chip--today')).toHaveText('Today');
@@ -49,7 +48,7 @@ test('clicking each stepper step shows the right stage title', async ({ page }) 
   const errors = collectErrors(page);
   await page.goto('/');
   const steps = page.locator('#stepper .step');
-  for (const n of [2, 3, 4, 5, 1]) {
+  for (const n of [2, 3, 4, 1]) {
     await steps.nth(n - 1).click();
     await expect(activeTitle(page)).toHaveText(TITLES[n]);
     await expect(steps.nth(n - 1)).toHaveAttribute('aria-current', 'step');
@@ -59,10 +58,10 @@ test('clicking each stepper step shows the right stage title', async ({ page }) 
   expect(errors).toEqual([]);
 });
 
-test('Back / Next buttons walk the stages; stage 5 returns to the calendar', async ({ page }) => {
+test('Back / Next buttons walk the stages; stage 4 returns to the calendar', async ({ page }) => {
   await page.goto('/');
   await expect(activePanel(page).locator('.stage-nav__back')).toHaveCount(0);
-  for (const n of [2, 3, 4, 5]) {
+  for (const n of [2, 3, 4]) {
     await activePanel(page).locator('.stage-nav__next').click();
     await expect(activeTitle(page)).toHaveText(TITLES[n]);
     if (n === 2) {
@@ -112,12 +111,12 @@ test('tips auto-show once per stage, close, and reopen with the ? button', async
   await expect(bubble).toContainText('Organize them by priority:');
   await expect(bubble).toContainText('Not Urgent & Not Important');
   await page.locator('#stepper .step').nth(3).click();
-  await expect(bubble).toContainText('Done mark ✅');
-  await page.locator('#stepper .step').nth(4).click();
-  await expect(bubble).toContainText("send it to the next day's list");
+  await expect(bubble).toHaveCount(2); // both board comments for the working board
+  await expect(bubble.filter({ hasText: 'Done mark ✅' })).toHaveCount(1);
+  await expect(bubble.filter({ hasText: "send it to the next day's list" })).toHaveCount(1);
 
   await page.reload();
-  await expect(activeTitle(page)).toHaveText(TITLES[5]);
+  await expect(activeTitle(page)).toHaveText(TITLES[4]);
   await expect(bubble).toHaveCount(0);
 });
 

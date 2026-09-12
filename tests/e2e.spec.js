@@ -53,7 +53,7 @@ const unsortedTasks = (date = TODAY) => TITLES.map((title, i) => task(`t_${i + 1
 
 /** Seeds localStorage before the app boots (once per tab, so a reload keeps what the app saved). */
 function seed(page, { tasks = [], stage = 1, date = TODAY, tipsSeen = true, settings = {} }) {
-  const seen = { 1: tipsSeen, 2: tipsSeen, 3: tipsSeen, 4: tipsSeen, 5: tipsSeen };
+  const seen = { 1: tipsSeen, 2: tipsSeen, 3: tipsSeen, 4: tipsSeen };
   const doc = { version: 1, updatedAt: '2026-03-11T08:00:00.000Z', settings: { showWeekends: false, bannerDismissed: true, tipsSeen: seen, ...settings }, tasks };
   return page.addInitScript(
     ({ uiKey, docKey, ui, doc }) => {
@@ -91,8 +91,9 @@ async function goToStage(page, n) {
   await settled(page);
 }
 
+/** Closes every open bubble (stage 4 shows two). */
 async function closeTip(page) {
-  await bubble(page).locator('.bubble__close').click();
+  while (await bubble(page).count()) await bubble(page).first().locator('.bubble__close').click();
   await expect(bubble(page)).toHaveCount(0);
 }
 
@@ -172,7 +173,7 @@ test('walkthrough: pick a day, dump, sort, work the board, organize, back to a g
   await expect(stageTitle(page)).toHaveText('Place them by priority:');
   await closeTip(page);
   await expect(pileCards(page)).toHaveCount(3);
-  await expect(panel(page).locator('.stage-nav__next')).toHaveText('Next (3 unsorted) →');
+  await expect(panel(page).locator('.stage-nav__next')).toHaveText('Next (3 waiting) →');
   await mouseDrag(page, await centre(pileCards(page).first()), await centre(quadrant(page, 'do')));
   await expect(quadrant(page, 'do')).toHaveClass(/is-drop-target/);
   await page.mouse.up();
@@ -194,12 +195,8 @@ test('walkthrough: pick a day, dump, sort, work the board, organize, back to a g
   await card(page, TITLES[2]).locator('.task-card__check').check();
   await expect(card(page, TITLES[2])).toHaveClass(/task-card--done/);
   await expect(page.locator('.daybar__progress')).toContainText('1/3 done');
-  await panel(page).locator('.stage-nav__next').click();
-  await settled(page);
 
-  // Stage 5 → send one task to the next day, then back to the calendar.
-  await expect(stageTitle(page)).toHaveText('fast organize');
-  await closeTip(page);
+  // Still on stage 4 → send one task to the next day (the fast-organize popover), then back to the calendar.
   await openPopover(page, TITLES[1]);
   await popover(page).locator('.action-btn--forward').click();
   await expect(card(page, TITLES[1])).toHaveCount(0);
@@ -211,7 +208,7 @@ test('walkthrough: pick a day, dump, sort, work the board, organize, back to a g
   await expect(stageTitle(page)).toHaveText('calendar of the month March');
   await expect(cell(page, '2026-03-12')).toHaveClass(/calendar__day--planned/);
   await expect(cell(page, '2026-03-12')).toHaveAttribute('title', '1 of 2 done');
-  expect(await fillRatio(cell(page, '2026-03-12'))).toBeCloseTo(0.5, 1);
+  expect(await fillRatio(cell(page, '2026-03-12'))).toBeCloseTo(0.1, 1); // one done task → one stripe
   await expect(cell(page, '2026-03-13')).toHaveAttribute('title', '0 of 1 done');
   await expect(cell(page, TODAY)).toHaveClass(/calendar__day--today/);
 
@@ -248,9 +245,9 @@ test('2. "Show weekends" adds Sat/Sun columns and persists across reload', async
   await page.clock.setFixedTime(FIXED_NOW);
   await page.goto('/');
   await panel(page).locator('.switch').click();
-  await expect(panel(page).locator('.calendar__weekday')).toHaveText(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
+  await expect(panel(page).locator('.calendar__weekday')).toHaveText(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
   await expect(panel(page).locator('.calendar__day')).toHaveCount(42);
-  await expect(panel(page).locator('.calendar__day').first()).toHaveAttribute('data-key', '2026-02-23');
+  await expect(panel(page).locator('.calendar__day').first()).toHaveAttribute('data-key', '2026-03-01');
   await waitForSaved(page, (doc) => doc.settings.showWeekends === true);
 
   await page.reload();
@@ -374,7 +371,7 @@ test('6. Stage 4 shows the four labels and the tasks in their quadrants with che
   await expect(panel(page).locator('.quadrant__more')).toHaveCount(4);
 });
 
-test('7. ticking a task strikes it through and Stage 1 shows the green fill at the right ratio', async ({ page }) => {
+test('7. ticking a task strikes it through and Stage 1 shows one green stripe per done task', async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW);
   await seed(page, { tasks: sortedTasks('2026-03-12'), stage: 4, date: '2026-03-12' });
   await page.goto('/');
@@ -391,8 +388,8 @@ test('7. ticking a task strikes it through and Stage 1 shows the green fill at t
   await expect(day).toHaveClass(/calendar__day--selected/);
   await expect(day).toHaveCSS('border-top-color', RGB.green);
   await expect(day).toHaveAttribute('title', '1 of 3 done');
-  expect(await fillRatio(day)).toBeCloseTo(1 / 3, 1);
-  await expect(day.locator('.calendar__fill')).toHaveCSS('background-image', /repeating-linear-gradient/);
+  expect(await fillRatio(day)).toBeCloseTo(0.1, 1);
+  await expect(day.locator('.calendar__fill')).toHaveCSS('background-image', /linear-gradient/);
   await expect(cell(page, TODAY)).toHaveCSS('border-top-color', RGB.today);
 
   await day.click();
@@ -423,9 +420,9 @@ test('8. ▶ starts a countdown: timer bar + live clock icon, still running afte
   const errors = collectErrors(page);
   const today = toKey(new Date()); // real time: the countdown has to tick
   await fakeAudio(page);
-  await seed(page, { tasks: sortedTasks(today), stage: 5, date: today });
+  await seed(page, { tasks: sortedTasks(today), stage: 4, date: today });
   await page.goto('/');
-  await expect(stageTitle(page)).toHaveText('fast organize');
+  await expect(stageTitle(page)).toHaveText('Ready to start');
 
   await openPopover(page, TITLES[0]);
   await expect(popover(page).locator('.task-popover__title')).toHaveText(TITLES[0]);
@@ -480,7 +477,7 @@ test('8b. a countdown reaching 0 beeps (WebAudio), flashes the bar and says "Tim
 
 test('9. 📅 moves the task to the chosen date (gone here, visible there) and Undo brings it back', async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW);
-  await seed(page, { tasks: sortedTasks(), stage: 5 });
+  await seed(page, { tasks: sortedTasks(), stage: 4 });
   await page.goto('/');
 
   const postpone = async () => {
@@ -515,7 +512,7 @@ test('9. 📅 moves the task to the chosen date (gone here, visible there) and U
 test('10. ⏩ sends a Friday task to Monday when weekends are hidden; Undo works', async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW);
   const friday = '2026-03-13';
-  await seed(page, { tasks: sortedTasks(friday), stage: 5, date: friday });
+  await seed(page, { tasks: sortedTasks(friday), stage: 4, date: friday });
   await page.goto('/');
   await expect(page.locator('.daybar__date')).toHaveText('Friday, 13 March 2026');
 
@@ -603,14 +600,18 @@ test('12. every speech bubble appears verbatim on its stage the first time, clos
   await expect(bubble(page)).toHaveCount(1);
   await closeTip(page);
 
-  const expectTip = async (n, check) => {
+  const closeAll = async () => {
+    while (await bubble(page).count()) await bubble(page).first().locator('.bubble__close').click();
+  };
+  const expectTip = async (n, check, count = 1) => {
     await goToStage(page, n);
-    await expect(bubble(page)).toHaveCount(1);
+    await expect(bubble(page)).toHaveCount(count);
     await check();
-    await closeTip(page);
+    await closeAll();
     await page.locator('#tip-button').click();
+    await expect(bubble(page)).toHaveCount(count);
     await check();
-    await closeTip(page);
+    await closeAll();
   };
   await expectTip(2, async () => {
     await expect(bubble(page)).toHaveClass(/bubble--khaki/);
@@ -623,21 +624,21 @@ test('12. every speech bubble appears verbatim on its stage the first time, clos
     await expect(bubble(page).locator('li')).toHaveText(['Urgent & Important', 'Important but Not Urgent', 'Urgent but Not Important', 'Not Urgent & Not Important']);
   });
   await expectTip(4, async () => {
-    await expect(bubble(page)).toHaveClass(/bubble--green/);
-    await expect(bubble(page).locator('.bubble__body')).toHaveText('Done mark ✅');
-    await expect(bubble(page)).toHaveCSS('background-color', 'rgb(205, 244, 211)');
-  });
-  await expectTip(5, async () => {
-    await expect(bubble(page)).toHaveClass(/bubble--dark/);
-    await expect(bubble(page).locator('.bubble__title')).toHaveText('Organize them by priority:');
-    await expect(bubble(page).locator('li')).toHaveText(['start the timer or the clock down', 'postpone for another day', "send it to the next day's list"]);
-    await expect(bubble(page)).toHaveCSS('color', 'rgb(255, 255, 255)');
-  });
+    const green = bubble(page).filter({ hasText: 'Done mark ✅' });
+    const dark = bubble(page).filter({ hasText: 'start the timer or the clock down' });
+    await expect(green).toHaveClass(/bubble--green/);
+    await expect(green.locator('.bubble__body')).toHaveText('Done mark ✅');
+    await expect(green).toHaveCSS('background-color', 'rgb(205, 244, 211)');
+    await expect(dark).toHaveClass(/bubble--dark/);
+    await expect(dark.locator('.bubble__title')).toHaveText('Organize them by priority:');
+    await expect(dark.locator('li')).toHaveText(['start the timer or the clock down', 'postpone for another day', "send it to the next day's list"]);
+    await expect(dark).toHaveCSS('color', 'rgb(255, 255, 255)');
+  }, 2);
 
   // Seen once: no auto-show after a reload, on any stage.
   await waitForSaved(page, (doc) => Object.values(doc.settings.tipsSeen).every(Boolean));
   await page.reload();
-  await expect(stageTitle(page)).toHaveText('fast organize');
+  await expect(stageTitle(page)).toHaveText('Ready to start');
   await expect(bubble(page)).toHaveCount(0);
   await goToStage(page, 2);
   await expect(bubble(page)).toHaveCount(0);
@@ -681,7 +682,7 @@ test('13. stepper and ←/→ keys navigate with animated transitions; reduced m
   await page.locator('body').click({ position: { x: 5, y: 400 } });
   await page.keyboard.press('ArrowRight');
   await expect(stageTitle(page)).toHaveText('Place them by priority:');
-  await expect(page.locator('#announcer')).toHaveText('Stage 3 of 5: Prioritize');
+  await expect(page.locator('#announcer')).toHaveText('Stage 3 of 4: Prioritize');
   await page.keyboard.press('?');
   await expect(bubble(page)).toContainText('Organize them by priority:');
   await settled(page);
@@ -734,18 +735,20 @@ test.describe('mobile', () => {
     await page.clock.setFixedTime(FIXED_NOW);
     await seed(page, { tasks: unsortedTasks(), stage: 1, tipsSeen: false, settings: { bannerDismissed: false } });
     await page.goto('/');
-    for (const n of [1, 2, 3, 4, 5]) {
+    for (const n of [1, 2, 3, 4]) {
       if (n > 1) await goToStage(page, n);
-      await expect(bubble(page)).toHaveCount(1);
+      await expect(bubble(page)).toHaveCount(n === 4 ? 2 : 1); // the board carries both of its comments
       expect(await overflow(page), `stage ${n}`).toBeLessThanOrEqual(0);
       await expect(panel(page).locator('.stage-nav__next')).toBeVisible();
-      // On a phone the tip sits in the flow under the stage header: it hides neither the title
-      // (nor stage 3's bullet list) nor the cards it explains.
-      const tip = await bubble(page).boundingBox();
+      // On a phone the tips sit in the flow under the stage header: they hide neither the title
+      // (nor stage 3's bullet list) nor the cards they explain.
+      const boxes = await bubble(page).evaluateAll((els) => els.map((el) => el.getBoundingClientRect().toJSON()));
+      const tipTop = Math.min(...boxes.map((b) => b.y));
+      const tipBottom = Math.max(...boxes.map((b) => b.bottom));
       const header = await panel(page).locator('.stage-header').boundingBox();
-      expect(tip.y, `stage ${n} tip below the header`).toBeGreaterThanOrEqual(header.y + header.height - 1);
+      expect(tipTop, `stage ${n} tip below the header`).toBeGreaterThanOrEqual(header.y + header.height - 1);
       const firstCard = panel(page).locator('.task-card, .dump-row').first();
-      if (await firstCard.count()) expect((await firstCard.boundingBox()).y, `stage ${n} tip above the content`).toBeGreaterThanOrEqual(tip.y + tip.height - 1);
+      if (await firstCard.count()) expect((await firstCard.boundingBox()).y, `stage ${n} tip above the content`).toBeGreaterThanOrEqual(tipBottom - 1);
     }
     const matrix = panel(page).locator('.matrix');
     expect((await matrix.evaluate((el) => getComputedStyle(el).gridTemplateColumns)).split(' ')).toHaveLength(1);
@@ -759,7 +762,7 @@ test.describe('mobile', () => {
     await expect(target.locator('.sort-card')).toHaveText([TITLES[0]]);
     expect(await overflow(page)).toBeLessThanOrEqual(0);
 
-    await goToStage(page, 5);
+    await goToStage(page, 4);
     await openPopover(page, TITLES[0]);
     expect(await overflow(page)).toBeLessThanOrEqual(0);
     const box = await popover(page).boundingBox();
@@ -778,7 +781,7 @@ test('18. no console errors on any stage and no network needed after the first l
   await page.clock.setFixedTime(FIXED_NOW);
   await seed(page, { tasks: sortedTasks(), stage: 1, tipsSeen: false });
   await page.goto('/');
-  for (const n of [2, 3, 4, 5]) await goToStage(page, n);
+  for (const n of [2, 3, 4]) await goToStage(page, n);
   await openPopover(page, TITLES[0]);
   await page.keyboard.press('Escape');
   const loaded = requests.length;
@@ -816,7 +819,7 @@ test('19. every asset URL is relative: the app boots unchanged under a /escape-t
   await page.goto('/escape-the-matrix/');
   await expect(page).toHaveTitle('Escape the Matrix');
   await expect(stageTitle(page)).toHaveText(/^calendar of the month/);
-  await expect(page.locator('#stepper .step')).toHaveCount(5);
+  await expect(page.locator('#stepper .step')).toHaveCount(4);
   await goToStage(page, 4);
   await expect(panel(page).locator('.quadrant__label')).toHaveCount(4);
   expect(requests.length).toBeGreaterThan(15);

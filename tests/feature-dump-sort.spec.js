@@ -144,7 +144,7 @@ test.describe('stage 3 (desktop)', () => {
     await expect(panel(page).locator('.quadrant__label')).toHaveCount(0);
     await expect(pileCards(page)).toHaveCount(4);
     const next = panel(page).locator('.stage-nav__next');
-    await expect(next).toHaveText('Next (4 unsorted) →');
+    await expect(next).toHaveText('Next (4 waiting) →');
 
     const quadrants = ['do', 'plan', 'delegate', 'delete'];
     for (const [i, q] of quadrants.entries()) {
@@ -214,17 +214,17 @@ test.describe('stage 3 (desktop)', () => {
     // "Place in ▾" menu on the last pile card.
     await pileCards(page).first().locator('.sort-card__menu').click();
     const menu = page.locator('[role="menu"]');
-    await expect(menu.locator('[role="menuitem"]')).toHaveText(['1. Urgent & Important', '2. Important but Not Urgent', '3. Urgent but Not Important', '4. Not Urgent & Not Important', 'Unsorted']);
-    await expect(menu.locator('[role="menuitem"]', { hasText: 'Unsorted' })).toBeDisabled();
+    await expect(menu.locator('[role="menuitem"]')).toHaveText(['1. Urgent & Important', '2. Important but Not Urgent', '3. Urgent but Not Important', '4. Not Urgent & Not Important', 'Waiting list']);
+    await expect(menu.locator('[role="menuitem"]', { hasText: 'Waiting list' })).toBeDisabled();
     await menu.locator('[role="menuitem"]', { hasText: 'Urgent & Important' }).first().click();
     await expect(quadrantCards(page, 'do')).toHaveText([TITLES[3]]);
     await expect(panel(page).locator('.sort__done')).toBeVisible();
 
     // Menu on a placed card can send it back to the pile.
     await quadrantCards(page, 'do').first().locator('.sort-card__menu').click();
-    await page.locator('[role="menuitem"]', { hasText: 'Unsorted' }).click();
+    await page.locator('[role="menuitem"]', { hasText: 'Waiting list' }).click();
     await expect(pileCards(page)).toHaveText([TITLES[3]]);
-    await expect(panel(page).locator('.stage-nav__next')).toHaveText('Next (1 unsorted) →');
+    await expect(panel(page).locator('.stage-nav__next')).toHaveText('Next (1 waiting) →');
   });
 });
 

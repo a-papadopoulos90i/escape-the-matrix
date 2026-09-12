@@ -68,7 +68,7 @@ async function openPopover(page, title) {
   await expect(popover(page)).toBeVisible();
 }
 
-test('stage 4 shows the labelled quadrants, cards with checkbox + clock, and the unplaced strip', async ({ page }) => {
+test('stage 4 shows the labelled quadrants, cards with checkbox + clock, and the waiting list', async ({ page }) => {
   const errors = collectErrors(page);
   await seed(page, { tasks: [...SORTED(), task('t_4', 'Loose end', null)] });
   await page.goto('/');
@@ -83,10 +83,13 @@ test('stage 4 shows the labelled quadrants, cards with checkbox + clock, and the
   await expect(first.locator('.task-card__clock--idle svg')).toBeVisible();
   await expect(panel(page).locator('.quadrant__more')).toHaveCount(4);
 
-  const strip = panel(page).locator('.board__unplaced');
-  await expect(strip).toHaveText('1 task not placed yet — Place them');
-  await strip.locator('button').click();
-  await expect(panel(page).locator('.stage-title')).toHaveText('Place them by priority:');
+  const waiting = panel(page).locator('.waiting');
+  await expect(waiting.locator('.waiting__label')).toHaveText('Waiting list (1)');
+  await expect(waiting.locator('.waiting-card')).toHaveText(/Loose end/);
+  await waiting.locator('.waiting-card__place').click();
+  await page.locator('[role="menuitem"]', { hasText: 'DO immediately' }).click();
+  await expect(quadrant(page, 'do').locator('.task-card')).toHaveText(['Marketing Order A5', 'Loose end']);
+  await expect(panel(page).locator('.waiting')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
@@ -171,9 +174,9 @@ test('"Move unfinished to next day" moves only open tasks and can be undone', as
 
 test('popover opens from the title with the three actions, edit, move to and delete', async ({ page }) => {
   const errors = collectErrors(page);
-  await seed(page, { tasks: SORTED(), stage: 5 });
+  await seed(page, { tasks: SORTED(), stage: 4 });
   await page.goto('/');
-  await expect(panel(page).locator('.stage-title')).toHaveText('fast organize');
+  await expect(panel(page).locator('.stage-title')).toHaveText('Ready to start');
 
   await openPopover(page, 'Marketing Order A5');
   await expect(popover(page).locator('.task-popover__title')).toHaveText('Marketing Order A5');
@@ -222,7 +225,7 @@ test('popover opens from the title with the three actions, edit, move to and del
 
 test('▶ starts a countdown: clock live, bar visible, survives reload, pause/resume/stop', async ({ page }) => {
   const errors = collectErrors(page);
-  await seed(page, { tasks: SORTED(), stage: 5 });
+  await seed(page, { tasks: SORTED(), stage: 4 });
   await page.goto('/');
   await expect(bar(page)).toBeHidden();
 
@@ -253,7 +256,7 @@ test('▶ starts a countdown: clock live, bar visible, survives reload, pause/re
   await expect(card(page, 'Marketing Order A5').locator('.task-card__clock')).toHaveClass(/task-card__clock--running/);
   await page.locator('#stepper .step').nth(0).click();
   await expect(bar(page)).toBeVisible();
-  await page.locator('#stepper .step').nth(4).click();
+  await page.locator('#stepper .step').nth(3).click();
 
   await bar(page).locator('.timer-bar__pause').click();
   await expect(bar(page).locator('.timer-bar__pause')).toHaveAttribute('aria-label', 'Resume');
@@ -272,7 +275,7 @@ test('▶ starts a countdown: clock live, bar visible, survives reload, pause/re
 });
 
 test('starting a second timer asks to stop the first; Done ✓ ticks the task', async ({ page }) => {
-  await seed(page, { tasks: SORTED(), stage: 5 });
+  await seed(page, { tasks: SORTED(), stage: 4 });
   await page.goto('/');
   await openPopover(page, 'Marketing Order A5');
   await popover(page).locator('.action-btn--play').click();
@@ -311,7 +314,7 @@ test('a countdown reaching 0 flashes the bar and shows "Time\'s up!"', async ({ 
 });
 
 test('📅 postpones to the chosen date (min today) with Undo', async ({ page }) => {
-  await seed(page, { tasks: SORTED(), stage: 5 });
+  await seed(page, { tasks: SORTED(), stage: 4 });
   await page.goto('/');
   const target = shiftDays(new Date(), 3);
   await openPopover(page, 'Make - Excel Report');
@@ -336,7 +339,7 @@ const fridayTasks = (friday) => [
 test('⏩ sends Friday tasks to Monday when weekends are hidden, with Undo', async ({ page }) => {
   const friday = nextWeekday(new Date(), 5);
   const monday = shiftDays(friday, 3);
-  await seed(page, { tasks: fridayTasks(friday), stage: 5, date: toKey(friday) });
+  await seed(page, { tasks: fridayTasks(friday), stage: 4, date: toKey(friday) });
   await page.goto('/');
   await openPopover(page, 'Marketing Order A5');
   await popover(page).locator('.action-btn--forward').click();
@@ -351,7 +354,7 @@ test('⏩ sends Friday tasks to Monday when weekends are hidden, with Undo', asy
 test('⏩ sends Friday tasks to Saturday when weekends are shown', async ({ page }) => {
   const friday = nextWeekday(new Date(), 5);
   const saturday = shiftDays(friday, 1);
-  await seed(page, { tasks: fridayTasks(friday), stage: 5, date: toKey(friday), settings: { showWeekends: true } });
+  await seed(page, { tasks: fridayTasks(friday), stage: 4, date: toKey(friday), settings: { showWeekends: true } });
   await page.goto('/');
   await openPopover(page, 'Invoice Send');
   await popover(page).locator('.action-btn--forward').click();
@@ -360,7 +363,7 @@ test('⏩ sends Friday tasks to Saturday when weekends are shown', async ({ page
 });
 
 test('two "Undo" toasts each revert their own delete, in any order', async ({ page }) => {
-  await seed(page, { tasks: [...SORTED(), task('t_5', 'Call supplier', 'do')], stage: 5 });
+  await seed(page, { tasks: [...SORTED(), task('t_5', 'Call supplier', 'do')], stage: 4 });
   await page.goto('/');
   const del = async (title) => {
     await openPopover(page, title);
@@ -381,7 +384,7 @@ test('two "Undo" toasts each revert their own delete, in any order', async ({ pa
 
 test('📅 to a hidden weekend day switches weekends on so the task stays reachable', async ({ page }) => {
   const saturday = nextWeekday(new Date(), 6);
-  await seed(page, { tasks: SORTED(), stage: 5 });
+  await seed(page, { tasks: SORTED(), stage: 4 });
   await page.goto('/');
   await openPopover(page, 'Invoice Send');
   await popover(page).locator('.action-btn--calendar').click();
@@ -430,33 +433,36 @@ test('a countdown that ran out while the page was closed alarms once after the r
 test('a stage change starts at the top of the page and moves focus to the new stage title', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 700 });
   const many = Array.from({ length: 8 }, (_, i) => task(`t_${i + 1}`, `Task ${i + 1}`, 'do'));
-  await seed(page, { tasks: many, stage: 4, settings: { tipsSeen: { 1: true, 2: true, 3: true, 4: true, 5: false } } });
+  await seed(page, { tasks: many, stage: 3, settings: { tipsSeen: { 1: true, 2: true, 3: true, 4: false } } });
   await page.goto('/');
   const next = panel(page).locator('.stage-nav__next');
   await next.scrollIntoViewIfNeeded();
   expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
   await next.click();
-  await expect(panel(page).locator('.stage-title')).toHaveText('fast organize');
+  await expect(panel(page).locator('.stage-title')).toHaveText('Ready to start');
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   await expect(panel(page).locator('.stage-title')).toBeFocused();
-  const tip = page.locator('.bubble');
-  await expect(tip).toBeVisible();
-  const [tipBox, titleBox, firstCard] = await Promise.all([tip.boundingBox(), panel(page).locator('.stage-title').boundingBox(), card(page, 'Task 1').boundingBox()]);
-  expect(tipBox.y).toBeGreaterThanOrEqual(titleBox.y + titleBox.height - 1);
-  expect(firstCard.y).toBeGreaterThanOrEqual(tipBox.y + tipBox.height - 1);
+  const tips = page.locator('.bubble');
+  await expect(tips).toHaveCount(2); // both board comments, in the flow under the title on a phone
+  const boxes = await tips.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().toJSON()));
+  const [titleBox, firstCard] = await Promise.all([panel(page).locator('.stage-title').boundingBox(), card(page, 'Task 1').boundingBox()]);
+  expect(Math.min(...boxes.map((b) => b.y))).toBeGreaterThanOrEqual(titleBox.y + titleBox.height - 1);
+  expect(firstCard.y).toBeGreaterThanOrEqual(Math.max(...boxes.map((b) => b.bottom)) - 1);
 });
 
 test('keyboard: ? focuses the tip, Escape closes it and returns focus; Tab stays inside the popover', async ({ page }) => {
-  await seed(page, { tasks: SORTED(), stage: 5 });
+  await seed(page, { tasks: SORTED(), stage: 4 });
   await page.goto('/');
   await page.locator('#tip-button').focus();
   await page.keyboard.press('Enter');
-  const tip = page.locator('.bubble');
-  await expect(tip).toBeVisible();
-  await expect(tip).toBeFocused();
-  await page.keyboard.press('Escape');
-  await expect(tip).toHaveCount(0);
+  const tips = page.locator('.bubble');
+  await expect(tips).toHaveCount(2); // the board carries both of its comments
+  await expect(tips.filter({ hasText: 'Done mark' })).toBeFocused();
+  await page.keyboard.press('Escape'); // closes the focused bubble and returns focus
+  await expect(tips).toHaveCount(1);
   await expect(page.locator('#tip-button')).toBeFocused();
+  await tips.first().locator('.bubble__close').click();
+  await expect(tips).toHaveCount(0);
 
   await openPopover(page, 'Marketing Order A5');
   const links = popover(page).locator('.task-popover__link');
@@ -481,27 +487,29 @@ test('desktop: one long quadrant does not stretch the other three', async ({ pag
   expect(heights.delete).toBeLessThan(400);
 });
 
-test('tips: "Done mark ✅" on stage 4 and the dark list on stage 5; ? re-opens them', async ({ page }) => {
-  await seed(page, { tasks: SORTED(), stage: 3, settings: { tipsSeen: { 1: true, 2: true, 3: true, 4: false, 5: false } } });
+test('tips: stage 4 shows both board comments — "Done mark ✅" and the dark fast-organize list; ? re-opens both', async ({ page }) => {
+  await seed(page, { tasks: SORTED(), stage: 3, settings: { tipsSeen: { 1: true, 2: true, 3: true, 4: false } } });
   await page.goto('/');
   await page.locator('#stepper .step').nth(3).click();
-  const bubble = page.locator('.bubble');
-  await expect(bubble).toHaveText(/Done mark ✅/);
-  await expect(bubble).toHaveClass(/bubble--green/);
-  await bubble.locator('.bubble__close').click();
-  await expect(bubble).toHaveCount(0);
+  const bubbles = page.locator('.bubble');
+  await expect(bubbles).toHaveCount(2);
+  const green = bubbles.filter({ hasText: 'Done mark ✅' });
+  const dark = bubbles.filter({ hasText: 'start the timer or the clock down' });
+  await expect(green).toHaveClass(/bubble--green/);
+  await expect(dark).toHaveClass(/bubble--dark/);
+  await expect(dark).toContainText('Organize them by priority:');
+  await expect(dark.locator('li')).toHaveText(['start the timer or the clock down', 'postpone for another day', "send it to the next day's list"]);
+  await green.locator('.bubble__close').click();
+  await expect(bubbles).toHaveCount(1);
+  await dark.locator('.bubble__close').click();
+  await expect(bubbles).toHaveCount(0);
   await page.locator('#tip-button').click();
-  await expect(bubble).toHaveText(/Done mark ✅/);
-
-  await page.locator('#stepper .step').nth(4).click();
-  await expect(bubble).toContainText('Organize them by priority:');
-  await expect(bubble.locator('li')).toHaveText(['start the timer or the clock down', 'postpone for another day', "send it to the next day's list"]);
-  await expect(bubble).toHaveClass(/bubble--dark/);
+  await expect(bubbles).toHaveCount(2);
 });
 
 test('mobile: no horizontal scroll with the popover and the timer bar open', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 740 });
-  await seed(page, { tasks: SORTED(), stage: 5 });
+  await seed(page, { tasks: SORTED(), stage: 4 });
   await page.goto('/');
   await openPopover(page, 'Marketing Order A5');
   await popover(page).locator('.action-btn--play').click();
@@ -513,25 +521,23 @@ test('mobile: no horizontal scroll with the popover and the timer bar open', asy
   const box = await popover(page).boundingBox();
   expect(box.x).toBeGreaterThanOrEqual(0);
   expect(box.x + box.width).toBeLessThanOrEqual(375);
-  await page.screenshot({ path: path.join(SHOTS, 'mobile-stage5-popover-bar.png'), fullPage: true, animations: 'disabled' });
+  await page.screenshot({ path: path.join(SHOTS, 'mobile-stage4-popover-bar.png'), fullPage: true, animations: 'disabled' });
 });
 
 for (const [label, viewport] of Object.entries({ desktop: { width: 1280, height: 900 }, mobile: { width: 375, height: 760 } })) {
   test(`screenshots (${label})`, async ({ page }) => {
     await page.setViewportSize(viewport);
-    await seed(page, { tasks: SORTED(), stage: 4, settings: { tipsSeen: { 1: true, 2: true, 3: true, 4: false, 5: false } } });
+    await seed(page, { tasks: SORTED(), stage: 4, settings: { tipsSeen: { 1: true, 2: true, 3: true, 4: false } } });
     await page.goto('/');
-    await expect(page.locator('.bubble')).toHaveText(/Done mark/);
+    await expect(page.locator('.bubble', { hasText: 'Done mark' })).toHaveCount(1);
+    await expect(page.locator('.bubble', { hasText: 'Organize them by priority:' })).toHaveCount(1);
     await page.screenshot({ path: path.join(SHOTS, `${label}-stage4.png`), fullPage: true, animations: 'disabled' });
-    await page.locator('#stepper .step').nth(4).click();
-    await page.locator('#stage .panel--ghost').waitFor({ state: 'detached' });
-    await expect(page.locator('.bubble')).toContainText('Organize them by priority:');
     await openPopover(page, 'Marketing Order A5');
-    await page.screenshot({ path: path.join(SHOTS, `${label}-stage5-popover.png`), fullPage: true, animations: 'disabled' });
+    await page.screenshot({ path: path.join(SHOTS, `${label}-stage4-popover.png`), fullPage: true, animations: 'disabled' });
     await popover(page).locator('.action-btn--play').click();
-    await page.screenshot({ path: path.join(SHOTS, `${label}-stage5-picker.png`), fullPage: true, animations: 'disabled' });
+    await page.screenshot({ path: path.join(SHOTS, `${label}-stage4-picker.png`), fullPage: true, animations: 'disabled' });
     await popover(page).locator('.timer-picker__preset', { hasText: '25' }).click();
     await expect(bar(page)).toBeVisible();
-    await page.screenshot({ path: path.join(SHOTS, `${label}-stage5-timer.png`), fullPage: true, animations: 'disabled' });
+    await page.screenshot({ path: path.join(SHOTS, `${label}-stage4-timer.png`), fullPage: true, animations: 'disabled' });
   });
 }

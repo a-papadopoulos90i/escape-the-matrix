@@ -13,11 +13,12 @@ careful product engineer would choose and note it in your report.
 1. picks a day in a month calendar (Stage 1),
 2. brain-dumps everything they have for that day (Stage 2),
 3. drags each task into one of the 4 quadrants (Stage 3),
-4. works the board: DO / PLAN / DELEGATE / DELETE, ticking tasks done (Stage 4),
-5. fast-organizes each task with a timer, a postpone, or a "send to next day" action (Stage 5).
+4. works the board: DO / PLAN / DELEGATE / DELETE, ticking tasks done, and fast-organizes each
+   task with a timer, a postpone, or a "send to next day" action (Stage 4).
 
-The 5 stages are shown as **panels ("little windows") that alternate** with a slide/fade
-transition, driven by a 5-step stepper. Every explanatory **speech bubble from the design board
+The 4 stages are shown as **panels ("little windows") that alternate** with a slide/fade
+transition, driven by a 4-step stepper (the board's original stages 4 and 5 were identical, so the
+owner merged them). Every explanatory **speech bubble from the design board
 is reproduced verbatim** as a dismissible tip on its stage (re-openable with a "?" button).
 
 Persistence:
@@ -33,10 +34,10 @@ sub-path (so all URLs must be relative: `./js/app.js`, `./css/base.css`).
 UI language: English (the design board is in English). All strings live in `js/i18n.js`.
 Product name is always written **Escape the Matrix**.
 
-## 2. The five stages (from the design board — reproduce faithfully)
+## 2. The four stages (from the design board — reproduce faithfully)
 
 Common: each stage panel has a heading "Stage N" (small, gray) and the stage title (large).
-Bottom of each panel: `← Back` and `Next →` buttons (Stage 1 has no Back; Stage 5 has "Back to
+Bottom of each panel: `← Back` and `Next →` buttons (Stage 1 has no Back; Stage 4 has "Back to
 calendar" instead of Next). The stepper at the top also allows direct jumps.
 
 ### Stage 1 — "calendar of the month March"
@@ -45,8 +46,8 @@ Title: `calendar of the month {Month}` (Month = the month currently displayed, e
 Controls: `‹` previous month, `›` next month, `Today` button, and a `Show weekends` toggle (default
 **off**, persisted in settings).
 
-Grid: rows of weekdays, **Mon–Fri when weekends are hidden** (5 columns, like the design), Mon–Sun
-when shown. Always **6 rows**. The first row is the week that contains the 1st of the month, except
+Grid: rows of weekdays, **Mon–Fri when weekends are hidden** (5 columns, like the design), **Sun–Sat
+when shown** (the owner's week starts on Sunday). Always **6 rows**. The first row is the week that contains the 1st of the month, except
 when the 1st falls on a hidden weekend day, in which case start with the following Monday (this
 exactly reproduces the design: March 2026 starts on Sunday, so the grid shows Mar 2–6, 9–13, 16–20,
 23–27, 30–31 + Apr 1–3, Apr 6–10). Days from the next month show only their number, same styling.
@@ -54,17 +55,19 @@ exactly reproduces the design: March 2026 starts on Sunday, so the grid shows Ma
 Cell design (rounded square, ~1:1, number centred, bold):
 - **No tasks:** gray border `#757575` (1.5px), white top, a light-gray "tray" `#d9d9d9` filling the
   bottom ~45%.
-- **Has tasks:** green border `#3e9b4b`, and a **green striped fill rising from the bottom** whose
-  height = done ÷ total (100% = fully green). Fill colour `#66d575` with horizontal stripes
-  `#4eb25c` every ~8px (use `repeating-linear-gradient`). A day with tasks but 0 done shows the
-  green border with a thin green base line so it is visibly "planned".
+- **Has tasks:** green border `#3e9b4b`, and **one green stripe per done task rising from the
+  bottom** — the cell has ten stripe slots, so ten done tasks fill it completely and more than ten
+  still show ten (the tooltip keeps the real counts). Each stripe is a tenth of the cell, colour
+  `#66d575` with a `#4eb25c` line between stripes. A day with tasks but 0 done shows the green
+  border with a thin green base line so it is visibly "planned".
 - **Today:** blue border `#4da3ff` (2px) regardless of tasks; if it has tasks, show the fill too.
-- **Selected day** (the day currently open in stages 2–5): subtle blue glow/ring.
+- **Selected day** (the day currently open in stages 2–4): subtle blue glow/ring.
 - Hover/focus: tooltip/`title` "3 of 5 done" (or "No tasks yet").
 - Click/Enter on a cell → selects that date and goes to **Stage 2 if the day has no tasks**,
   otherwise **Stage 4**.
 
-Legend under the grid (small): green = done ratio, blue = today, gray = empty.
+Legend under the grid (small): green = done tasks (one stripe each, up to 10), blue = today,
+gray = empty.
 
 ### Stage 2 — "Write down everything you have for today — all of it!"
 
@@ -111,8 +114,10 @@ matrix (overlapping the 4 quadrants, like the design). Interaction, all must wor
   "Place in ▾" menu on the card.
 - Sorted tasks appear inside their quadrant as small white cards and can be dragged again to
   another quadrant. Cards in quadrants are simple (title only) at this stage.
-- When the pile is empty, show a small "All placed ✓" state. `Next →` is always enabled, but if
-  tasks remain unsorted it says `Next (2 unsorted) →`.
+- The pile is the day's **waiting list** (captioned so): whatever the user leaves there stays on
+  hold for the day — with forty things to do they pick the ten that matter. When the pile is empty,
+  show a small "All placed ✓" state. `Next →` is always enabled; with tasks still waiting it says
+  `Next (2 waiting) →`.
 
 Speech bubble, verbatim (khaki `#b9b098`, dark text):
 **"Organize them by priority:"** then bullets
@@ -143,12 +148,11 @@ Any unsorted tasks (still `quadrant: null`) are listed in a slim strip above the
 Speech bubble, verbatim: **"Done mark ✅"** — light-green pill `#cdf4d3` with green border
 `#4cd964`, with a curved arrow/tail pointing at the first task's checkbox.
 
-### Stage 5 — "fast organize"
+### Stage 4, continued — fast organize, the waiting list and pulling tasks forward
 
-(The board spells it "fast organaze"; use the corrected `fast organize`.)
-Title: `fast organize`. The **same board as Stage 4** (same component, same data). Clicking a
-task's **title** opens a **popover** (white card with a tail, positioned under/over the card):
-the task title on top, then three large icon buttons in a row:
+(The board's stage 5 "fast organaze" was identical to stage 4, so the owner merged them; its
+actions live on stage 4.) Clicking a task's **title** (or its clock) opens a **popover** (white card
+with a tail): the task title on top, then three large icon buttons in a row:
 
 1. ▶️ (green circle play) — **Start the timer or the countdown**
 2. 📅 (calendar) — **Postpone to another day**
@@ -168,16 +172,27 @@ plus a secondary row of small text actions: `Edit`, `Move to ▾` (quadrant), `D
 - **⏩ Next day:** sets `task.date` to the **next visible day** (next weekday when weekends are hidden,
   otherwise tomorrow). Toast with **Undo**.
 
-The popover also works in Stage 4 (same component); Stage 5 exists so the tip is explained.
-Speech bubble, verbatim (dark gray `#5b5b5b`, white text): **"Organize them by priority:"** then
-bullets `start the timer or the clock down` · `postpone for another day` ·
-`send it to the next day's list`.
+**Waiting list.** Tasks left unplaced on stage 3 (`quadrant: null`) are listed under the matrix in a
+"Waiting list (N)" panel with a `Place in ▾` button each (and the popover from the title). They are
+on hold: the day bar shows "· N waiting" next to the done count.
+
+**Pulling unfinished tasks forward.** When earlier days still hold unfinished tasks (not done, not
+in DELETE, not already pulled), stages 2 and 4 show a strip "N unfinished tasks left on Mon 9 Mar,
+Tue 10 Mar — Pull them here". Pulling gives each task a **fresh copy on this day** (in the waiting
+list) and leaves the original on its day as a **record**: faded red, "Pulled to Thu 12 Mar",
+nothing to tick or start, and **not counted** anywhere. Each task carries `attempt`, the number of
+times it has been on a plan; a copy shows a red `×3` badge ("3rd time on the plan") so the owner
+sees how often a task has been carried. One toast with Undo reverts the whole pull.
+
+Second speech bubble of the stage, verbatim (dark gray `#5b5b5b`, white text, in the flow under
+the header): **"Organize them by priority:"** then bullets `start the timer or the clock down` ·
+`postpone for another day` · `send it to the next day's list`.
 
 ## 3. App shell
 
 - **Header:** left — logo mark (a tiny 2×2 coloured matrix glyph) + "Escape the Matrix";
-  centre — the **stepper**: 5 numbered dots with short labels `Calendar · Write down · Prioritize ·
-  Ready · Organize`, current step highlighted, completed steps ticked, clickable; right — **account
+  centre — the **stepper**: 4 numbered dots with short labels `Calendar · Write down · Prioritize ·
+  Ready`, current step highlighted, completed steps ticked, clickable; right — **account
   area**: `Sign in with Google` button (white, Google "G" glyph, "Sign in with Google") or, when
   signed in, avatar + first name + a menu (`Synced ✓ / Syncing… / Offline` status, `Sign out`,
   `Sign out & clear this device`). A `?` icon button re-opens the current stage's tip bubble.
@@ -222,7 +237,10 @@ bullets `start the timer or the clock down` · `postpone for another day` ·
       done: false,
       doneAt: null,                   // ISO or null
       createdAt: "...", updatedAt: "...",
-      timer: null                     // or { mode:'stopwatch'|'countdown', durationSec, startedAt: ISO|null, elapsedSec, running }
+      timer: null,                    // or { mode:'stopwatch'|'countdown', durationSec, startedAt: ISO|null, elapsedSec, running }
+      attempt: 1,                     // how many times the task has been on a day's plan (copies pulled forward get +1)
+      carriedTo: null,                // date the task was pulled to → this copy is a record (faded red, not counted)
+      carriedFrom: null               // id of the record this copy was pulled from
     }
   ]
 }
@@ -245,7 +263,9 @@ store.toggleDone(id, done?)
 store.moveTaskToDate(id, date)
 store.reorderTask(id, order)
 store.tasksForDate(date)  → array sorted by (quadrant order do,plan,delegate,delete,null) then done last then order
-store.statsForDate(date)  → { total, done }
+store.statsForDate(date)  → { total, done, waiting }   // records (carriedTo set) are left out
+store.unfinishedBefore(date) → unfinished, un-pulled, non-DELETE tasks on earlier days
+store.carryOver(ids, date) → undo token; copies to `date` (attempt + 1) and marks originals as records
 store.setSetting(key, value)
 store.undo() / store.canUndo()                       // single-level undo for remove/move/setQuadrant
 // timers
@@ -276,7 +296,7 @@ check, plus, close, more, chevron-left/right, google, question); `bubble({ text|
 export function mount(container, ctx)   // ctx = { store, ui, dates, i18n, getDate(), setDate(key), goTo(stage), showTip() }
 export function unmount()               // remove listeners/timers
 ```
-`js/app.js` owns the shell, stepper, day bar, routing (`ui.stage` 1–5), tip logic (auto-show once
+`js/app.js` owns the shell, stepper, day bar, routing (`ui.stage` 1–4), tip logic (auto-show once
 per stage, `?` re-shows), keyboard shortcuts, and instantiates the store with the local adapter,
 then (if `firebaseConfig`) the auth module.
 
@@ -342,8 +362,8 @@ Feature agents own only their files. Core files may receive **small additive edi
 4. Typing 3 tasks + Enter each creates 3 rows; `+` adds a row; `✕` deletes; reload keeps them.
 5. Stage 3 shows the coloured matrix with the 3 tasks piled in the centre; drag (mouse) and tap-to-place both work; keyboard 1–4 works.
 6. Stage 4 shows labels DO immediately / PLAN and prioritize / DELEGATE for completion / DELETE these tasks and the tasks in their quadrants with checkbox + clock.
-7. Ticking a task strikes it through and Stage 1 shows the green fill at the right ratio.
-8. Stage 5 popover: ▶️ starts a countdown (timer bar visible, clock icon live); reload → timer still running; countdown end beeps.
+7. Ticking a task strikes it through and Stage 1 shows one green stripe per done task (ten fill the cell).
+8. Stage 4 popover: ▶️ starts a countdown (timer bar visible, clock icon live); reload → timer still running; countdown end beeps.
 9. 📅 moves the task to the chosen date (visible on that day, gone from this one) with Undo working.
 10. ⏩ moves to next weekday when weekends hidden (Fri → Mon), Undo works.
 11. `…` menu actions work in each quadrant; "Delete all tasks here" only in gray quadrant.

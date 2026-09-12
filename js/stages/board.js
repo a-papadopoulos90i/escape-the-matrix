@@ -1,17 +1,18 @@
-// Stages 4 & 5 — the working board (SPEC §2). One component for both stages: labelled coloured
-// quadrants holding task cards (checkbox · title · clock), a "…" menu per quadrant, a strip for
-// tasks still unsorted, and the fast-organize popover (timer / postpone / next day) opened from a
-// task title. The stage only changes the header, the footer buttons and where the tip points.
+// Stage 4 — the working board (SPEC §2): labelled coloured quadrants holding task cards
+// (checkbox · title · clock), a "…" menu per quadrant, the day's waiting list under the matrix,
+// the strip that pulls unfinished tasks in from earlier days, and the fast-organize popover
+// (timer / postpone / next day) opened from a task title or its clock.
 import * as timer from '../timer.js';
-import { QUADRANTS } from '../store.js';
+import { QUADRANTS, isRecord } from '../store.js';
+import { carryStrip, attemptBadge, recordLabel } from '../carry.js';
 
 const PRESET_MINUTES = [5, 15, 25, 45, 60];
-const TIP_ROOM = 150; // px free beside the matrix needed to put the stage-4 bubble on the left
+const TIP_ROOM = 150; // px free beside the matrix needed to put the "Done mark" bubble on the left
 const narrowScreen = window.matchMedia('(max-width: 639px)');
 
 let ctx = null;
 let root = null; // .stage-body
-let boardEl = null; // strip + matrix, re-rendered on every task change
+let boardEl = null; // strip + matrix + waiting list, re-rendered on every task change
 let unsubscribe = null;
 let adding = null; // quadrant with an open "add task" row
 let popover = null; // open task popover
@@ -20,13 +21,10 @@ let popover = null; // open task popover
 
 export function mount(container, nextCtx) {
   ctx = nextCtx;
-  const { ui, i18n, stage } = ctx;
-  const nav =
-    stage === 5
-      ? ui.stageNav({ onBack: () => ctx.goTo(4), onNext: () => ctx.goTo(1), nextLabel: i18n.t('nav.backToCalendar') })
-      : ui.stageNav({ onBack: () => ctx.goTo(3), onNext: () => ctx.goTo(5) });
+  const { ui, i18n } = ctx;
+  const nav = ui.stageNav({ onBack: () => ctx.goTo(3), onNext: () => ctx.goTo(1), nextLabel: i18n.t('nav.backToCalendar') });
   boardEl = ui.h('div', { class: 'board' });
-  root = ui.h('div', { class: 'stage-body' }, ui.stageHeader({ stage, title: i18n.t(`stage.${stage}.title`) }), boardEl, nav);
+  root = ui.h('div', { class: 'stage-body' }, ui.stageHeader({ stage: 4, title: i18n.t('stage.4.title') }), boardEl, nav);
   container.append(root);
   render();
   unsubscribe = ctx.store.subscribe(onStoreChange);
@@ -62,8 +60,10 @@ function render() {
   closePopover();
   const focusKey = focusedKey();
   const tasks = currentTasks();
-  const unplaced = tasks.filter((task) => task.quadrant === null).length;
-  boardEl.replaceChildren(...[unplaced ? unplacedStrip(unplaced) : null, matrix(tasks)].filter(Boolean));
+  const waiting = tasks.filter((task) => task.quadrant === null);
+  boardEl.replaceChildren(
+    ...[carryStrip(ctx, ctx.getDate()), matrix(tasks.filter((task) => task.quadrant !== null)), waiting.length ? waitingPanel(waiting) : null].filter(Boolean),
+  );
   markTipAnchor();
   restoreFocus(focusKey);
 }
@@ -74,16 +74,6 @@ function refreshClocks() {
     const task = findTask(el.dataset.timerId);
     if (task) timer.renderClock(el, task);
   }
-}
-
-function unplacedStrip(count) {
-  const { ui, i18n } = ctx;
-  return ui.h(
-    'div',
-    { class: 'board__unplaced', role: 'status' },
-    ui.h('span', null, count === 1 ? i18n.t('board.unplacedOne') : i18n.t('board.unplaced', { n: count })),
-    ui.h('button', { class: 'board__place', type: 'button', onClick: () => ctx.goTo(3) }, i18n.t('board.placeThem')),
-  );
 }
 
 function matrix(tasks) {
@@ -119,6 +109,7 @@ function quadrantPanel(quadrant, tasks) {
 }
 
 function taskCard(task) {
+  if (isRecord(task)) return recordCard(task);
   const { ui, i18n } = ctx;
   const check = ui.h('input', {
     class: 'task-card__check',
@@ -129,17 +120,6 @@ function taskCard(task) {
     dataset: { focusKey: `check:${task.id}` },
     onChange: (event) => ctx.store.toggleDone(task.id, event.currentTarget.checked),
   });
-  const title = ui.h(
-    'button',
-    {
-      class: 'task-card__title',
-      type: 'button',
-      'aria-haspopup': 'dialog',
-      dataset: { focusKey: `title:${task.id}` },
-      onClick: (event) => openTaskPopover(task.id, event.currentTarget),
-    },
-    task.title,
-  );
   // The clock is a button: it opens the popover straight on the timer picker (or on the actions
   // while a timer is live), so a timer is one tap away instead of three.
   const clock = ui.h('button', {
@@ -157,8 +137,38 @@ function taskCard(task) {
     'div',
     { class: `task-card ${task.done ? 'task-card--done' : ''}`.trim(), dataset: { id: task.id } },
     ui.h('label', { class: 'task-card__done' }, check),
-    title,
+    titleButton(task),
     clock,
+  );
+}
+
+/** The title opens the popover; a task on the plan for the n-th time carries a "×n" badge. */
+function titleButton(task) {
+  return ctx.ui.h(
+    'button',
+    {
+      class: 'task-card__title',
+      type: 'button',
+      'aria-haspopup': 'dialog',
+      dataset: { focusKey: `title:${task.id}` },
+      onClick: (event) => openTaskPopover(task.id, event.currentTarget),
+    },
+    attemptBadge(ctx, task),
+    task.title,
+  );
+}
+
+/**
+ * A task pulled to a later day stays here as a record: faded red, not counted, nothing to tick
+ * or start — it only shows how the day went and where the task continued.
+ */
+function recordCard(task) {
+  const { ui } = ctx;
+  return ui.h(
+    'div',
+    { class: 'task-card task-card--record', dataset: { id: task.id } },
+    ui.h('span', { class: 'task-card__title task-card__title--record' }, attemptBadge(ctx, task), task.title),
+    recordLabel(ctx, task),
   );
 }
 
@@ -197,17 +207,64 @@ function addRow(quadrant) {
   return row;
 }
 
+// ---------- Waiting list ----------
+
+/**
+ * Tasks left unplaced on stage 3 wait here, on hold for the day (SPEC §2): the owner keeps the
+ * day's essentials on the board and the rest in reserve. Each can be placed, or organised from
+ * its popover, at any time. Records of tasks pulled forward from here are listed too.
+ */
+function waitingPanel(tasks) {
+  const { ui, i18n } = ctx;
+  const active = tasks.filter((task) => !isRecord(task));
+  return ui.h(
+    'section',
+    { class: 'waiting', 'aria-labelledby': 'waiting-label' },
+    ui.h(
+      'div',
+      { class: 'waiting__head' },
+      ui.h('h3', { class: 'waiting__label', id: 'waiting-label' }, i18n.t('board.waiting', { n: active.length })),
+      ui.h('p', { class: 'waiting__hint' }, i18n.t('board.waitingHint')),
+    ),
+    ui.h('div', { class: 'waiting__list' }, tasks.map(waitingCard)),
+  );
+}
+
+function waitingCard(task) {
+  if (isRecord(task)) return recordCard(task);
+  const { ui, i18n } = ctx;
+  const place = ui.h(
+    'button',
+    {
+      class: 'btn btn-sm waiting-card__place',
+      type: 'button',
+      'aria-haspopup': 'menu',
+      dataset: { focusKey: `place:${task.id}` },
+      onClick: (event) => openPlaceMenu(task, event.currentTarget),
+    },
+    i18n.t('sort.placeIn'),
+  );
+  return ui.h('div', { class: 'task-card waiting-card', dataset: { id: task.id } }, titleButton(task), place);
+}
+
+function openPlaceMenu(task, anchor) {
+  const { ui, i18n } = ctx;
+  ui.menu({
+    anchor,
+    items: QUADRANTS.map((quadrant, index) => ({ label: `${index + 1}. ${i18n.quadrantLabel(quadrant)}`, onSelect: () => moveToQuadrant(task, quadrant) })),
+  });
+}
+
 // ---------- Tip anchor ----------
 
 /**
- * Stage 4's "Done mark ✅" points at the first checkbox from the free space left of the matrix,
- * as on the design board. Without that space (and on stage 5, whose bubble would otherwise
- * cover the next card or the neighbouring quadrant) the shell shows the tip under the stage
- * header instead, where it hides nothing.
+ * The "Done mark ✅" bubble points at the first checkbox from the free space left of the matrix,
+ * as on the design board. Without that space the shell shows it under the stage header instead,
+ * where it hides nothing.
  */
 function markTipAnchor() {
-  if (ctx.stage !== 4 || narrowScreen.matches) return;
-  const card = boardEl.querySelector('.task-card:not(.task-card--new)');
+  if (narrowScreen.matches) return;
+  const card = boardEl.querySelector('.board__matrix .task-card:not(.task-card--new):not(.task-card--record)');
   if (!card) return;
   const room = (root.clientWidth - boardEl.querySelector('.matrix').offsetWidth) / 2;
   if (room < TIP_ROOM) return;
@@ -231,8 +288,9 @@ function restoreFocus(key) {
 
 function openQuadrantMenu(quadrant, tasks, anchor) {
   const { ui, i18n } = ctx;
-  const unfinished = tasks.filter((task) => !task.done);
-  const finished = tasks.filter((task) => task.done);
+  const active = tasks.filter((task) => !isRecord(task));
+  const unfinished = active.filter((task) => !task.done);
+  const finished = active.filter((task) => task.done);
   const items = [
     { label: i18n.t('board.addHere'), onSelect: () => startAdding(quadrant) },
     { label: i18n.t('board.markAllDone'), disabled: !unfinished.length, onSelect: () => markAllDone(unfinished) },
@@ -294,7 +352,7 @@ function deleteTasks(tasks) {
   undoToast(tasks.length === 1 ? i18n.t('toast.deleted') : i18n.t('toast.deletedMany', { n: tasks.length }), token);
 }
 
-// ---------- Task popover (stage 5 "fast organize"; also works on stage 4) ----------
+// ---------- Task popover ("fast organize": timer · postpone · next day, plus edit / move / delete) ----------
 
 function closePopover() {
   popover?.close();

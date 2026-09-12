@@ -5,7 +5,7 @@ export const strings = {
   'app.name': 'Escape the Matrix',
   'app.skip': 'Skip to content',
   'app.tipButton': 'Show the tip for this stage',
-  'app.stageAnnounce': 'Stage {n} of 5: {label}',
+  'app.stageAnnounce': 'Stage {n} of 4: {label}',
   'app.stageLabel': 'Stage {n}: {label}',
 
   'stepper.label': 'Stages',
@@ -13,7 +13,6 @@ export const strings = {
   'stepper.2': 'Write down',
   'stepper.3': 'Prioritize',
   'stepper.4': 'Ready',
-  'stepper.5': 'Organize',
 
   'stage.heading': 'Stage {n}',
   'stage.1.title': 'calendar of the month {month}',
@@ -21,12 +20,11 @@ export const strings = {
   'stage.2.titleAccent': 'all of it!',
   'stage.3.title': 'Place them by priority:',
   'stage.4.title': 'Ready to start',
-  'stage.5.title': 'fast organize',
 
   'nav.label': 'Stage navigation',
   'nav.back': '← Back',
   'nav.next': 'Next →',
-  'nav.nextUnsorted': 'Next ({n} unsorted) →',
+  'nav.nextWaiting': 'Next ({n} waiting) →',
   'nav.backToCalendar': 'Back to calendar',
 
   'day.today': 'Today',
@@ -35,6 +33,7 @@ export const strings = {
   'day.next': 'Next day',
   'day.progress': '{done}/{total} done',
   'day.doneOf': '{done} of {total} done',
+  'day.waiting': '{n} waiting',
   'day.noTasks': 'No tasks yet',
 
   'banner.text':
@@ -71,13 +70,13 @@ export const strings = {
   'quadrant.plan.name': 'Important but Not Urgent',
   'quadrant.delegate.name': 'Urgent but Not Important',
   'quadrant.delete.name': 'Not Urgent & Not Important',
-  'quadrant.unsorted': 'Unsorted',
+  'quadrant.unsorted': 'Waiting list',
 
   'calendar.prevMonth': 'Previous month',
   'calendar.nextMonth': 'Next month',
   'calendar.today': 'Today',
   'calendar.showWeekends': 'Show weekends',
-  'calendar.legend.done': 'green = done ratio',
+  'calendar.legend.done': 'green = done tasks, one stripe each (up to 10)',
   'calendar.legend.today': 'blue = today',
   'calendar.legend.empty': 'gray = empty',
   'calendar.cellLabel': '{date}: {status}',
@@ -91,13 +90,13 @@ export const strings = {
 
   'sort.allPlaced': 'All placed ✓',
   'sort.placeIn': 'Place in ▾',
-  'sort.pile': 'Unsorted tasks',
+  'sort.pile': 'Waiting list',
+  'sort.pileHint': 'Waiting list — what you leave here stays on hold for this day',
   'sort.keyHint': 'Press 1–4 to place: 1 do, 2 plan, 3 delegate, 4 delete',
   'sort.placed': 'Placed in {quadrant}',
 
-  'board.unplaced': '{n} tasks not placed yet — ',
-  'board.unplacedOne': '1 task not placed yet — ',
-  'board.placeThem': 'Place them',
+  'board.waiting': 'Waiting list ({n})',
+  'board.waitingHint': 'On hold for this day — place a task when you decide to work on it.',
   'board.menu': 'More actions',
   'board.addHere': '+ Add task here',
   'board.markAllDone': 'Mark all done',
@@ -112,6 +111,18 @@ export const strings = {
   'board.timerPaused': 'Timer paused: {time}',
   'board.timerDone': 'Time spent: {time}',
   'board.editTitle': 'Task title',
+
+  'carry.strip': '{n} unfinished tasks left on {days}',
+  'carry.stripOne': '1 unfinished task left on {days}',
+  'carry.pull': 'Pull them here',
+  'carry.pullOne': 'Pull it here',
+  'carry.toast': '{n} tasks pulled here — the old days keep a record',
+  'carry.toastOne': '1 task pulled here — the old day keeps a record',
+  'carry.record': 'Pulled to {date}',
+  'carry.attempt': '×{n}',
+  'carry.attemptTitle': '{n}th time on the plan',
+  'carry.attemptTitle2': '2nd time on the plan',
+  'carry.attemptTitle3': '3rd time on the plan',
 
   'popover.start': 'Start the timer or the countdown',
   'popover.postpone': 'Postpone to another day',
@@ -154,20 +165,32 @@ export const strings = {
   'common.delete': 'Delete',
 };
 
-/** Speech bubbles per stage — verbatim from the design board for stages 2–5; stage 1 has none on
- *  the board, so its entry is a short hint written for this app. */
+/**
+ * Speech bubbles per stage, in display order — verbatim from the design board for stages 2–4
+ * (stage 4 carries the board's two comments: the done mark and the fast-organize actions); the
+ * board has none for stage 1, so its entry is a short hint written for this app. `tone`/`tail`
+ * are the default look; a stage may override them on its [data-tip-anchor] element.
+ */
 export const tips = {
-  1: { text: 'Pick a day to plan. Green shows how much of that day is done, blue is today.' },
-  2: { html: 'Write down everything you have for today — <strong>all of it!</strong>' },
-  3: {
-    title: 'Organize them by priority:',
-    items: ['Urgent & Important', 'Important but Not Urgent', 'Urgent but Not Important', 'Not Urgent & Not Important'],
-  },
-  4: { text: 'Done mark ✅' },
-  5: {
-    title: 'Organize them by priority:',
-    items: ['start the timer or the clock down', 'postpone for another day', "send it to the next day's list"],
-  },
+  1: [{ text: 'Pick a day to plan. Each green stripe is one task done, blue is today.', tone: 'khaki', tail: 'bottom' }],
+  2: [{ html: 'Write down everything you have for today — <strong>all of it!</strong>', tone: 'khaki', tail: 'bottom' }],
+  3: [
+    {
+      title: 'Organize them by priority:',
+      items: ['Urgent & Important', 'Important but Not Urgent', 'Urgent but Not Important', 'Not Urgent & Not Important'],
+      tone: 'khaki',
+      tail: 'bottom',
+    },
+  ],
+  4: [
+    { text: 'Done mark ✅', tone: 'green', tail: 'right', anchored: true },
+    {
+      title: 'Organize them by priority:',
+      items: ['start the timer or the clock down', 'postpone for another day', "send it to the next day's list"],
+      tone: 'dark',
+      tail: 'bottom',
+    },
+  ],
 };
 
 /** Stage 3 bullet list under the title. */
@@ -190,4 +213,10 @@ export function quadrantLabel(quadrant) {
 
 export function quadrantName(quadrant) {
   return t(`quadrant.${quadrant}.name`);
+}
+
+/** "2nd time on the plan", "3rd…", "4th…" — for the ×n badge of a task pulled forward. */
+export function attemptTitle(n) {
+  if (n === 2 || n === 3) return t(`carry.attemptTitle${n}`);
+  return t('carry.attemptTitle', { n });
 }

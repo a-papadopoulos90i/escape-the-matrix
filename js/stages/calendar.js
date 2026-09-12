@@ -121,7 +121,7 @@ function render() {
   const tabKey = [focusedKey, ctx.getDate(), dates.todayKey()].find((key) => keys.includes(key)) ?? keys[0];
 
   els.grid.replaceChildren(
-    ...dates.WEEKDAY_SHORT.slice(0, cols).map((name) => ui.h('span', { class: 'calendar__weekday', 'aria-hidden': 'true' }, name)),
+    ...dates.weekdayLabels(weekendsShown).map((name) => ui.h('span', { class: 'calendar__weekday', 'aria-hidden': 'true' }, name)),
     ...keys.map((key) => dayCell(key, key === tabKey)),
   );
   if (focusedKey) els.grid.querySelector(`[data-key="${focusedKey}"]`)?.focus();
@@ -149,7 +149,7 @@ function dayCell(key, tabbable) {
       'aria-label': t('calendar.cellLabel', { date: dates.formatLong(key), status }),
       'aria-current': isToday ? 'date' : null,
       tabindex: tabbable ? 0 : -1,
-      style: `--ratio:${total ? done / total : 0}`,
+      style: `--done:${Math.min(done, 10)}`, // one green stripe per done task, ten at most
       onClick: () => openDay(key),
     },
     ui.h('span', { class: 'calendar__fill', 'aria-hidden': 'true' }),

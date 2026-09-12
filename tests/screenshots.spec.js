@@ -22,7 +22,7 @@ for (const [label, viewport] of Object.entries({ desktop: { width: 1280, height:
     await page.addInitScript((doc) => localStorage.setItem('escape-the-matrix:v1', JSON.stringify(doc)), SEED);
     await page.addInitScript(() => localStorage.setItem('escape-the-matrix:ui', JSON.stringify({ selectedDate: '2026-03-11', stage: 1, calendarMonth: '2026-03' })));
     await page.goto('/');
-    for (let stage = 1; stage <= 5; stage += 1) {
+    for (let stage = 1; stage <= 4; stage += 1) {
       if (stage > 1) await page.locator('#stepper .step').nth(stage - 1).click();
       await page.locator('#stage .panel--ghost').waitFor({ state: 'detached' });
       await page.locator('.bubble').first().waitFor({ state: 'attached' });

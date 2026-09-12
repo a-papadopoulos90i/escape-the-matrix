@@ -30,7 +30,7 @@ export function createEmptyDoc() {
     settings: {
       showWeekends: false,
       bannerDismissed: false,
-      tipsSeen: { 1: false, 2: false, 3: false, 4: false, 5: false },
+      tipsSeen: { 1: false, 2: false, 3: false, 4: false },
     },
     tasks: [],
   };
@@ -66,9 +66,20 @@ function normalizeTask(raw) {
     createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : updatedAt,
     updatedAt,
     timer: normalizeTimer(raw.timer),
+    // Carry-over (SPEC §2 Stage 4): `attempt` counts how many times the task has been put on a
+    // day's plan; a task pulled to a later day leaves this copy behind as a record with
+    // `carriedTo` set, and the new copy points back with `carriedFrom`.
+    attempt: Number.isInteger(raw.attempt) && raw.attempt > 0 ? raw.attempt : 1,
+    carriedTo: isDateKey(raw.carriedTo) ? raw.carriedTo : null,
+    carriedFrom: typeof raw.carriedFrom === 'string' ? raw.carriedFrom : null,
     deleted,
     deletedAt: deleted ? (typeof raw.deletedAt === 'string' ? raw.deletedAt : updatedAt) : null,
   };
+}
+
+/** A task left behind on an earlier day after being pulled forward: shown as a record, never counted. */
+export function isRecord(task) {
+  return task.carriedTo !== null;
 }
 
 /**
@@ -137,6 +148,7 @@ function quadrantRank(task) {
 function compareTasks(a, b) {
   return (
     quadrantRank(a) - quadrantRank(b) ||
+    Number(isRecord(a)) - Number(isRecord(b)) ||
     Number(a.done) - Number(b.done) ||
     a.order - b.order ||
     a.createdAt.localeCompare(b.createdAt)
@@ -326,7 +338,7 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
     /** The live (not deleted) task with this id, or null. */
     findTask: find,
 
-    addTask({ title, date, quadrant = null }) {
+    addTask({ title, date, quadrant = null, attempt = 1, carriedFrom = null }) {
       if (!isDateKey(date)) throw new Error(`addTask: invalid date "${date}"`);
       const at = stamp();
       const task = {
@@ -340,11 +352,41 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
         createdAt: at,
         updatedAt: at,
         timer: null,
+        attempt: Number.isInteger(attempt) && attempt > 0 ? attempt : 1,
+        carriedTo: null,
+        carriedFrom: typeof carriedFrom === 'string' ? carriedFrom : null,
         deleted: false,
         deletedAt: null,
       };
       commit([...doc.tasks, task], { reason: 'addTask', id: task.id });
       return task;
+    },
+
+    /**
+     * Unfinished tasks left on days before `date` — not done, not already carried forward and
+     * not in the DELETE quadrant — oldest day first. These are what "Pull them here" offers.
+     */
+    unfinishedBefore(date) {
+      return doc.tasks
+        .filter((task) => live(task) && !isRecord(task) && !task.done && task.quadrant !== 'delete' && task.date < date)
+        .sort((a, b) => a.date.localeCompare(b.date) || compareTasks(a, b));
+    },
+
+    /**
+     * Pulls tasks forward to `date`: each gets a fresh copy there (in the waiting list, attempt + 1)
+     * while the original stays on its day as a record (`carriedTo`) that no longer counts.
+     * One undo token reverts the whole batch.
+     */
+    carryOver(ids, date) {
+      if (!isDateKey(date)) throw new Error(`carryOver: invalid date "${date}"`);
+      return undoable(() => {
+        for (const id of ids) {
+          const task = find(id);
+          if (!task || isRecord(task) || task.date >= date) continue;
+          store.addTask({ title: task.title, date, attempt: task.attempt + 1, carriedFrom: task.id });
+          patchTask(id, () => ({ carriedTo: date }), 'carryOver');
+        }
+      });
     },
 
     /** Generic patch; unknown fields are dropped and invalid values are ignored. */
@@ -418,9 +460,14 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
       return doc.tasks.filter((task) => task.date === date && live(task)).sort(compareTasks);
     },
 
+    /** Counts for a day; records (tasks carried to a later day) are left out entirely. */
     statsForDate(date) {
-      const tasks = doc.tasks.filter((task) => task.date === date && live(task));
-      return { total: tasks.length, done: tasks.filter((task) => task.done).length };
+      const tasks = doc.tasks.filter((task) => task.date === date && live(task) && !isRecord(task));
+      return {
+        total: tasks.length,
+        done: tasks.filter((task) => task.done).length,
+        waiting: tasks.filter((task) => task.quadrant === null && !task.done).length,
+      };
     },
 
     setSetting(key, value) {

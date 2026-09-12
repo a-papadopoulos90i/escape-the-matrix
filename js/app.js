@@ -1,5 +1,5 @@
 // App shell: boots the store with the local adapter, renders header/stepper/day bar/banner,
-// routes between the five stage panels (slide + fade), shows the per-stage tip bubbles and wires
+// routes between the four stage panels (slide + fade), shows the per-stage tip bubbles and wires
 // keyboard shortcuts. Stage modules only ever see the `ctx` object built in makeCtx().
 import { createStore } from './store.js';
 import { createLocalAdapter } from './storage/local.js';
@@ -13,19 +13,13 @@ import * as board from './stages/board.js';
 import { init as initTimer } from './timer.js';
 
 const { t } = i18n;
-const STAGE_COUNT = 5;
-const STAGE_MODULES = { 1: calendar, 2: dump, 3: sort, 4: board, 5: board };
-// Default bubble look per stage (SPEC §2); a stage may override via data-tip-tone / data-tip-tail
-// on its [data-tip-anchor] element. Without an anchor the bubble sits under the stage header —
-// which is also where every tip goes on narrow screens, where an anchored bubble would cover the
-// title, the bullet list or the very cards it explains.
-const TIP_STYLE = {
-  1: { tone: 'khaki', tail: 'bottom' },
-  2: { tone: 'khaki', tail: 'bottom' },
-  3: { tone: 'khaki', tail: 'bottom' },
-  4: { tone: 'green', tail: 'right' },
-  5: { tone: 'dark', tail: 'bottom' },
-};
+const STAGE_COUNT = 4;
+const STAGE_MODULES = { 1: calendar, 2: dump, 3: sort, 4: board };
+// Each stage's bubbles come from i18n.tips with their default tone/tail; a stage may override
+// those via data-tip-tone / data-tip-tail on its [data-tip-anchor] element. A bubble that is
+// not anchored sits under the stage header — which is also where every tip goes on narrow
+// screens, where an anchored bubble would cover the title, the bullet list or the very cards it
+// explains.
 const TRANSITION_FALLBACK_MS = 350;
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -39,7 +33,7 @@ const state = {
   calendarMonth: dates.monthOfKey(dates.todayKey()),
   signedIn: false,
   mounted: null, // { stage, module, panel }
-  tip: null,
+  tips: [], // open bubbles of the mounted stage
 };
 
 // ---------- UI state (per device) ----------
@@ -47,7 +41,7 @@ const state = {
 function restoreUiState() {
   const saved = local.loadUi();
   const stage = Number(saved.stage);
-  if (Number.isInteger(stage) && stage >= 1 && stage <= STAGE_COUNT) state.stage = stage;
+  if (Number.isInteger(stage) && stage >= 1) state.stage = Math.min(stage, STAGE_COUNT); // the former stage 5 is now 4
   if (dates.isValidKey(saved.selectedDate)) state.selectedDate = saved.selectedDate;
   state.calendarMonth = dates.isValidMonthKey(saved.calendarMonth) ? saved.calendarMonth : dates.monthOfKey(state.selectedDate);
 }
@@ -92,7 +86,7 @@ function renderStepper() {
 function renderDayBar() {
   const key = state.selectedDate;
   const isToday = key === dates.todayKey();
-  const { total, done } = store.statsForDate(key);
+  const { total, done, waiting } = store.statsForDate(key);
   const percent = total ? Math.round((done / total) * 100) : 0;
   const status = total ? t('day.doneOf', { done, total }) : t('day.noTasks');
   const focusKey = document.activeElement?.dataset?.focusKey;
@@ -125,6 +119,7 @@ function renderDayBar() {
           ui.h('div', { class: 'meter__fill', style: { width: `${percent}%` } }),
         ),
         ui.h('span', null, total ? t('day.progress', { done, total }) : t('day.noTasks')),
+        waiting ? ui.h('span', { class: 'daybar__waiting' }, `· ${t('day.waiting', { n: waiting })}`) : null,
       ),
     ),
   );
@@ -191,34 +186,44 @@ function tipContent(spec) {
 }
 
 function closeTip() {
-  state.tip?.close();
-  state.tip = null;
+  for (const tip of state.tips) tip.close();
+  state.tips = [];
 }
 
-/** Shows the stage's tip; `focus` moves keyboard focus into it (when the user asked for it). */
+/**
+ * Shows the stage's bubbles (stage 4 has two). A bubble marked `anchored` — or the only bubble
+ * of a stage — points at the stage's [data-tip-anchor] element when there is one and the screen
+ * is wide; every other bubble sits in-flow under the stage header, in order. `focus` moves
+ * keyboard focus into the first one (when the user asked for it).
+ */
 function showTip(stage = state.stage, { focus = false } = {}) {
   closeTip();
-  const spec = i18n.tips[stage];
+  const specs = i18n.tips[stage];
   const panel = state.mounted?.panel;
-  if (!spec || !panel || state.mounted.stage !== stage) return;
-  const anchor = narrowScreen.matches ? null : panel.querySelector('[data-tip-anchor]');
-  const style = TIP_STYLE[stage];
-  const tip = ui.bubble({
-    content: tipContent(spec),
-    tone: anchor?.dataset.tipTone || panel.querySelector('[data-tip-anchor]')?.dataset.tipTone || style.tone,
-    tail: anchor ? anchor.dataset.tipTail || style.tail : 'bottom',
-    anchor: anchor ?? undefined,
-    within: panel,
-    onClose: () => {
-      if (state.tip === tip) state.tip = null;
-    },
-  });
-  if (!anchor) {
-    const slot = panel.querySelector('[data-tip-slot]') ?? panel.querySelector('.stage-header') ?? panel;
-    slot === panel ? panel.prepend(tip.el) : slot.after(tip.el);
+  if (!specs?.length || !panel || state.mounted.stage !== stage) return;
+  const anchorEl = panel.querySelector('[data-tip-anchor]');
+  const flow = [];
+  for (const spec of specs) {
+    const wantsAnchor = Boolean(anchorEl) && (spec.anchored === true || specs.length === 1);
+    const anchor = wantsAnchor && !narrowScreen.matches ? anchorEl : null;
+    const tip = ui.bubble({
+      content: tipContent(spec),
+      tone: (wantsAnchor && anchorEl.dataset.tipTone) || spec.tone,
+      tail: anchor ? anchor.dataset.tipTail || spec.tail : 'bottom',
+      anchor: anchor ?? undefined,
+      within: panel,
+      onClose: () => {
+        state.tips = state.tips.filter((open) => open !== tip);
+      },
+    });
+    if (!anchor) flow.push(tip.el);
+    state.tips.push(tip);
   }
-  if (focus) tip.el.focus({ preventScroll: true });
-  state.tip = tip;
+  if (flow.length) {
+    const slot = panel.querySelector('[data-tip-slot]') ?? panel.querySelector('.stage-header') ?? panel;
+    slot === panel ? panel.prepend(...flow) : slot.after(...flow);
+  }
+  if (focus) state.tips[0]?.el.focus({ preventScroll: true });
 }
 
 function autoShowTip(stage) {

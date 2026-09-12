@@ -1218,3 +1218,10 @@ body.has-modal {
     white-space: nowrap;
   }
 }
+
+/* Day bar: "· 5 waiting" after the done count when the day has tasks on hold. */
+.daybar__waiting {
+  margin-left: var(--space-1);
+  color: var(--muted);
+  white-space: nowrap;
+}

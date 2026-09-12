@@ -1,7 +1,10 @@
 // Stage 2 — brain dump (SPEC §2). A faded, empty matrix sits in the background; centred over it
 // is a stack of task rows: one inline-editable input per existing task, two placeholder rows
-// ("......") for new tasks and a large "+" that adds another placeholder. Enter commits and moves
-// on, Escape/blur discards an empty extra row, ✕ deletes (with Undo). "Next →" needs ≥ 1 task.
+// ("......") for new tasks and a large "+" that adds another placeholder. Enter or Tab commits
+// and moves on, Backspace in an empty row deletes it, Escape/blur discards an empty extra row,
+// ✕ deletes (with Undo). "Next →" needs ≥ 1 task. Unfinished tasks left on earlier days can be
+// pulled into this day from the strip above the stack.
+import { carryStrip, attemptBadge } from '../carry.js';
 
 const MIN_BLANK_ROWS = 2;
 const QUADRANT_COUNT = 4; // decorative background only
@@ -20,6 +23,7 @@ export function mount(container, ctx) {
     ui.icon('plus', { size: 28 }),
   );
   const hintEl = ui.h('p', { class: 'dump__hint text-muted', hidden: true }, t('dump.needTask'));
+  const carryEl = ui.h('div', { class: 'dump__carry' });
   const nav = ui.stageNav({ onBack: () => ctx.goTo(1), onNext: () => ctx.goTo(3), nextDisabled: true });
 
   const root = ui.h(
@@ -30,6 +34,7 @@ export function mount(container, ctx) {
       title: [t('stage.2.title'), ui.h('span', { class: 'stage-title__accent' }, t('stage.2.titleAccent'))],
       subtitle: dates.formatLong(ctx.getDate()),
     }),
+    carryEl,
     ui.h(
       'div',
       { class: 'dump__board' },
@@ -41,7 +46,7 @@ export function mount(container, ctx) {
   );
 
   // The mounted date is fixed for this panel's lifetime (the shell re-mounts on a day change).
-  state = { ctx, date: ctx.getDate(), root, tasksEl, blankEl, hintEl, nextButton: nav.querySelector('.stage-nav__next'), unsubscribe: null };
+  state = { ctx, date: ctx.getDate(), root, tasksEl, blankEl, hintEl, carryEl, nextButton: nav.querySelector('.stage-nav__next'), unsubscribe: null };
   for (let i = 0; i < MIN_BLANK_ROWS; i += 1) blankEl.append(blankRow());
   state.unsubscribe = ctx.store.subscribe(sync);
   sync();
@@ -68,9 +73,10 @@ function keepFocus(event) {
 
 /** Re-syncs rows with the store; task rows are keyed by id so focus and pending edits survive. */
 function sync() {
-  const { ctx, date, blankEl, hintEl, nextButton } = state;
-  const tasks = ctx.store.tasksForDate(date);
+  const { ctx, date, blankEl, hintEl, carryEl, nextButton } = state;
+  const tasks = ctx.store.tasksForDate(date).filter((task) => task.carriedTo === null); // records stay on stage 4
   reconcileTaskRows(tasks);
+  carryEl.replaceChildren(...[carryStrip(ctx, date)].filter(Boolean));
   let n = tasks.length;
   for (const input of blankEl.querySelectorAll('input')) input.setAttribute('aria-label', label(++n));
   hintEl.hidden = tasks.length > 0;
@@ -85,7 +91,7 @@ function reconcileTaskRows(tasks) {
   const ids = new Set(tasks.map((task) => task.id));
   for (const [id, row] of rows) if (!ids.has(id)) row.remove();
   tasks.forEach((task, index) => {
-    const row = rows.get(task.id) ?? taskRow(task.id);
+    const row = rows.get(task.id) ?? taskRow(task);
     const input = row.querySelector('input');
     if (document.activeElement !== input) input.value = task.title;
     input.setAttribute('aria-label', label(index + 1));
@@ -97,8 +103,10 @@ function label(n) {
   return state.ctx.i18n.t('dump.taskLabel', { n });
 }
 
-function taskRow(id) {
+/** A row for an existing task. ✕ is mouse-only (tabindex -1) so Tab walks straight down the inputs. */
+function taskRow(task) {
   const { ui, i18n } = state.ctx;
+  const { id } = task;
   const input = ui.h('input', {
     class: 'dump-row__input',
     type: 'text',
@@ -109,10 +117,19 @@ function taskRow(id) {
   });
   const remove = ui.h(
     'button',
-    { class: 'btn-icon dump-row__delete', type: 'button', 'aria-label': i18n.t('dump.deleteTask'), onMousedown: keepFocus, onClick: () => deleteTask(id) },
+    { class: 'btn-icon dump-row__delete', type: 'button', tabindex: -1, 'aria-label': i18n.t('dump.deleteTask'), onMousedown: keepFocus, onClick: () => deleteTask(id) },
     ui.icon('close', { size: 16 }),
   );
-  return ui.h('div', { class: 'dump-row', dataset: { id } }, input, remove);
+  return ui.h('div', { class: 'dump-row', dataset: { id } }, attemptBadge(state.ctx, task), input, remove);
+}
+
+/** Focuses an input with the caret at the end, without the page jumping. */
+function focusInput(input) {
+  if (!input) return;
+  input.focus({ preventScroll: true });
+  const end = input.value.length;
+  input.setSelectionRange(end, end);
+  input.scrollIntoView({ block: 'nearest' });
 }
 
 /** Placeholder row; `extra` marks rows added with "+" (the only ones that get discarded when empty). */
@@ -146,27 +163,42 @@ function commitTask(id, input) {
   else input.value = title;
 }
 
+/**
+ * Enter and Tab commit the row and move down; Shift+Tab moves up; Backspace in an emptied row
+ * deletes the task and moves up; Escape restores the saved title.
+ */
 function onTaskKeydown(event, id) {
   if (event.isComposing) return;
   const input = event.currentTarget;
-  if (event.key === 'Enter') {
+  const row = input.parentElement;
+  if (event.key === 'Enter' || (event.key === 'Tab' && !event.shiftKey)) {
     event.preventDefault();
-    const next = inputAfter(input.parentElement);
+    const next = inputAfter(row);
     commitTask(id, input);
-    next?.focus();
+    focusInput(next);
+  } else if (event.key === 'Tab' && event.shiftKey) {
+    const previous = inputBefore(row);
+    if (!previous) return; // first row: let focus leave the stack the normal way
+    event.preventDefault();
+    commitTask(id, input);
+    focusInput(previous);
+  } else if (event.key === 'Backspace' && input.value === '') {
+    event.preventDefault();
+    deleteTask(id, inputBefore(row) ?? inputAfter(row));
   } else if (event.key === 'Escape') {
     event.preventDefault();
     input.value = findTask(id)?.title ?? '';
   }
 }
 
-function deleteTask(id) {
+/** Deletes a task (undoable via the toast); `focusTarget` is where keyboard focus goes afterwards. */
+function deleteTask(id, focusTarget) {
   const { store, ui, i18n } = state.ctx;
   if (!findTask(id)) return;
   const row = state.tasksEl.querySelector(`[data-id="${id}"]`);
-  const next = row?.contains(document.activeElement) ? inputAfter(row) : null;
+  const next = focusTarget ?? (row?.contains(document.activeElement) ? inputAfter(row) : null);
   const token = store.removeTask(id);
-  next?.focus();
+  focusInput(next);
   ui.toast(i18n.t('toast.deleted'), { action: { label: i18n.t('toast.undo'), onClick: () => store.undo(token) } }); // this toast reverts this delete only
 }
 
@@ -174,6 +206,12 @@ function deleteTask(id) {
 function inputAfter(row) {
   const next = row.nextElementSibling ?? state.blankEl.firstElementChild;
   return next?.querySelector('input') ?? null;
+}
+
+/** The input of the row above `row` (a placeholder's "above" ends with the last task row); null at the top. */
+function inputBefore(row) {
+  const previous = row.previousElementSibling ?? (row.parentElement === state.blankEl ? state.tasksEl.lastElementChild : null);
+  return previous?.querySelector('input') ?? null;
 }
 
 // ---------- Placeholder rows ----------
@@ -185,16 +223,27 @@ function commitBlank(input) {
   state.ctx.store.addTask({ title, date: state.date });
 }
 
+/**
+ * Enter, or Tab with text, commits: the new task appears above and this row empties and keeps the
+ * focus, so it is the "next box" right under it. Tab on an empty row moves on as usual (✕ buttons
+ * are skipped). Backspace in an empty row moves up (and discards an extra row); Escape discards.
+ */
 function onBlankKeydown(event) {
   if (event.isComposing) return;
   const input = event.currentTarget;
-  if (event.key === 'Enter') {
+  const row = input.parentElement;
+  if (event.key === 'Enter' || (event.key === 'Tab' && !event.shiftKey && input.value.trim())) {
     event.preventDefault();
-    commitBlank(input); // the row empties again and stays focused, right under the new task
+    commitBlank(input);
+    focusInput(input);
+  } else if (event.key === 'Backspace' && input.value === '') {
+    event.preventDefault();
+    if ('extra' in row.dataset) discardExtraRow(row, true);
+    else focusInput(inputBefore(row));
   } else if (event.key === 'Escape') {
     event.preventDefault();
     input.value = '';
-    discardExtraRow(input.parentElement, true);
+    discardExtraRow(row, true);
   }
 }
 
@@ -215,7 +264,7 @@ function addBlankRow() {
 /** Removes an empty placeholder row added with "+" (the two default rows always stay). */
 function discardExtraRow(row, refocus) {
   if (!('extra' in row.dataset)) return;
-  if (refocus) (row.previousElementSibling?.querySelector('input') ?? state.tasksEl.lastElementChild?.querySelector('input'))?.focus();
+  if (refocus) focusInput(inputBefore(row));
   row.remove();
   sync();
 }

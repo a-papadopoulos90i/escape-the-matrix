@@ -9,22 +9,27 @@ GitHub Pages and works offline in the browser.
 
 **Live app:** <https://a-papadopoulos90i.github.io/escape-the-matrix/>
 
-## The five stages
+## The four stages
 
-1. **Calendar** — pick a day in the month view. Each day cell fills up green as its tasks get done;
-   today is outlined blue. Weekends can be shown or hidden.
+1. **Calendar** — pick a day in the month view. Each day cell shows one green stripe per task done
+   (ten stripes fill the cell); hover a day to see how many there are and how many are done. Today is
+   outlined blue. Weekends can be shown or hidden; the week starts on Sunday.
 2. **Write down** — brain-dump everything you have for that day, one task per row.
 3. **Prioritize** — drag (mouse or touch), tap-to-place, or press `1`–`4` to put each task into a
    quadrant: *Urgent & Important*, *Important but Not Urgent*, *Urgent but Not Important*,
-   *Not Urgent & Not Important*.
+   *Not Urgent & Not Important*. Whatever you leave in the pile stays on the day's **waiting list** —
+   with forty things to do you pick the ten that matter today.
 4. **Ready** — the board: **DO immediately**, **PLAN and prioritize**, **DELEGATE for completion**,
    **DELETE these tasks**. Tick tasks done; each quadrant has a `…` menu (add here, mark all done,
-   move unfinished to next day, clear done, delete all).
-5. **Organize** — click a task title for the quick actions: start a stopwatch or countdown,
-   postpone to another day, or send it to the next day's list.
+   move unfinished to next day, clear done, delete all). Click a task title (or its clock) for the
+   quick actions: start a stopwatch or countdown, postpone to another day, or send it to the next
+   day's list. The waiting list sits under the matrix, and when earlier days still hold unfinished
+   tasks a strip offers to **pull them here**: each gets a fresh copy on this day (with a `×3`-style
+   badge counting how many times it has been on the plan) while the old day keeps a faded red record
+   that no longer counts.
 
-Stages 2–5 reproduce the speech bubbles from the original design word for word; stage 1 shows a
-short hint instead. Close a bubble and reopen it any time with the `?` button.
+Stages 2–4 reproduce the speech bubbles from the original design word for word (the board carries
+two); stage 1 shows a short hint instead. Close a bubble and reopen it any time with the `?` button.
 
 ## Free mode vs Google mode
 
@@ -71,7 +76,8 @@ index.html                 app shell
 css/                       tokens, base styles, one file per stage, account UI
 js/app.js                  routing, stepper, day bar, tips, keyboard shortcuts
 js/store.js                document store (tasks, settings, timers, undo, persistence)
-js/stages/                 calendar, dump, sort, board (stages 1–5)
+js/stages/                 calendar, dump, sort, board (stages 1–4)
+js/carry.js                pulling unfinished tasks forward: strip, ×n badge, records
 js/storage/local.js        localStorage adapter (free mode + offline copy)
 js/storage/cloud.js        Firestore adapter (Google mode)
 js/auth.js                 Google sign-in and the account menu

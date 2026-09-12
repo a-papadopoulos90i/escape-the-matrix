@@ -171,15 +171,22 @@
   pointer-events: none;
 }
 
-/* Day with tasks: green border, striped fill as tall as the done ratio (a thin base line at 0). */
+/* Day with tasks: green border and one green stripe (a tenth of the cell) per done task, ten at
+   most. The fill is done/10 of the cell tall and its bands are fill/done tall, so every band is
+   exactly one tenth of the cell whatever the count; a thin base line marks a planned day with
+   nothing done yet. */
 .calendar__day--planned {
   border-color: var(--green);
 }
 
 .calendar__day--planned .calendar__fill {
-  height: calc(var(--ratio, 0) * 100%);
+  height: calc(var(--done, 0) / 10 * 100%);
   min-height: 4px;
-  background: repeating-linear-gradient(to top, var(--green-stripe) 0 2px, var(--green-fill) 2px 8px);
+  background-color: var(--green-fill);
+  background-image: linear-gradient(to top, var(--green-fill) 0 calc(100% - 2px), var(--green-stripe) calc(100% - 2px) 100%);
+  background-size: 100% calc(100% / max(var(--done, 0), 1));
+  background-repeat: repeat-y;
+  background-position: bottom;
 }
 
 /* Today: blue border; no tray unless it has tasks (as on the design board). */
