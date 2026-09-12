@@ -134,10 +134,10 @@ live **count badge** (owner adopted the Lovable names):
 - `Delegate` — *Urgent but Not Important* (blue, users)
 - `Drop` — *Not Urgent & Not Important* (gray, trash)
 
-Task card: **circular checkbox on the left** ("done mark"), title centred, **clock icon** (gray
-outline when idle; running timer shows a live mm:ss in accent colour; finished timer shows the
-elapsed time in gray), and a **red ✕ at the far right** that deletes the task at once (with an Undo
-toast). Done tasks: checkbox checked, title struck through and dimmed, moved to the bottom.
+Task card, controls left→right: **circular checkbox** ("done mark"), the title (click → rename in
+place), a **clock** (opens the timer picker), a **⏩** (opens the schedule picker), and a **red ✕**
+(deletes at once, with an Undo toast). Done tasks: checkbox checked, title struck through and
+dimmed, moved to the bottom. The count badge in each quadrant header is a plain number (no pill).
 
 Bottom of each quadrant: a single **`+`** button that adds a task straight into that quadrant
 (inline row). The old `…` menu (mark all done / move unfinished / clear done / delete all) was
@@ -152,22 +152,22 @@ Speech bubble, verbatim: **"Done mark ✅"** — light-green pill `#cdf4d3` with
 ### Stage 4, continued — fast organize, the waiting list and pulling tasks forward
 
 (The board's stage 5 "fast organaze" was identical to stage 4, so the owner merged them; its
-actions live on stage 4.) Clicking a task's **title** (or its clock) opens a **popover** (white card
-with a tail): the task title on top (**clicking the title renames the task in place** — it turns
-into an input, Enter/blur saves, Escape cancels), then two large icon buttons in a row:
+actions live on stage 4.) Every action is its own card control, each opening a small popover panel:
 
-1. 📅 (calendar) — **Postpone to another day**
-2. ⏩ (orange fast-forward) — **Send to the next day's list**
+- **Clock → timer picker:** `Stopwatch` (count up) or `Countdown` with presets `5 · 15 · 25 · 45 ·
+  60 min` + a custom-minutes field.
+- **⏩ → schedule picker:** a **`Next day`** button on top (sends to the next visible day) and a
+  **`Postpone`** section below with a calendar (`<input type="date">`, min = today) + `Set` — laid
+  out like the timer picker.
+- **Title → rename in place:** the title turns into an input (Enter/blur saves, Escape cancels).
+- **Red ✕ → delete** (with Undo). **Move** is **drag & drop** between quadrants.
 
-There is **no ▶️ button** in the popover: starting a timer is the **clock icon on the right of the
-card** (it opens the popover straight on the stopwatch / countdown picker). There is no Edit / Move
-to / Delete text row either: renaming is the title click above, **moving is drag & drop**, and
-**deleting is the red ✕** on each card. Cards on the board are **draggable between quadrants** with
-Pointer Events (mouse and touch; a plain click still opens the popover, a press-and-drag — or a
-touch long-press — lifts the card; dropping on a quadrant re-files it, dropping on the waiting list
-unplaces it). This is in addition to the waiting list's `Place in ▾` menu.
+Each picker shows the editable title at the top. Cards are **draggable between quadrants** with
+Pointer Events (mouse and touch; a plain click still opens a picker, a press-and-drag — or a touch
+long-press — lifts the card; dropping on a quadrant re-files it, dropping on the waiting list
+unplaces it).
 
-- **▶️ Start:** shows two choices: `Stopwatch` (count up) or `Countdown` with presets
+- **Timer start:** two choices: `Stopwatch` (count up) or `Countdown` with presets
   `5 · 15 · 25 · 45 · 60 min` and a custom minutes field. Starting sets the task's clock icon live and
   shows a **floating timer bar** at the bottom of the screen (task title, time, `Pause`/`Resume`,
   `Stop`, `Done ✓` which also ticks the task). Only one timer runs at a time — starting another asks
@@ -179,9 +179,12 @@ unplaces it). This is in addition to the waiting list's `Place in ▾` menu.
 - **⏩ Next day:** sets `task.date` to the **next visible day** (next weekday when weekends are hidden,
   otherwise tomorrow). Toast with **Undo**.
 
-**Waiting list.** Tasks left unplaced on stage 3 (`quadrant: null`) are listed under the matrix in a
-"Waiting list (N)" panel with a `Place in ▾` button each (and the popover from the title). They are
-on hold: the day bar shows "· N waiting" next to the done count.
+**Waiting list (the 5th category).** Tasks left unplaced on stage 3 (`quadrant: null`) are listed
+under the matrix in a "Waiting list (N)" panel. Each waiting card has its own **checkbox** (so it
+can be completed in place — a done waiting task stays here, struck through, and still counts in the
+day total), the title (rename), a row of **four small colour-coded glyphs** (Do now / Schedule /
+Delegate / Drop) that file it straight into that quadrant, and the **red ✕**. They are on hold: the
+day bar shows "· N waiting" next to the done count.
 
 **Pulling unfinished tasks forward.** When earlier days still hold unfinished tasks (not done, not
 in DELETE, not already pulled), stages 2 and 4 show a strip "N unfinished tasks left on Mon 9 Mar,

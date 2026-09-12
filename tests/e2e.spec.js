@@ -142,6 +142,12 @@ async function openPopover(page, title) {
   await expect(popover(page)).toBeVisible();
 }
 
+/** The card ⏩ opens the schedule picker (Next day + a calendar to postpone). */
+async function openSchedule(page, title) {
+  await card(page, title).locator('.task-card__forward').click();
+  await expect(popover(page).locator('.schedule-picker__nextday')).toBeVisible();
+}
+
 /** Ratio of a calendar cell's green fill to the cell height. */
 const fillRatio = (locator) =>
   locator.evaluate((el) => el.querySelector('.calendar__fill').offsetHeight / el.clientHeight);
@@ -197,8 +203,8 @@ test('walkthrough: pick a day, dump, sort, work the board, organize, back to a g
   await expect(page.locator('.daybar__progress')).toContainText('1/3 done');
 
   // Still on stage 4 → send one task to the next day (the fast-organize popover), then back to the calendar.
-  await openPopover(page, TITLES[1]);
-  await popover(page).locator('.action-btn--forward').click();
+  await openSchedule(page, TITLES[1]);
+  await popover(page).locator('.schedule-picker__nextday').click();
   await expect(card(page, TITLES[1])).toHaveCount(0);
   await expect(page.locator('.toast')).toContainText('Moved to Fri 13 Mar');
   await expect(page.locator('.daybar__progress')).toContainText('1/2 done');
@@ -479,12 +485,11 @@ test('9. 📅 moves the task to the chosen date (gone here, visible there) and U
   await page.goto('/');
 
   const postpone = async () => {
-    await openPopover(page, TITLES[2]);
-    await popover(page).locator('.action-btn--calendar').click();
-    const input = popover(page).locator('input[type="date"]');
+    await openSchedule(page, TITLES[2]);
+    const input = popover(page).locator('.schedule-picker__date');
     await expect(input).toHaveAttribute('min', TODAY);
     await input.fill('2026-03-20');
-    await popover(page).locator('button[type="submit"]').click();
+    await popover(page).locator('.schedule-picker button[type="submit"]').click();
     await expect(popover(page)).toHaveCount(0);
     await expect(card(page, TITLES[2])).toHaveCount(0);
     await expect(page.locator('.toast')).toContainText('Moved to Fri 20 Mar');
@@ -514,8 +519,8 @@ test('10. ⏩ sends a Friday task to Monday when weekends are hidden; Undo works
   await page.goto('/');
   await expect(page.locator('.daybar__date')).toHaveText('Friday, 13 March 2026');
 
-  await openPopover(page, TITLES[0]);
-  await popover(page).locator('.action-btn--forward').click();
+  await openSchedule(page, TITLES[0]);
+  await popover(page).locator('.schedule-picker__nextday').click();
   await expect(card(page, TITLES[0])).toHaveCount(0);
   await expect(page.locator('.toast')).toContainText('Moved to Mon 16 Mar');
   await waitForSaved(page, (doc) => taskById(doc, 't_1').date === '2026-03-16');

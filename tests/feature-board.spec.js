@@ -68,10 +68,16 @@ async function openPopover(page, title) {
   await expect(popover(page)).toBeVisible();
 }
 
-/** The clock on a card opens the popover straight on the timer picker (the ▶ button is gone). */
+/** The clock on a card opens the popover straight on the timer picker. */
 async function openTimer(page, title) {
   await card(page, title).locator('.task-card__clock').click();
   await expect(popover(page).locator('.timer-picker__stopwatch')).toBeVisible();
+}
+
+/** The ⏩ on a card opens the schedule picker (Next day + a calendar to postpone). */
+async function openSchedule(page, title) {
+  await card(page, title).locator('.task-card__forward').click();
+  await expect(popover(page).locator('.schedule-picker__nextday')).toBeVisible();
 }
 
 test('stage 4 shows the labelled quadrants, cards with checkbox + clock, and the waiting list', async ({ page }) => {
@@ -93,11 +99,22 @@ test('stage 4 shows the labelled quadrants, cards with checkbox + clock, and the
   const waiting = panel(page).locator('.waiting');
   await expect(waiting.locator('.waiting__label')).toHaveText('Waiting list (1)');
   await expect(waiting.locator('.waiting-card')).toHaveText(/Loose end/);
-  await waiting.locator('.waiting-card__place').click();
-  await page.locator('[role="menuitem"]', { hasText: 'Do now' }).click();
+  await expect(waiting.locator('.waiting-place')).toHaveCount(4); // one glyph per quadrant, no dropdown
+  await waiting.locator('.waiting-place--do').click(); // file it into Do now directly
   await expect(quadrant(page, 'do').locator('.task-card')).toHaveText(['Marketing Order A5', 'Loose end']);
   await expect(panel(page).locator('.waiting')).toHaveCount(0);
   expect(errors).toEqual([]);
+});
+
+test('a waiting task has its own checkbox: it completes in place and counts as done', async ({ page }) => {
+  await seed(page, { tasks: [...SORTED(), task('t_9', 'Water the plants', null)] });
+  await page.goto('/');
+  const wcard = panel(page).locator('.waiting-card', { hasText: 'Water the plants' });
+  await expect(wcard.locator('.task-card__check')).toHaveCount(1);
+  await wcard.locator('.task-card__check').check();
+  await expect(wcard).toHaveClass(/task-card--done/);
+  await expect(page.locator('.daybar__progress')).toContainText('1/4 done'); // waiting is the 5th category, still counted
+  await waitForSaved(page, (doc) => taskById(doc, 't_9').done === true && taskById(doc, 't_9').quadrant === null);
 });
 
 test('ticking a task strikes it through, sinks it to the bottom, persists and updates the day bar', async ({ page }) => {
@@ -149,33 +166,27 @@ const centre = async (loc) => {
   return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
 };
 
-test('popover: postpone + next-day actions; clicking the title renames in place', async ({ page }) => {
+test('the card title opens rename in place; the ⏩ opens the schedule picker', async ({ page }) => {
   const errors = collectErrors(page);
   await seed(page, { tasks: SORTED(), stage: 4 });
   await page.goto('/');
   await expect(panel(page).locator('.stage-title')).toHaveText('Ready to start');
 
-  await openPopover(page, 'Marketing Order A5');
-  await expect(popover(page).locator('.task-popover__title')).toHaveText('Marketing Order A5');
-  await expect(popover(page).locator('.action-btn')).toHaveCount(2); // 📅 postpone + ⏩ next day (▶ moved to the card clock)
-  await expect(popover(page).locator('.action-btn--play')).toHaveCount(0);
-  await expect(popover(page).locator('.action-btn--calendar')).toHaveAttribute('aria-label', 'Postpone to another day');
-  await expect(popover(page).locator('.action-btn--forward')).toHaveAttribute('aria-label', "Send to the next day's list");
-  await expect(popover(page).locator('.task-popover__link')).toHaveCount(0); // Edit / Move to / Delete removed
-  await expect(popover(page).locator('.action-btn--calendar')).toBeFocused();
-  await page.keyboard.press('Escape');
-  await expect(popover(page)).toHaveCount(0);
-  await expect(card(page, 'Marketing Order A5').locator('.task-card__title')).toBeFocused();
-
-  // Click the title inside the popover to rename in place.
-  await openPopover(page, 'Marketing Order A5');
-  await popover(page).locator('.task-popover__title').click();
+  // Title → rename input directly (no action row).
+  await card(page, 'Marketing Order A5').locator('.task-card__title').click();
   const input = popover(page).locator('input[type="text"]');
   await expect(input).toBeFocused();
+  await expect(popover(page).locator('.action-btn')).toHaveCount(0);
   await input.fill('Marketing Order A6');
   await input.press('Enter');
   await expect(popover(page)).toHaveCount(0);
   await expect(quadrant(page, 'do').locator('.task-card')).toHaveText(['Marketing Order A6']);
+
+  // ⏩ on the card → schedule picker: "Next day" on top, a calendar to postpone below.
+  await openSchedule(page, 'Marketing Order A6');
+  await expect(popover(page).locator('.schedule-picker__nextday')).toBeFocused();
+  await expect(popover(page).locator('.schedule-picker__date')).toBeVisible();
+  await expect(popover(page).locator('.schedule-picker__date')).toHaveAttribute('min', toKey(new Date()));
   expect(errors).toEqual([]);
 });
 
@@ -301,12 +312,11 @@ test('📅 postpones to the chosen date (min today) with Undo', async ({ page })
   await seed(page, { tasks: SORTED(), stage: 4 });
   await page.goto('/');
   const target = shiftDays(new Date(), 3);
-  await openPopover(page, 'Make - Excel Report');
-  await popover(page).locator('.action-btn--calendar').click();
-  const input = popover(page).locator('input[type="date"]');
+  await openSchedule(page, 'Make - Excel Report');
+  const input = popover(page).locator('.schedule-picker__date');
   await expect(input).toHaveAttribute('min', toKey(new Date()));
   await input.fill(toKey(target));
-  await popover(page).locator('button[type="submit"]').click();
+  await popover(page).locator('.schedule-picker button[type="submit"]').click();
   await expect(popover(page)).toHaveCount(0);
   await expect(card(page, 'Make - Excel Report')).toHaveCount(0);
   await expect(page.locator('.toast')).toContainText(`Moved to ${formatShort(target)}`);
@@ -325,8 +335,8 @@ test('⏩ sends Friday tasks to Monday when weekends are hidden, with Undo', asy
   const monday = shiftDays(friday, 3);
   await seed(page, { tasks: fridayTasks(friday), stage: 4, date: toKey(friday) });
   await page.goto('/');
-  await openPopover(page, 'Marketing Order A5');
-  await popover(page).locator('.action-btn--forward').click();
+  await openSchedule(page, 'Marketing Order A5');
+  await popover(page).locator('.schedule-picker__nextday').click();
   await expect(card(page, 'Marketing Order A5')).toHaveCount(0);
   await expect(page.locator('.toast')).toContainText(`Moved to ${formatShort(monday)}`);
   await waitForSaved(page, (doc) => taskById(doc, 't_1').date === toKey(monday));
@@ -340,8 +350,8 @@ test('⏩ sends Friday tasks to Saturday when weekends are shown', async ({ page
   const saturday = shiftDays(friday, 1);
   await seed(page, { tasks: fridayTasks(friday), stage: 4, date: toKey(friday), settings: { showWeekends: true } });
   await page.goto('/');
-  await openPopover(page, 'Invoice Send');
-  await popover(page).locator('.action-btn--forward').click();
+  await openSchedule(page, 'Invoice Send');
+  await popover(page).locator('.schedule-picker__nextday').click();
   await expect(card(page, 'Invoice Send')).toHaveCount(0);
   await expect(page.locator('.toast')).toContainText(`Moved to ${formatShort(saturday)}`);
 });
@@ -368,10 +378,9 @@ test('📅 to a hidden weekend day switches weekends on so the task stays reacha
   const saturday = nextWeekday(new Date(), 6);
   await seed(page, { tasks: SORTED(), stage: 4 });
   await page.goto('/');
-  await openPopover(page, 'Invoice Send');
-  await popover(page).locator('.action-btn--calendar').click();
-  await popover(page).locator('input[type="date"]').fill(toKey(saturday));
-  await popover(page).locator('button[type="submit"]').click();
+  await openSchedule(page, 'Invoice Send');
+  await popover(page).locator('.schedule-picker__date').fill(toKey(saturday));
+  await popover(page).locator('.schedule-picker button[type="submit"]').click();
   await expect(card(page, 'Invoice Send')).toHaveCount(0);
   await expect(page.locator('.toast')).toContainText(`Moved to ${formatShort(saturday)} — weekends are now shown`);
   await waitForSaved(page, (doc) => doc.settings.showWeekends === true && taskById(doc, 't_2').date === toKey(saturday));
@@ -393,7 +402,7 @@ test('the clock icon opens the timer picker directly; presets carry the "min" un
   await popover(page).locator('.timer-picker__stopwatch').click();
   await expect(bar(page)).toBeVisible();
   await card(page, 'Invoice Send').locator('.task-card__clock').click();
-  await expect(popover(page).locator('.action-btn')).toHaveCount(2, 'a live timer opens the actions (postpone + next day)');
+  await expect(popover(page).locator('.timer-picker__stopwatch')).toBeVisible('the clock always opens the timer picker');
 });
 
 test('a countdown that ran out while the page was closed alarms once after the reload', async ({ page }) => {
@@ -446,8 +455,8 @@ test('keyboard: ? focuses the tip, Escape closes it and returns focus; Tab stays
   await tips.first().locator('.bubble__close').click();
   await expect(tips).toHaveCount(0);
 
-  await openPopover(page, 'Marketing Order A5');
-  await popover(page).locator('.action-btn--forward').focus(); // the last control in the popover
+  await openSchedule(page, 'Marketing Order A5');
+  await popover(page).locator('.schedule-picker button[type="submit"]').focus(); // the last control
   await page.keyboard.press('Tab');
   await expect(popover(page)).toBeVisible();
   expect(await page.evaluate(() => document.activeElement.closest('.popover--task') !== null)).toBe(true);

@@ -128,6 +128,11 @@ export const strings = {
   'carry.attemptTitle2': '2nd time on the plan',
   'carry.attemptTitle3': '3rd time on the plan',
 
+  'schedule.title': 'Reschedule',
+  'schedule.nextDay': 'Next day',
+  'schedule.postpone': 'Postpone',
+  'schedule.set': 'Set',
+
   'popover.start': 'Start the timer or the countdown',
   'popover.postpone': 'Postpone to another day',
   'popover.nextDay': "Send to the next day's list",

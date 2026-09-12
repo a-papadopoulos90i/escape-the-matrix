@@ -156,8 +156,9 @@ function quadrantPanel(quadrant, tasks) {
   );
 }
 
-function taskCard(task) {
-  if (isRecord(task)) return recordCard(task);
+/** The round "done mark" checkbox — shared by board cards and waiting cards (a task is completed
+ *  the same way in any of the five categories). */
+function doneControl(task) {
   const { ui, i18n } = ctx;
   const check = ui.h('input', {
     class: 'task-card__check',
@@ -168,26 +169,47 @@ function taskCard(task) {
     dataset: { focusKey: `check:${task.id}` },
     onChange: (event) => ctx.store.toggleDone(task.id, event.currentTarget.checked),
   });
-  // The clock is a button: it opens the popover straight on the timer picker (or on the actions
-  // while a timer is live), so a timer is one tap away instead of three.
+  return ui.h('label', { class: 'task-card__done' }, check);
+}
+
+function taskCard(task) {
+  if (isRecord(task)) return recordCard(task);
+  const { ui } = ctx;
+  // The clock opens the popover straight on the timer picker (stopwatch / countdown).
   const clock = ui.h('button', {
     class: 'task-card__clock',
     type: 'button',
     'aria-haspopup': 'dialog',
     dataset: { timerId: task.id, focusKey: `clock:${task.id}` },
-    onClick: (event) => {
-      const current = findTask(task.id); // timer changes refresh clocks in place, so read the live task
-      openTaskPopover(task.id, event.currentTarget, { view: current?.timer && !current.timer.stoppedAt ? 'actions' : 'timer' });
-    },
+    onClick: (event) => openTaskPopover(task.id, event.currentTarget, { view: 'timer' }),
   });
   timer.renderClock(clock, task);
   return ui.h(
     'div',
     { class: `task-card ${task.done ? 'task-card--done' : ''}`.trim(), dataset: { id: task.id } },
-    ui.h('label', { class: 'task-card__done' }, check),
+    doneControl(task),
     titleButton(task),
     clock,
+    scheduleButton(task),
     deleteButton(task),
+  );
+}
+
+/** ⏩ between the clock and the ✕: opens the schedule picker (next day + postpone), the way the
+ *  clock opens the timer picker. */
+function scheduleButton(task) {
+  return ctx.ui.h(
+    'button',
+    {
+      class: 'task-card__forward',
+      type: 'button',
+      'aria-haspopup': 'dialog',
+      'aria-label': ctx.i18n.t('popover.nextDay'),
+      title: ctx.i18n.t('schedule.title'),
+      dataset: { focusKey: `fwd:${task.id}` },
+      onClick: (event) => openTaskPopover(task.id, event.currentTarget, { view: 'schedule' }),
+    },
+    ctx.ui.icon('forward', { size: 16 }),
   );
 }
 
@@ -216,7 +238,7 @@ function titleButton(task) {
       type: 'button',
       'aria-haspopup': 'dialog',
       dataset: { focusKey: `title:${task.id}` },
-      onClick: (event) => openTaskPopover(task.id, event.currentTarget),
+      onClick: (event) => openTaskPopover(task.id, event.currentTarget, { view: 'edit' }),
     },
     attemptBadge(ctx, task),
     task.title,
@@ -297,27 +319,37 @@ function waitingPanel(tasks) {
 
 function waitingCard(task) {
   if (isRecord(task)) return recordCard(task);
-  const { ui, i18n } = ctx;
-  const place = ui.h(
-    'button',
-    {
-      class: 'btn btn-sm waiting-card__place',
-      type: 'button',
-      'aria-haspopup': 'menu',
-      dataset: { focusKey: `place:${task.id}` },
-      onClick: (event) => openPlaceMenu(task, event.currentTarget),
-    },
-    i18n.t('sort.placeIn'),
+  const { ui } = ctx;
+  // A waiting task is completed like any other (its own checkbox) and placed by clicking one of the
+  // four small category glyphs (Do now / Schedule / Delegate / Drop) — no dropdown.
+  return ui.h(
+    'div',
+    { class: `task-card waiting-card ${task.done ? 'task-card--done' : ''}`.trim(), dataset: { id: task.id } },
+    doneControl(task),
+    titleButton(task),
+    ui.h('div', { class: 'waiting-card__places' }, QUADRANTS.map((quadrant) => placeIconButton(task, quadrant))),
+    deleteButton(task),
   );
-  return ui.h('div', { class: 'task-card waiting-card', dataset: { id: task.id } }, titleButton(task), place, deleteButton(task));
 }
 
-function openPlaceMenu(task, anchor) {
+/** Small colour-coded glyph that files a waiting task straight into that quadrant. */
+function placeIconButton(task, quadrant) {
   const { ui, i18n } = ctx;
-  ui.menu({
-    anchor,
-    items: QUADRANTS.map((quadrant, index) => ({ label: `${index + 1}. ${i18n.quadrantLabel(quadrant)}`, onSelect: () => moveToQuadrant(task, quadrant) })),
-  });
+  return ui.h(
+    'button',
+    {
+      class: `waiting-place waiting-place--${quadrant}`,
+      type: 'button',
+      'aria-label': `${i18n.t('sort.placeIn')} — ${i18n.quadrantLabel(quadrant)}`,
+      title: i18n.quadrantLabel(quadrant),
+      dataset: { focusKey: `place:${task.id}:${quadrant}` },
+      onClick: () => moveToQuadrant(task, quadrant),
+    },
+    ui.h('span', {
+      'aria-hidden': 'true',
+      html: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">${QUAD_ICON[quadrant]}</svg>`,
+    }),
+  );
 }
 
 // ---------- Tip anchor ----------
@@ -395,14 +427,18 @@ function closePopover() {
   popover = null;
 }
 
-function openTaskPopover(id, anchor, { view = 'actions' } = {}) {
+// Every card action has its own control: the clock opens the timer, the ⏩ opens the schedule
+// picker (next day + postpone), the ✕ deletes, and the title opens rename. So the popover simply
+// shows whichever of those three panels was requested.
+function openTaskPopover(id, anchor, { view = 'edit' } = {}) {
   closePopover();
   const task = findTask(id);
   if (!task) return;
   const body = ctx.ui.h('div', { class: 'task-popover' });
   popover = ctx.ui.popover({ anchor, content: body, className: 'popover--task', label: task.title, onClose: () => { popover = null; } });
   if (view === 'timer') showTimerPicker(task, body);
-  else showActions(task, body);
+  else if (view === 'schedule') showSchedulePicker(task, body);
+  else showEdit(task, body);
 }
 
 /** Swaps the popover content, re-positions it and focuses `focusEl`. */
@@ -413,47 +449,19 @@ function showView(body, children, focusEl) {
   if (focusEl instanceof HTMLInputElement && focusEl.type === 'text') focusEl.select();
 }
 
-function actionButton(kind, label, onClick) {
-  return ctx.ui.h(
-    'button',
-    { class: `action-btn action-btn--${kind}`, type: 'button', 'aria-label': label, title: label, onClick },
-    ctx.ui.icon(kind, { size: 26 }),
-  );
-}
-
-/** The popover title doubles as the rename control: click it to edit the task in place. Used in
- *  every popover view (owner request). */
-function editableTitle(task, body) {
+/** The picker title doubles as the rename control: click it to edit; `back` re-opens this picker
+ *  after saving/cancelling. */
+function editableTitle(task, body, back) {
   const { ui, i18n } = ctx;
   return ui.h(
     'button',
-    { class: 'task-popover__title task-popover__title--edit', type: 'button', title: i18n.t('board.renameTask'), 'aria-label': i18n.t('board.renameTask'), onClick: () => showEdit(task, body) },
+    { class: 'task-popover__title task-popover__title--edit', type: 'button', title: i18n.t('board.renameTask'), 'aria-label': i18n.t('board.renameTask'), onClick: () => showEdit(task, body, back) },
     ui.h('span', { class: 'task-popover__title-text' }, task.title),
     ui.h('span', {
       class: 'task-popover__pencil',
       'aria-hidden': 'true',
       html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
     }),
-  );
-}
-
-// The ▶ "start timer" button is gone from the popover: the clock on the right of each card already
-// opens the timer (owner request — it was redundant). The popover keeps 📅 postpone and ⏩ next day.
-function showActions(task, body) {
-  const { ui, i18n } = ctx;
-  const postpone = actionButton('calendar', i18n.t('popover.postpone'), () => showPostpone(task, body));
-  showView(
-    body,
-    [
-      editableTitle(task, body),
-      ui.h(
-        'div',
-        { class: 'task-popover__actions' },
-        postpone,
-        actionButton('forward', i18n.t('popover.nextDay'), () => sendToNextDay(task)),
-      ),
-    ],
-    postpone,
   );
 }
 
@@ -489,7 +497,7 @@ function onClickCapture(event) {
 function draggableCardAt(target) {
   const card = target.closest('.task-card');
   if (!card || card.classList.contains('task-card--new') || card.classList.contains('task-card--record')) return null;
-  if (target.closest('.task-card__check, .task-card__clock, .task-card__delete, .quadrant__add, .waiting-card__place')) return null;
+  if (target.closest('.task-card__check, .task-card__clock, .task-card__forward, .task-card__delete, .quadrant__add, .waiting-place')) return null;
   return card;
 }
 
@@ -669,7 +677,7 @@ function showTimerPicker(task, body) {
   showView(
     body,
     [
-      editableTitle(task, body),
+      editableTitle(task, body, () => showTimerPicker(task, body)),
       stopwatch,
       ui.h(
         'fieldset',
@@ -699,9 +707,9 @@ function showTimerPicker(task, body) {
   );
 }
 
-// ----- Edit title -----
+// ----- Edit title (opened by the card title) -----
 
-function showEdit(task, body) {
+function showEdit(task, body, back) {
   const { ui, i18n, store } = ctx;
   const input = ui.h('input', { class: 'task-popover__input', type: 'text', value: task.title, maxlength: 200, required: true, 'aria-label': i18n.t('board.editTitle') });
   const save = (event) => {
@@ -709,33 +717,58 @@ function showEdit(task, body) {
     const title = input.value.trim();
     if (!title) return input.focus();
     store.updateTask(task.id, { title });
-    closePopover();
+    back ? back() : closePopover();
   };
-  showView(body, [formView(save, () => showActions(task, body), input, i18n.t('common.save'))], input);
+  const cancel = () => (back ? back() : closePopover());
+  showView(body, [formView(save, cancel, input, i18n.t('common.save'))], input);
 }
 
-// ----- 📅 Postpone -----
-
-function showPostpone(task, body) {
+// ----- ⏩ Schedule picker (opened by the card ⏩): "Next day" + a calendar to postpone ------
+// Mirrors the timer picker: a primary button on top, then a bordered section below.
+function showSchedulePicker(task, body) {
   const { ui, i18n, dates } = ctx;
   const today = dates.todayKey();
   const suggested = nextVisibleDay(task.date);
-  const input = ui.h('input', {
-    class: 'task-popover__input',
+  const date = ui.h('input', {
+    class: 'schedule-picker__date',
     type: 'date',
     min: today,
     required: true,
     value: suggested > today ? suggested : today,
     'aria-label': i18n.t('popover.postpone'),
   });
-  const move = (event) => {
+  const postpone = (event) => {
     event.preventDefault();
-    const key = input.value;
-    if (!dates.isValidKey(key) || key < today) return input.reportValidity();
+    const key = date.value;
+    if (!dates.isValidKey(key) || key < today) return date.reportValidity();
     closePopover();
     moveTasks([task], key);
   };
-  showView(body, [editableTitle(task, body), ui.h('p', { class: 'task-popover__hint' }, i18n.t('popover.postpone')), formView(move, () => showActions(task, body), input, i18n.t('popover.move'))], input);
+  const nextDay = ui.h(
+    'button',
+    { class: 'btn schedule-picker__nextday', type: 'button', onClick: () => sendToNextDay(task) },
+    ui.icon('forward', { size: 16 }),
+    i18n.t('schedule.nextDay'),
+  );
+  showView(
+    body,
+    [
+      editableTitle(task, body, () => showSchedulePicker(task, body)),
+      nextDay,
+      ui.h(
+        'fieldset',
+        { class: 'schedule-picker' },
+        ui.h('legend', { class: 'schedule-picker__legend' }, i18n.t('schedule.postpone')),
+        ui.h(
+          'form',
+          { class: 'schedule-picker__row', onSubmit: postpone },
+          date,
+          ui.h('button', { class: 'btn btn-sm btn-primary', type: 'submit' }, i18n.t('schedule.set')),
+        ),
+      ),
+    ],
+    nextDay,
+  );
 }
 
 /** Small form: `input` + Cancel / submit buttons. */
