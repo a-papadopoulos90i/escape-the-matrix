@@ -9,6 +9,10 @@ import { carryStrip, attemptBadge, recordLabel } from '../carry.js';
 const PRESET_MINUTES = [5, 15, 25, 45, 60];
 const TIP_ROOM = 150; // px free beside the matrix needed to put the "Done mark" bubble on the left
 const narrowScreen = window.matchMedia('(max-width: 639px)');
+const DRAG_THRESHOLD = 6; // px of movement before a press becomes a drag
+const LONG_PRESS_MS = 250; // touch: hold this long (still) to lift a card
+const SCROLL_EDGE = 56; // px from the viewport edge where a drag auto-scrolls
+const SCROLL_STEP = 10;
 
 // Quadrant glyphs (inline stroke SVGs, same style as ui.icon): flame / star / people / trash.
 const QUAD_ICON = {
@@ -32,6 +36,8 @@ let boardEl = null; // strip + matrix + waiting list, re-rendered on every task 
 let unsubscribe = null;
 let adding = null; // quadrant with an open "add task" row
 let popover = null; // open task popover
+let drag = null; // active card drag
+let suppressClick = false; // swallow the click that follows a completed drag
 
 // ---------- Lifecycle ----------
 
@@ -39,7 +45,16 @@ export function mount(container, nextCtx) {
   ctx = nextCtx;
   const { ui, i18n } = ctx;
   const nav = ui.stageNav({ onBack: () => ctx.goTo(3), onNext: () => ctx.goTo(1), nextLabel: i18n.t('nav.backToCalendar') });
-  boardEl = ui.h('div', { class: 'board' });
+  boardEl = ui.h('div', {
+    class: 'board',
+    onPointerdown: onPointerDown,
+    onPointermove: onPointerMove,
+    onPointerup: onPointerUp,
+    onPointercancel: onPointerCancel,
+    onContextmenu: onContextMenu,
+  });
+  boardEl.addEventListener('touchmove', onTouchMove, { passive: false }); // must be cancelable
+  boardEl.addEventListener('click', onClickCapture, true); // swallow the post-drag click
   root = ui.h('div', { class: 'stage-body' }, ui.stageHeader({ stage: 4, title: i18n.t('stage.4.title') }), boardEl, nav);
   container.append(root);
   render();
@@ -47,6 +62,7 @@ export function mount(container, nextCtx) {
 }
 
 export function unmount() {
+  endDrag();
   closePopover();
   unsubscribe?.();
   unsubscribe = null;
@@ -74,6 +90,7 @@ function findTask(id) {
 
 function render() {
   closePopover();
+  endDrag(); // a remote change mid-drag would detach the dragged card
   const focusKey = focusedKey();
   const tasks = currentTasks();
   const waiting = tasks.filter((task) => task.quadrant === null);
@@ -167,6 +184,23 @@ function taskCard(task) {
     ui.h('label', { class: 'task-card__done' }, check),
     titleButton(task),
     clock,
+    deleteButton(task),
+  );
+}
+
+/** Small red ✕ at the far right of a card: deletes the task at once (with an Undo toast). */
+function deleteButton(task) {
+  return ctx.ui.h(
+    'button',
+    {
+      class: 'task-card__delete',
+      type: 'button',
+      'aria-label': `${ctx.i18n.t('board.deleteTask')}: ${task.title}`,
+      title: ctx.i18n.t('board.deleteTask'),
+      dataset: { focusKey: `del:${task.id}` },
+      onClick: () => deleteTasks([task]),
+    },
+    ctx.ui.icon('close', { size: 15 }),
   );
 }
 
@@ -272,7 +306,7 @@ function waitingCard(task) {
     },
     i18n.t('sort.placeIn'),
   );
-  return ui.h('div', { class: 'task-card waiting-card', dataset: { id: task.id } }, titleButton(task), place);
+  return ui.h('div', { class: 'task-card waiting-card', dataset: { id: task.id } }, titleButton(task), place, deleteButton(task));
 }
 
 function openPlaceMenu(task, anchor) {
@@ -413,31 +447,30 @@ function actionButton(kind, label, onClick) {
   );
 }
 
-function textAction(label, onClick, extra = {}) {
-  return ctx.ui.h('button', { class: 'task-popover__link', type: 'button', onClick, ...extra }, label);
-}
-
 function showActions(task, body) {
   const { ui, i18n } = ctx;
   const play = actionButton('play', i18n.t('popover.start'), () => showTimerPicker(task, body));
-  const moveTo = textAction(i18n.t('popover.moveTo'), (event) => openMoveMenu(task, event.currentTarget), { 'aria-haspopup': 'menu' });
+  // The title is the rename control: click it to edit in place (SPEC §2 / owner request).
+  const title = ui.h(
+    'button',
+    { class: 'task-popover__title task-popover__title--edit', type: 'button', title: i18n.t('board.renameTask'), 'aria-label': i18n.t('board.renameTask'), onClick: () => showEdit(task, body) },
+    ui.h('span', { class: 'task-popover__title-text' }, task.title),
+    ui.h('span', {
+      class: 'task-popover__pencil',
+      'aria-hidden': 'true',
+      html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+    }),
+  );
   showView(
     body,
     [
-      ui.h('p', { class: 'task-popover__title' }, task.title),
+      title,
       ui.h(
         'div',
         { class: 'task-popover__actions' },
         play,
         actionButton('calendar', i18n.t('popover.postpone'), () => showPostpone(task, body)),
         actionButton('forward', i18n.t('popover.nextDay'), () => sendToNextDay(task)),
-      ),
-      ui.h(
-        'div',
-        { class: 'task-popover__secondary' },
-        textAction(i18n.t('popover.edit'), () => showEdit(task, body)),
-        moveTo,
-        textAction(i18n.t('popover.delete'), () => deleteTask(task), { class: 'task-popover__link task-popover__link--danger' }),
       ),
     ],
     play,
@@ -449,23 +482,8 @@ function sendToNextDay(task) {
   moveTasks([task], nextVisibleDay(task.date));
 }
 
-async function deleteTask(task) {
-  const { ui, i18n } = ctx;
-  if (await ui.confirm(i18n.t('confirm.deleteTask'), { okLabel: i18n.t('common.delete'), danger: true })) deleteTasks([task]);
-}
-
-function openMoveMenu(task, anchor) {
-  const { ui, i18n } = ctx;
-  ui.menu({
-    anchor,
-    items: QUADRANTS.filter((quadrant) => quadrant !== task.quadrant).map((quadrant) => ({
-      label: i18n.quadrantLabel(quadrant),
-      onSelect: () => moveToQuadrant(task, quadrant),
-    })),
-  });
-}
-
-/** Moves the task to the end of another quadrant; one undo reverts both changes. */
+/** Moves the task to the end of another quadrant (or the waiting list when quadrant is null);
+ *  one undo reverts both changes. */
 function moveToQuadrant(task, quadrant) {
   const { store } = ctx;
   const last = currentTasks().reduce((max, item) => Math.max(max, item.order + 1), Date.now());
@@ -473,6 +491,169 @@ function moveToQuadrant(task, quadrant) {
     store.setQuadrant(task.id, quadrant);
     store.reorderTask(task.id, last);
   });
+}
+
+// ---------- Drag & drop (Pointer Events): grab a card and drop it in another quadrant ----------
+// A plain click still opens the popover / toggles the checkbox; a press past the threshold (or a
+// touch long-press) lifts the card. Controls (checkbox, clock, ✕, menus) never start a drag.
+
+/** The click that immediately follows a completed drag is swallowed so it does not open a popover. */
+function onClickCapture(event) {
+  if (suppressClick) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+}
+
+/** The card a pointer press should drag, or null (records, add-rows and controls are not draggable). */
+function draggableCardAt(target) {
+  const card = target.closest('.task-card');
+  if (!card || card.classList.contains('task-card--new') || card.classList.contains('task-card--record')) return null;
+  if (target.closest('.task-card__check, .task-card__clock, .task-card__delete, .quadrant__more, .waiting-card__place')) return null;
+  return card;
+}
+
+function onPointerDown(event) {
+  if (event.button !== 0 || !event.isPrimary || drag) return;
+  const card = draggableCardAt(event.target);
+  if (!card) return;
+  const touch = event.pointerType === 'touch';
+  drag = {
+    card,
+    id: card.dataset.id,
+    pointerId: event.pointerId,
+    touch,
+    startX: event.clientX,
+    startY: event.clientY,
+    lastX: event.clientX,
+    lastY: event.clientY,
+    offsetX: 0,
+    offsetY: 0,
+    active: false,
+    ghost: null,
+    target: null,
+    raf: 0,
+    press: 0,
+  };
+  if (!touch) return; // capture is taken only once a drag actually starts (in liftCard), so a
+  // plain click still lands on the title/checkbox and opens the popover / toggles.
+  // Touch: lift after a still press so a plain swipe still scrolls the page.
+  drag.press = setTimeout(() => {
+    if (!drag || drag.active) return;
+    liftCard(drag);
+    positionGhost(drag);
+  }, LONG_PRESS_MS);
+}
+
+function onPointerMove(event) {
+  if (!drag || event.pointerId !== drag.pointerId) return;
+  drag.lastX = event.clientX;
+  drag.lastY = event.clientY;
+  if (!drag.active) {
+    if (Math.hypot(drag.lastX - drag.startX, drag.lastY - drag.startY) < DRAG_THRESHOLD) return;
+    if (drag.touch) return endDrag(); // moved before the long press: a scroll, not a drag
+    liftCard(drag);
+  }
+  positionGhost(drag);
+  setDropTarget(drag, targetAt(drag.lastX, drag.lastY));
+}
+
+/** While a card is lifted the page must not scroll under the finger. */
+function onTouchMove(event) {
+  if (drag?.active && event.cancelable) event.preventDefault();
+}
+
+/** A touch drag begins with a long press, so the browser's long-press menu must not open. */
+function onContextMenu(event) {
+  if (drag?.touch) event.preventDefault();
+}
+
+function onPointerUp(event) {
+  if (!drag || event.pointerId !== drag.pointerId) return;
+  const { id, active, target } = drag;
+  endDrag();
+  if (!active) return; // a plain press: the click handler takes over
+  suppressClick = true;
+  setTimeout(() => { suppressClick = false; }, 0);
+  if (target) dropOnto(id, target);
+}
+
+function onPointerCancel(event) {
+  if (drag && event.pointerId === drag.pointerId) endDrag();
+}
+
+function positionGhost(current) {
+  current.ghost.style.transform = `translate(${current.lastX - current.offsetX}px, ${current.lastY - current.offsetY}px)`;
+}
+
+/** Turns the press into a drag: a fixed ghost follows the pointer, the original card dims. */
+function liftCard(current) {
+  const rect = current.card.getBoundingClientRect();
+  current.offsetX = current.startX - rect.left;
+  current.offsetY = current.startY - rect.top;
+  const ghost = current.card.cloneNode(true);
+  ghost.className = 'task-card board-ghost task-card--dragging';
+  ghost.removeAttribute('data-id');
+  ghost.setAttribute('aria-hidden', 'true');
+  ghost.inert = true;
+  ghost.style.width = `${rect.width}px`;
+  document.body.append(ghost);
+  current.ghost = ghost;
+  current.active = true;
+  try {
+    current.card.setPointerCapture(current.pointerId); // route moves/up here now the drag is live
+  } catch {
+    /* pointer already released */
+  }
+  current.card.classList.add('task-card--lifted');
+  root.classList.add('board--dragging');
+  current.raf = requestAnimationFrame(() => autoScroll(current));
+}
+
+/** The quadrant or waiting list under the pointer, or null. */
+function targetAt(x, y) {
+  const el = document.elementFromPoint(x, y)?.closest('.quadrant, .waiting');
+  return el && root.contains(el) ? el : null;
+}
+
+function setDropTarget(current, target) {
+  if (current.target === target) return;
+  current.target?.classList.remove('is-drop-target');
+  target?.classList.add('is-drop-target');
+  current.target = target;
+}
+
+/** Scrolls the page while the pointer rests near the top/bottom edge (stacked mobile layout). */
+function autoScroll(current) {
+  if (drag !== current) return;
+  const dy = current.lastY < SCROLL_EDGE ? -SCROLL_STEP : current.lastY > window.innerHeight - SCROLL_EDGE ? SCROLL_STEP : 0;
+  if (dy) {
+    window.scrollBy(0, dy);
+    setDropTarget(current, targetAt(current.lastX, current.lastY));
+  }
+  current.raf = requestAnimationFrame(() => autoScroll(current));
+}
+
+/** Drops the task into a quadrant (or back to the waiting list when dropped on the waiting panel). */
+function dropOnto(id, target) {
+  const task = findTask(id);
+  if (!task) return;
+  const quadrant = target.classList.contains('waiting') ? null : target.dataset.quadrant ?? null;
+  if (task.quadrant === quadrant) return;
+  moveToQuadrant(task, quadrant);
+}
+
+function endDrag() {
+  if (!drag) return;
+  const d = drag;
+  drag = null;
+  clearTimeout(d.press);
+  cancelAnimationFrame(d.raf);
+  d.ghost?.remove();
+  d.target?.classList.remove('is-drop-target');
+  d.card.classList.remove('task-card--lifted');
+  root?.classList.remove('board--dragging');
+  if (d.card.hasPointerCapture?.(d.pointerId)) d.card.releasePointerCapture(d.pointerId);
 }
 
 // ----- ▶ Stopwatch / countdown picker -----

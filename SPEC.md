@@ -152,13 +152,19 @@ Speech bubble, verbatim: **"Done mark ✅"** — light-green pill `#cdf4d3` with
 
 (The board's stage 5 "fast organaze" was identical to stage 4, so the owner merged them; its
 actions live on stage 4.) Clicking a task's **title** (or its clock) opens a **popover** (white card
-with a tail): the task title on top, then three large icon buttons in a row:
+with a tail): the task title on top (**clicking the title renames the task in place** — it turns
+into an input, Enter/blur saves, Escape cancels), then three large icon buttons in a row:
 
 1. ▶️ (green circle play) — **Start the timer or the countdown**
 2. 📅 (calendar) — **Postpone to another day**
 3. ⏩ (orange fast-forward) — **Send to the next day's list**
 
-plus a secondary row of small text actions: `Edit`, `Move to ▾` (quadrant), `Delete`.
+There is no Edit / Move to / Delete text row: renaming is the title click above, **moving is drag &
+drop** (see below), and **deleting is a red ✕ at the far right of each card** (one click, with an
+Undo toast). Cards on the board are **draggable between quadrants** with Pointer Events (mouse and
+touch; a plain click still opens the popover, a press-and-drag — or a touch long-press — lifts the
+card; dropping on a quadrant re-files it, dropping on the waiting list unplaces it). This is in
+addition to the waiting list's `Place in ▾` menu.
 
 - **▶️ Start:** shows two choices: `Stopwatch` (count up) or `Countdown` with presets
   `5 · 15 · 25 · 45 · 60 min` and a custom minutes field. Starting sets the task's clock icon live and

@@ -172,7 +172,12 @@ test('"Move unfinished to next day" moves only open tasks and can be undone', as
   await expect(quadrant(page, 'do').locator('.task-card')).toHaveText(['Marketing Order A5', 'Already done']);
 });
 
-test('popover opens from the title with the three actions, edit, move to and delete', async ({ page }) => {
+const centre = async (loc) => {
+  const b = await loc.boundingBox();
+  return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+};
+
+test('popover: three fast-organize actions; clicking the title renames in place', async ({ page }) => {
   const errors = collectErrors(page);
   await seed(page, { tasks: SORTED(), stage: 4 });
   await page.goto('/');
@@ -184,42 +189,52 @@ test('popover opens from the title with the three actions, edit, move to and del
   await expect(popover(page).locator('.action-btn--play')).toHaveAttribute('aria-label', 'Start the timer or the countdown');
   await expect(popover(page).locator('.action-btn--calendar')).toHaveAttribute('aria-label', 'Postpone to another day');
   await expect(popover(page).locator('.action-btn--forward')).toHaveAttribute('aria-label', "Send to the next day's list");
-  await expect(popover(page).locator('.task-popover__link')).toHaveText(['Edit', 'Move to ▾', 'Delete']);
+  await expect(popover(page).locator('.task-popover__link')).toHaveCount(0); // Edit / Move to / Delete removed
   await expect(popover(page).locator('.action-btn--play')).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(popover(page)).toHaveCount(0);
   await expect(card(page, 'Marketing Order A5').locator('.task-card__title')).toBeFocused();
 
+  // Click the title inside the popover to rename in place.
   await openPopover(page, 'Marketing Order A5');
-  await panel(page).locator('.stage-title').click();
-  await expect(popover(page)).toHaveCount(0);
-
-  // Edit
-  await openPopover(page, 'Marketing Order A5');
-  await popover(page).locator('.task-popover__link', { hasText: 'Edit' }).click();
+  await popover(page).locator('.task-popover__title').click();
   const input = popover(page).locator('input[type="text"]');
   await expect(input).toBeFocused();
   await input.fill('Marketing Order A6');
   await input.press('Enter');
   await expect(popover(page)).toHaveCount(0);
   await expect(quadrant(page, 'do').locator('.task-card')).toHaveText(['Marketing Order A6']);
+  expect(errors).toEqual([]);
+});
 
-  // Move to ▾
-  await openPopover(page, 'Marketing Order A6');
-  await popover(page).locator('.task-popover__link', { hasText: 'Move to' }).click();
-  await expect(page.locator('[role="menuitem"]')).toHaveText(['PLAN and prioritize', 'DELEGATE for completion', 'DELETE these tasks']);
-  await page.locator('[role="menuitem"]', { hasText: 'PLAN and prioritize' }).click();
-  await expect(quadrant(page, 'plan').locator('.task-card')).toHaveText(['Make - Excel Report', 'Marketing Order A6']);
+test('a card drags into another quadrant; the red ✕ deletes it with undo', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await seed(page, { tasks: SORTED(), stage: 4 });
+  await page.goto('/');
+
+  // Drag "Marketing Order A5" from DO into PLAN (press on the title, move past the threshold, drop).
+  const from = await centre(card(page, 'Marketing Order A5').locator('.task-card__title'));
+  const to = await centre(quadrant(page, 'plan'));
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 6 });
+  await page.mouse.move(to.x, to.y, { steps: 6 });
+  await expect(quadrant(page, 'plan')).toHaveClass(/is-drop-target/);
+  await page.mouse.up();
+  await expect(quadrant(page, 'plan').locator('.task-card')).toHaveText(['Make - Excel Report', 'Marketing Order A5']);
   await expect(quadrant(page, 'do').locator('.task-card')).toHaveCount(0);
 
-  // Delete (confirm) with undo
-  await openPopover(page, 'Marketing Order A6');
-  await popover(page).locator('.task-popover__link', { hasText: 'Delete' }).click();
-  await expect(page.locator('[role="dialog"].modal')).toContainText('Delete this task?');
-  await page.locator('[role="dialog"].modal button', { hasText: 'Delete' }).click();
-  await expect(card(page, 'Marketing Order A6')).toHaveCount(0);
+  // A plain click on a title still opens the popover (drag did not swallow it).
+  await openPopover(page, 'Invoice Send');
+  await page.keyboard.press('Escape');
+
+  // The red ✕ deletes at once, with an Undo toast.
+  await card(page, 'Invoice Send').locator('.task-card__delete').click();
+  await expect(card(page, 'Invoice Send')).toHaveCount(0);
+  await expect(page.locator('.toast')).toContainText('Task deleted');
   await page.locator('.toast__action', { hasText: 'Undo' }).click();
-  await expect(card(page, 'Marketing Order A6')).toHaveCount(1);
+  await expect(card(page, 'Invoice Send')).toHaveCount(1);
   expect(errors).toEqual([]);
 });
 
@@ -366,9 +381,7 @@ test('two "Undo" toasts each revert their own delete, in any order', async ({ pa
   await seed(page, { tasks: [...SORTED(), task('t_5', 'Call supplier', 'do')], stage: 4 });
   await page.goto('/');
   const del = async (title) => {
-    await openPopover(page, title);
-    await popover(page).locator('.task-popover__link', { hasText: 'Delete' }).click();
-    await page.locator('[role="dialog"].modal button', { hasText: 'Delete' }).click();
+    await card(page, title).locator('.task-card__delete').click(); // the red ✕ deletes at once
     await expect(card(page, title)).toHaveCount(0);
   };
   await del('Marketing Order A5');
@@ -465,8 +478,7 @@ test('keyboard: ? focuses the tip, Escape closes it and returns focus; Tab stays
   await expect(tips).toHaveCount(0);
 
   await openPopover(page, 'Marketing Order A5');
-  const links = popover(page).locator('.task-popover__link');
-  await links.last().focus();
+  await popover(page).locator('.action-btn--forward').focus(); // the last control in the popover
   await page.keyboard.press('Tab');
   await expect(popover(page)).toBeVisible();
   expect(await page.evaluate(() => document.activeElement.closest('.popover--task') !== null)).toBe(true);

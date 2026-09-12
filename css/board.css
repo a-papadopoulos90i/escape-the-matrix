@@ -204,6 +204,76 @@
 .board .task-card {
   gap: 6px;
   padding: 4px 4px 4px 4px;
+  cursor: grab;
+  touch-action: pan-y; /* let a vertical swipe scroll; a long press lifts the card */
+}
+
+.board .task-card--record {
+  cursor: default;
+}
+
+/* Controls inside a card keep their own pointer/cursor (they never start a drag). */
+.task-card__check,
+.board .task-card__title,
+.task-card__clock,
+.task-card__delete,
+.waiting-card__place {
+  cursor: pointer;
+}
+
+/* Red ✕ at the far right of a card: one-click delete (with Undo). */
+.task-card__delete {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: var(--red);
+  opacity: 0.5;
+  transition:
+    opacity var(--dur-fast),
+    background var(--dur-fast);
+}
+
+.task-card__delete:hover,
+.task-card__delete:focus-visible {
+  opacity: 1;
+  background: var(--red-fill);
+}
+
+.task-card__delete svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Drag & drop */
+.board--dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.board .task-card--lifted {
+  opacity: 0.4;
+}
+
+.board-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
+.waiting.is-drop-target {
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+@media (pointer: coarse) {
+  .task-card__delete {
+    width: var(--touch);
+    height: var(--touch);
+  }
 }
 
 .board .task-card--done {
@@ -357,6 +427,36 @@
   overflow-wrap: anywhere;
 }
 
+/* The popover title doubles as the rename control: click it to edit in place. */
+.task-popover__title--edit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: var(--space-1) var(--space-2) var(--space-2);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  color: var(--ink);
+  cursor: text;
+  transition: background var(--dur-fast);
+}
+
+.task-popover__title--edit:hover {
+  background: var(--hover);
+}
+
+.task-popover__pencil {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+.task-popover__title--edit:hover .task-popover__pencil {
+  color: var(--primary);
+  opacity: 1;
+}
+
 .task-popover__hint {
   font-size: var(--text-xs);
   color: var(--muted);
@@ -410,30 +510,6 @@
   border-radius: 10px;
   background: var(--forward);
   border: 2px solid color-mix(in srgb, var(--forward) 82%, #000);
-}
-
-.task-popover__secondary {
-  display: flex;
-  justify-content: center;
-  gap: var(--space-2);
-}
-
-.task-popover__link {
-  min-height: 32px;
-  padding: 0 var(--space-2);
-  border-radius: var(--radius-sm);
-  color: var(--muted);
-  font-size: var(--text-xs);
-  font-weight: 600;
-}
-
-.task-popover__link:hover {
-  background: var(--hover);
-  color: var(--ink);
-}
-
-.task-popover__link--danger:hover {
-  color: var(--red);
 }
 
 .task-popover__form {
