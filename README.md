@@ -5,7 +5,8 @@ important). Every day you write everything down, sort it into four quadrants, th
 tick things off, start a timer, postpone, or push a task to tomorrow.
 
 It is a static web app: plain HTML, CSS and ES modules, no build step, no frameworks. It runs from
-GitHub Pages and works offline in the browser.
+GitHub Pages and works offline in the browser. The look is a warm "paper" theme (Outfit + Figtree,
+self-hosted) with soft tinted quadrant cards, refreshed from a Lovable UI study.
 
 **Live app:** <https://a-papadopoulos90i.github.io/escape-the-matrix/>
 

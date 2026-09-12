@@ -116,8 +116,10 @@ a {
   position: sticky;
   top: 0;
   z-index: var(--z-header);
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  backdrop-filter: saturate(1.4) blur(12px);
+  -webkit-backdrop-filter: saturate(1.4) blur(12px);
+  border-bottom: 1px solid var(--border);
 }
 
 .app-header__inner {
@@ -135,15 +137,19 @@ a {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  font-family: var(--font-display);
   font-weight: 700;
+  letter-spacing: -0.01em;
   text-decoration: none;
   white-space: nowrap;
   border-radius: var(--radius-md);
 }
 
 .brand__mark {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
 }
 
 .header-actions {
@@ -188,7 +194,7 @@ a {
 
 .stepper__item.is-done + .stepper__item::before,
 .stepper__item.is-current::before {
-  background: var(--ink);
+  background: var(--primary);
 }
 
 .step {
@@ -240,8 +246,8 @@ a {
 }
 
 .step.is-done .step__dot {
-  background: var(--green);
-  border-color: var(--green);
+  background: color-mix(in srgb, var(--primary) 70%, var(--surface));
+  border-color: var(--primary);
   color: #fff;
 }
 
@@ -251,9 +257,10 @@ a {
 }
 
 .step.is-current .step__dot {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: #fff;
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-fg);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 16%, transparent);
 }
 
 /* ---------- Day bar ---------- */
@@ -427,16 +434,20 @@ a {
 }
 
 .stage-kicker {
-  font-size: var(--text-sm);
-  color: var(--muted);
-  letter-spacing: 0.02em;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--primary);
+  letter-spacing: 0.14em;
   margin-bottom: var(--space-2);
 }
 
 .stage-title {
-  font-size: clamp(1.5rem, 1.1rem + 1.8vw, 2rem);
-  font-weight: 400;
-  line-height: 1.25;
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 1.2rem + 2.4vw, 2.25rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
   text-wrap: balance;
 }
 
@@ -477,10 +488,10 @@ a {
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  min-height: 40px;
-  padding: 0 var(--space-4);
-  border: 1.5px solid var(--ink);
-  border-radius: var(--radius-md);
+  min-height: 42px;
+  padding: 0 var(--space-5);
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--radius-pill);
   background: var(--surface);
   color: var(--ink);
   font-size: var(--text-sm);
@@ -488,14 +499,18 @@ a {
   line-height: 1;
   white-space: nowrap;
   user-select: none;
+  box-shadow: var(--shadow-sm);
   transition:
     background var(--dur-fast),
+    border-color var(--dur-fast),
     color var(--dur-fast),
+    box-shadow var(--dur-fast),
     transform var(--dur-fast);
 }
 
 .btn:hover {
   background: var(--hover);
+  border-color: var(--muted);
 }
 
 .btn:active {
@@ -506,26 +521,31 @@ a {
   opacity: 0.45;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
 }
 
 .btn-primary {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: #fff;
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-fg);
 }
 
 .btn-primary:hover {
-  background: #000;
+  background: color-mix(in srgb, var(--primary) 88%, #000);
+  border-color: color-mix(in srgb, var(--primary) 88%, #000);
+  color: var(--primary-fg);
 }
 
 .btn-ghost {
   border-color: transparent;
   background: transparent;
+  box-shadow: none;
   font-weight: 500;
 }
 
 .btn-ghost:hover {
   background: var(--hover);
+  border-color: transparent;
 }
 
 .btn-danger {
@@ -538,8 +558,8 @@ a {
 }
 
 .btn-sm {
-  min-height: 32px;
-  padding: 0 var(--space-3);
+  min-height: 34px;
+  padding: 0 var(--space-4);
   font-size: var(--text-xs);
 }
 
@@ -572,7 +592,7 @@ a {
 
 .btn-google {
   gap: 10px;
-  font-weight: 500;
+  font-weight: 600;
   border-color: var(--line-strong);
 }
 
@@ -774,7 +794,7 @@ a {
 }
 
 .toast__action {
-  color: #8fd0ff;
+  color: #7fe0ad;
   font-weight: 700;
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
@@ -832,8 +852,10 @@ a {
 }
 
 .modal__title {
+  font-family: var(--font-display);
   font-size: var(--text-lg);
   font-weight: 700;
+  letter-spacing: -0.01em;
   margin-bottom: var(--space-3);
 }
 
@@ -988,14 +1010,13 @@ body.has-modal {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
-  gap: var(--space-5);
+  gap: var(--space-4);
   width: 100%;
-  max-width: 680px;
+  max-width: 720px;
   margin: 0 auto;
-  padding: var(--space-5);
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface);
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .quadrant {
@@ -1004,10 +1025,11 @@ body.has-modal {
   flex-direction: column;
   gap: var(--space-2);
   min-height: 200px;
-  padding: var(--space-3);
-  border: 2px solid var(--gray);
-  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  border: 1.5px solid var(--gray);
+  border-radius: var(--radius-lg);
   background: var(--gray-fill);
+  box-shadow: var(--shadow-sm);
   transition:
     box-shadow var(--dur-fast),
     filter var(--dur-fast);
@@ -1034,23 +1056,21 @@ body.has-modal {
 }
 
 /* Stage 2: faded, uncoloured background matrix. */
-.matrix--faded {
-  border-color: var(--line);
-}
-
 .matrix--faded .quadrant {
   background: var(--surface);
   border: 1.5px solid var(--line);
+  box-shadow: none;
 }
 
 .quadrant.is-drop-target {
   box-shadow: 0 0 0 3px var(--focus);
-  filter: brightness(1.03);
+  filter: brightness(1.02);
 }
 
 .quadrant__label {
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   font-weight: 700;
+  letter-spacing: -0.01em;
   text-align: center;
 }
 
@@ -1072,14 +1092,15 @@ body.has-modal {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 36px;
-  padding: 6px 10px;
-  border: 1.5px solid var(--card-border);
-  border-radius: var(--radius-sm);
+  min-height: 40px;
+  padding: 7px 12px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
   background: var(--surface);
   color: var(--ink);
   font-size: var(--text-sm);
   text-align: center;
+  box-shadow: var(--shadow-sm);
 }
 
 .task-card__title {

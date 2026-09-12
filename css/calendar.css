@@ -130,18 +130,21 @@
 /* ---------- Day cell ---------- */
 .calendar__day {
   position: relative;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
   aspect-ratio: 1;
   min-width: 0;
+  padding: 8px 10px;
   overflow: hidden;
   border: 1.5px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--surface);
   color: var(--ink);
   font-size: var(--text-lg);
   font-weight: 700;
   line-height: 1;
+  box-shadow: var(--shadow-sm);
   transition:
     transform var(--dur-fast),
     box-shadow var(--dur-fast);
@@ -149,7 +152,7 @@
 
 .calendar__day:hover {
   transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-md);
 }
 
 .calendar__day:focus-visible {
@@ -277,7 +280,8 @@
   }
 
   .calendar__day {
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
+    padding: 5px 7px;
     font-size: var(--text-md);
   }
 

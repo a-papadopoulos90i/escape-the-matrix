@@ -1,0 +1,18 @@
+/* fonts.css — self-hosted variable fonts (latin subset) so the app keeps working offline and
+   under a sub-path: every URL is relative. Figtree = body, Outfit = display headings. */
+
+@font-face {
+  font-family: "Figtree";
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url(../fonts/figtree.woff2) format("woff2");
+}
+
+@font-face {
+  font-family: "Outfit";
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url(../fonts/outfit.woff2) format("woff2");
+}

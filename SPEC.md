@@ -343,16 +343,28 @@ tests/  package.json             Playwright e2e (dev only; not deployed)
 Feature agents own only their files. Core files may receive **small additive edits** (targeted
 `Edit`, never a rewrite) when strictly necessary; say so in your report.
 
-## 7. Colours & tokens (from the design board)
+## 7. Colours & tokens (warm "paper" palette — the Lovable UI study)
+
+The visual system was refreshed from the owner's Lovable design (warm cream ground, deep-green
+primary, soft tinted quadrant cards with icon tiles, rounded corners, soft layered shadows). The
+board's original saturated fills were softened to tints. Type: **Outfit** (display headings) +
+**Figtree** (body), self-hosted as variable woff2 under `fonts/` (so the app stays offline-capable
+and works under a sub-path — no external font requests). Full source in `css/tokens.css`.
 
 ```
---red-fill:#ffc7c2  --red:#f24822      --yellow-fill:#ffecbd --yellow:#ffcd29
---blue-fill:#c2e5ff --blue:#3dadff     --gray-fill:#d9d9d9   --gray:#a5a5a5
---green-fill:#66d575 --green-stripe:#4eb25c --green:#3e9b4b   --today:#4da3ff
---tray:#d9d9d9 --border:#757575 --ink:#1c1c1e --muted:#6b6b6b --card-border:#333
---bubble-khaki:#b9b098 --bubble-green:#cdf4d3 --bubble-green-border:#4cd964 --bubble-dark:#5b5b5b
---play:#3fa34d (green circle) --forward:#f28c1f (orange)
+--red-fill:#ffe6e1  --red:#d13e38      --yellow-fill:#ffefd1 --yellow:#e1901f
+--blue-fill:#ddf2ff --blue:#2382ba     --gray-fill:#f0eee9   --gray:#877f73
+--green-fill:#79d3a1 --green-stripe:#2ba162 --green:#1f8f57  --today:#3d8bff
+--tray:#eceae1 --border:#e2ded3 --ink:#241e16 --muted:#6f685c --card-border:#d9d4c8
+--bg:#f8f7f1 --surface:#fefdfa --surface-2:#f2f0e7 --primary:#005c44 --primary-fg:#fbfaf6
+--bubble-khaki:#b9b098 --bubble-green:#cdf4d3 --bubble-green-border:#4cd964 --bubble-dark:#33302a
+--play:#2ba162 (green circle) --forward:#e1901f (orange)
+--font: "Figtree" (body)   --font-display: "Outfit" (headings)
 ```
+
+Quadrant cards (stage 4) carry an icon tile (flame / star / people / trash), the quadrant name as
+a subtitle and a live count badge. Calendar cells: number top-left, one green stripe per done task
+rising from the bottom (ten fill the cell). Buttons are pill-shaped; the primary is deep green.
 
 ## 8. Acceptance checklist (verifiers test every line)
 

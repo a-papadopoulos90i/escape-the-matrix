@@ -7,9 +7,9 @@ const UI_KEY = 'escape-the-matrix:ui';
 const DOC_KEY = 'escape-the-matrix:v1';
 const OUT = process.env.SCREENSHOT_DIR ?? path.join(process.cwd(), 'test-results', 'screenshots');
 
-const GREEN = 'rgb(62, 155, 75)';
-const GRAY = 'rgb(117, 117, 117)';
-const TODAY_BLUE = 'rgb(77, 163, 255)';
+const GREEN = 'rgb(31, 143, 87)';
+const GRAY = 'rgb(226, 222, 211)';
+const TODAY_BLUE = 'rgb(61, 139, 255)';
 
 /** { 'YYYY-MM-DD': [total, done] } → task list. */
 function tasksFor(days) {

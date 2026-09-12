@@ -69,7 +69,7 @@ test('stage 2: rows are created by typing, edited inline, deleted with undo, and
   const title = panel(page).locator('.stage-title');
   await expect(title).toHaveText('Write down everything you have for today — all of it!');
   const accent = title.locator('.stage-title__accent');
-  await expect(accent).toHaveCSS('color', 'rgb(242, 72, 34)');
+  await expect(accent).toHaveCSS('color', 'rgb(209, 62, 56)');
   await expect(accent).toHaveCSS('font-weight', '700');
   await expect(panel(page).locator('.stage-subtitle')).toHaveText('Wednesday, 11 March 2026');
   await expect(panel(page).locator('.matrix--faded .quadrant')).toHaveCount(4);

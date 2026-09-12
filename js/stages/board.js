@@ -10,6 +10,22 @@ const PRESET_MINUTES = [5, 15, 25, 45, 60];
 const TIP_ROOM = 150; // px free beside the matrix needed to put the "Done mark" bubble on the left
 const narrowScreen = window.matchMedia('(max-width: 639px)');
 
+// Quadrant glyphs (inline stroke SVGs, same style as ui.icon): flame / star / people / trash.
+const QUAD_ICON = {
+  do: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5Z"/>',
+  plan: '<path d="M12 3.5l2.32 4.7 5.18.76-3.75 3.65.88 5.16L12 15.9l-4.63 2.43.88-5.16L4.5 8.96l5.18-.76L12 3.5Z"/>',
+  delegate: '<circle cx="9" cy="8" r="3.1"/><path d="M3.6 19a5.4 5.4 0 0 1 10.8 0"/><path d="M16 5.2a3.1 3.1 0 0 1 0 5.9"/><path d="M15.6 13.5A5.4 5.4 0 0 1 20.4 19"/>',
+  delete: '<path d="M4 7h16"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7"/><path d="M6.2 7l.9 12.1A1.6 1.6 0 0 0 8.7 20.6h6.6a1.6 1.6 0 0 0 1.6-1.5L17.8 7"/>',
+};
+
+function quadrantIcon(quadrant) {
+  return ctx.ui.h('span', {
+    class: `quadrant__icon quadrant__icon--${quadrant}`,
+    'aria-hidden': 'true',
+    html: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">${QUAD_ICON[quadrant]}</svg>`,
+  });
+}
+
 let ctx = null;
 let root = null; // .stage-body
 let boardEl = null; // strip + matrix + waiting list, re-rendered on every task change
@@ -99,10 +115,22 @@ function quadrantPanel(quadrant, tasks) {
     },
     ui.icon('more'),
   );
+  const active = tasks.filter((task) => !isRecord(task)).length;
   return ui.h(
     'section',
     { class: `quadrant quadrant--${quadrant}`, 'aria-labelledby': labelId, dataset: { quadrant } },
-    ui.h('h3', { class: 'quadrant__label', id: labelId }, i18n.quadrantLabel(quadrant)),
+    ui.h(
+      'header',
+      { class: 'quadrant__head' },
+      quadrantIcon(quadrant),
+      ui.h(
+        'div',
+        { class: 'quadrant__heading' },
+        ui.h('h3', { class: 'quadrant__label', id: labelId }, i18n.quadrantLabel(quadrant)),
+        ui.h('p', { class: 'quadrant__sub' }, i18n.quadrantName(quadrant)),
+      ),
+      ui.h('span', { class: 'quadrant__count', 'aria-hidden': 'true' }, String(active)),
+    ),
     ui.h('div', { class: 'quadrant__body' }, tasks.map(taskCard), adding === quadrant && addRow(quadrant)),
     ui.h('div', { class: 'quadrant__footer' }, more),
   );

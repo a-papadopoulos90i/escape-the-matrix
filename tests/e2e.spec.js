@@ -13,16 +13,16 @@ const ROOT = path.resolve(process.cwd(), '..');
 
 const TITLES = ['Marketing Order A5', 'Invoice Send', 'Make - Excel Report'];
 const RGB = {
-  red: 'rgb(242, 72, 34)',
-  redFill: 'rgb(255, 199, 194)',
-  yellow: 'rgb(255, 205, 41)',
-  yellowFill: 'rgb(255, 236, 189)',
-  blue: 'rgb(61, 173, 255)',
-  blueFill: 'rgb(194, 229, 255)',
-  gray: 'rgb(165, 165, 165)',
-  grayFill: 'rgb(217, 217, 217)',
-  green: 'rgb(62, 155, 75)',
-  today: 'rgb(77, 163, 255)',
+  red: 'rgb(209, 62, 56)',
+  redFill: 'rgb(255, 230, 225)',
+  yellow: 'rgb(225, 144, 31)',
+  yellowFill: 'rgb(255, 239, 209)',
+  blue: 'rgb(35, 130, 186)',
+  blueFill: 'rgb(221, 242, 255)',
+  gray: 'rgb(135, 127, 115)',
+  grayFill: 'rgb(240, 238, 233)',
+  green: 'rgb(31, 143, 87)',
+  today: 'rgb(61, 139, 255)',
 };
 
 // ---------- Helpers ----------
@@ -235,7 +235,7 @@ test('1. fresh load shows Stage 1 with the current month, today outlined blue, w
   await expect(today).toHaveAttribute('aria-current', 'date');
   await expect(today).toHaveCSS('border-top-color', RGB.today);
   await expect(today).toHaveCSS('border-top-width', '2px');
-  await expect(cell(page, '2026-03-12')).toHaveCSS('border-top-color', 'rgb(117, 117, 117)');
+  await expect(cell(page, '2026-03-12')).toHaveCSS('border-top-color', 'rgb(226, 222, 211)');
   await expect(panel(page).locator('.switch__input')).not.toBeChecked();
   await expect(page.locator('.daybar__date')).toHaveText('Wednesday, 11 March 2026');
   await expect(page.locator('#daybar .chip--today')).toHaveText('Today');
