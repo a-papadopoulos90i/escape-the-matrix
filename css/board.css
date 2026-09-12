@@ -401,14 +401,22 @@
 }
 
 /* A button: opens the timer picker (idle) or the task actions (timer live). */
+/* The clock · ⏩ · ✕ sit together on the right with only a hair of space between them. */
+.task-card__actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 0;
+}
+
 .task-card__clock {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  min-width: 28px;
+  min-width: 26px;
   min-height: 28px;
-  padding: 0 var(--space-1);
+  padding: 0 2px;
   border-radius: var(--radius-sm);
   color: var(--muted);
   font-size: var(--text-xs);
@@ -429,9 +437,9 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  min-width: 28px;
+  min-width: 26px;
   min-height: 28px;
-  padding: 0 var(--space-1);
+  padding: 0 2px;
   border-radius: var(--radius-sm);
   color: var(--muted);
   transition:

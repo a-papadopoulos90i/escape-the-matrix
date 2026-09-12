@@ -189,9 +189,7 @@ function taskCard(task) {
     { class: `task-card ${task.done ? 'task-card--done' : ''}`.trim(), dataset: { id: task.id } },
     doneControl(task),
     titleButton(task),
-    clock,
-    scheduleButton(task),
-    deleteButton(task),
+    ui.h('div', { class: 'task-card__actions' }, clock, scheduleButton(task), deleteButton(task)),
   );
 }
 
