@@ -15,8 +15,9 @@ export const strings = {
   'stepper.4': 'Ready',
 
   'stage.heading': 'Stage {n}',
-  'stage.1.title': 'calendar of the month {month}',
-  'stage.2.title': 'Write down everything you have for today — ',
+  'stage.1.title': 'Pick your day',
+  'stage.2.title': 'Write it all down',
+  'stage.2.subtitle': "Don't judge, don't sort. Just get everything out of your head.",
   'stage.2.titleAccent': 'all of it!',
   'stage.3.title': 'Place them by priority:',
   'stage.4.title': 'Ready to start',
@@ -75,6 +76,7 @@ export const strings = {
   'calendar.prevMonth': 'Previous month',
   'calendar.nextMonth': 'Next month',
   'calendar.today': 'Today',
+  'calendar.showNext': 'Show next month',
   'calendar.showWeekends': 'Show weekends',
   'calendar.legend.done': 'green = done tasks, one stripe each (up to 10)',
   'calendar.legend.today': 'blue = today',
@@ -83,6 +85,8 @@ export const strings = {
   'calendar.weekendNote': 'Today is {weekday}, so weekends are shown.',
 
   'dump.placeholder': '......',
+  'dump.whatsOnYourMind': "What's on your mind?",
+  'dump.add': 'Add',
   'dump.addRow': 'Add another task',
   'dump.deleteTask': 'Delete task',
   'dump.taskLabel': 'Task {n}',

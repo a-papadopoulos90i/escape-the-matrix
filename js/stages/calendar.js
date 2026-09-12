@@ -1,18 +1,21 @@
-// Stage 1 — month calendar (SPEC §2). Six rows of weekday cells: a gray tray for empty days, a
-// green striped fill rising with the done ratio, a blue border for today and a soft ring on the
-// selected day. Clicking a day selects it and opens Stage 2 (no tasks) or Stage 4 (has tasks).
+// Stage 1 — "Pick your day". A vertically scrolling month calendar: the current month shows, and
+// "Show next month" appends the following month below so the user simply scrolls down (no popup, no
+// resizing). Each day cell is a gray tray when empty, a green striped fill (one stripe per done
+// task) when planned, a blue border for today and a soft ring on the selected day. Clicking a day
+// opens Stage 2 (no tasks) or Stage 4 (has tasks).
 
 let ctx = null;
 let root = null;
 let els = {};
 let cols = 5;
+let monthsShown = 1; // grows as the user reveals more months below
 let unsubscribe = null;
 
 export function mount(container, context) {
   ctx = context;
   const { ui, store } = ctx;
 
-  els.grid = ui.h('div', { class: 'calendar__grid', role: 'group', onKeydown: onGridKeydown });
+  els.months = ui.h('div', { class: 'calendar__months', role: 'group', onKeydown: onGridKeydown });
   els.month = ui.h('p', { class: 'calendar__month', 'aria-live': 'polite' });
   els.note = ui.h('p', { class: 'calendar__note text-muted', hidden: true });
   els.toggle = ui.h('input', {
@@ -21,6 +24,12 @@ export function mount(container, context) {
     role: 'switch',
     onChange: (event) => store.setSetting('showWeekends', event.target.checked),
   });
+  els.more = ui.h(
+    'button',
+    { class: 'btn btn-sm calendar__more', type: 'button', onClick: showNextMonth },
+    ui.icon('chevron-down', { size: 16 }),
+    ctx.i18n.t('calendar.showNext'),
+  );
 
   root = ui.h(
     'div',
@@ -28,12 +37,14 @@ export function mount(container, context) {
     ui.stageHeader({ stage: 1, title: '' }),
     toolbar(),
     els.note,
-    els.grid,
+    els.months,
+    els.more,
     legend(),
     ui.stageNav({ onNext: () => ctx.goTo(2) }),
   );
   els.title = root.querySelector('.stage-title');
 
+  monthsShown = 1;
   render();
   unsubscribe = store.subscribe(render);
   container.append(root);
@@ -92,39 +103,55 @@ function legend() {
 // ---------- Rendering ----------
 
 /**
- * Rebuilds the title, month label and every day cell for the displayed month. Weekend columns
- * follow the setting — except while today is a weekend day, when they are shown regardless
- * (with a note) so today's cell always exists; the switch keeps reflecting the setting.
+ * Rebuilds the title, the toolbar label and every visible month. Weekend columns follow the setting
+ * — except while today is a weekend day, when they are shown regardless (with a note) so today's
+ * cell always exists; the switch keeps reflecting the setting.
  */
 function render() {
   const { store, dates, i18n: { t }, ui } = ctx;
   const { showWeekends } = store.get().settings;
   const weekendsShown = dates.weekendsVisible(showWeekends);
-  const { year, month } = dates.fromMonthKey(ctx.getCalendarMonth());
-  const monthLabel = `${dates.monthName(month)} ${year}`;
+  const baseMonth = ctx.getCalendarMonth();
+  const base = dates.fromMonthKey(baseMonth);
 
-  els.title.textContent = t('stage.1.title', { month: dates.monthName(month) });
-  els.month.textContent = monthLabel;
-  els.grid.setAttribute('aria-label', monthLabel);
+  els.title.textContent = t('stage.1.title');
+  els.month.textContent = `${dates.monthName(base.month)} ${base.year}`;
   els.toggle.checked = showWeekends;
   els.note.hidden = !(weekendsShown && !showWeekends);
   els.note.textContent = els.note.hidden ? '' : t('calendar.weekendNote', { weekday: dates.weekdayName(dates.todayKey()) });
 
-  const rows = dates.monthGrid(year, month, weekendsShown);
-  const keys = rows.flat();
-  cols = rows[0].length;
+  cols = weekendsShown ? 7 : 5;
   root.style.setProperty('--cols', cols);
   root.classList.toggle('calendar--weekends', weekendsShown);
 
-  // Roving tabindex: one cell is tabbable — the focused one (re-render), else selected, today, first.
+  // One tabbable cell across every visible month (the focused one on re-render, else selected,
+  // else today, else the very first cell).
+  const monthKeys = Array.from({ length: monthsShown }, (_, i) => dates.addMonths(baseMonth, i));
+  const allKeys = monthKeys.flatMap((mk) => dates.monthGrid(dates.fromMonthKey(mk).year, dates.fromMonthKey(mk).month, weekendsShown).flat());
   const focusedKey = document.activeElement?.dataset?.key;
-  const tabKey = [focusedKey, ctx.getDate(), dates.todayKey()].find((key) => keys.includes(key)) ?? keys[0];
+  const tabKey = [focusedKey, ctx.getDate(), dates.todayKey()].find((key) => allKeys.includes(key)) ?? allKeys[0];
 
-  els.grid.replaceChildren(
+  els.months.replaceChildren(...monthKeys.map((mk, i) => monthBlock(mk, weekendsShown, tabKey, i > 0)));
+  if (focusedKey) els.months.querySelector(`[data-key="${focusedKey}"]`)?.focus();
+}
+
+/** One month: an optional title (shown on appended months) plus its weekday header + day grid. */
+function monthBlock(monthKey, weekendsShown, tabKey, titled) {
+  const { dates, ui } = ctx;
+  const { year, month } = dates.fromMonthKey(monthKey);
+  const label = `${dates.monthName(month)} ${year}`;
+  const grid = ui.h(
+    'div',
+    { class: 'calendar__grid', role: 'group', 'aria-label': label },
     ...dates.weekdayLabels(weekendsShown).map((name) => ui.h('span', { class: 'calendar__weekday', 'aria-hidden': 'true' }, name)),
-    ...keys.map((key) => dayCell(key, key === tabKey)),
+    ...dates.monthGrid(year, month, weekendsShown).flat().map((key) => dayCell(key, key === tabKey)),
   );
-  if (focusedKey) els.grid.querySelector(`[data-key="${focusedKey}"]`)?.focus();
+  return ui.h(
+    'section',
+    { class: 'calendar__month-block' },
+    titled ? ui.h('h3', { class: 'calendar__month-title' }, label) : null,
+    grid,
+  );
 }
 
 function dayCell(key, tabbable) {
@@ -164,20 +191,30 @@ function openDay(key) {
   ctx.goTo(ctx.store.statsForDate(key).total ? 4 : 2);
 }
 
+/** Appends the next month below and scrolls it into view (SPEC §2 — no popup, just more to scroll). */
+function showNextMonth() {
+  monthsShown += 1;
+  render();
+  const blocks = els.months.querySelectorAll('.calendar__month-block');
+  blocks[blocks.length - 1]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function shiftMonth(delta) {
+  monthsShown = 1;
   ctx.setCalendarMonth(ctx.dates.addMonths(ctx.getCalendarMonth(), delta));
   render();
 }
 
 function goToToday() {
+  monthsShown = 1;
   ctx.setCalendarMonth(ctx.dates.monthOfKey(ctx.dates.todayKey()));
   render();
-  els.grid.querySelector('.calendar__day--today')?.focus();
+  els.months.querySelector('.calendar__day--today')?.focus();
 }
 
 /** Arrow keys walk the cells (Up/Down by a week), Home/End jump to the first/last cell. */
 function onGridKeydown(event) {
-  const cells = [...els.grid.querySelectorAll('.calendar__day')];
+  const cells = [...els.months.querySelectorAll('.calendar__day')];
   const index = cells.indexOf(event.target);
   const move = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -cols, ArrowDown: cols, Home: -index, End: cells.length - 1 - index }[event.key];
   if (index < 0 || move === undefined) return;

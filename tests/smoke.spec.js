@@ -4,8 +4,8 @@ const UI_KEY = 'escape-the-matrix:ui';
 const DOC_KEY = 'escape-the-matrix:v1';
 
 const TITLES = {
-  1: /^calendar of the month [A-Z][a-z]+$/,
-  2: 'Write down everything you have for today — all of it!',
+  1: 'Pick your day',
+  2: 'Write it all down',
   3: 'Place them by priority:',
   4: 'Ready to start',
 };
@@ -38,7 +38,6 @@ test('loads with the title, a 4-step stepper and no console errors', async ({ pa
   await expect(page.locator('#stepper .step')).toHaveCount(4);
   await expect(page.locator('#stepper .step').nth(0)).toHaveAttribute('aria-current', 'step');
   await expect(activeTitle(page)).toHaveText(TITLES[1]);
-  await expect(page.locator('#daybar .chip--today')).toHaveText('Today');
   await expect(page.locator('#banner')).toContainText("You're in free mode");
   await expect(page.locator('#account button')).toHaveText('Sign in with Google');
   expect(errors).toEqual([]);
@@ -75,7 +74,7 @@ test('Back / Next buttons walk the stages; stage 4 returns to the calendar', asy
     await expect(activeTitle(page)).toHaveText(TITLES[n]);
     if (n === 2) {
       // Stage 2 only lets Next through once the day has a task (SPEC §2).
-      await activePanel(page).locator('.dump-row--blank input').first().fill('Smoke task');
+      await activePanel(page).locator('.dump__input').fill('Smoke task');
       await page.keyboard.press('Enter');
     }
   }
@@ -92,7 +91,7 @@ test('keyboard arrows and ? drive the shell', async ({ page }) => {
   // → mirrors "Next →", which Stage 2 disables until the day has a task (SPEC §2).
   await page.keyboard.press('ArrowRight');
   await expect(activeTitle(page)).toHaveText(TITLES[2]);
-  await activePanel(page).locator('.dump-row--blank input').first().fill('Smoke task');
+  await activePanel(page).locator('.dump__input').fill('Smoke task');
   await page.keyboard.press('Enter');
   await activeTitle(page).click(); // leave the input so the shortcut is live again
   await page.keyboard.press('ArrowRight');
@@ -138,35 +137,26 @@ test('free-mode banner dismissal is remembered', async ({ page }) => {
   await expect(page.locator('#banner')).toBeHidden();
 });
 
-test('per-device UI state (stage + selected day) is restored and day arrows move the day', async ({ page }) => {
+test('per-device UI state (stage + selected day) is restored on reload', async ({ page }) => {
   await seed(page, {
     ui: { selectedDate: '2026-03-11', stage: 3, calendarMonth: '2026-03' },
     doc: {
       version: 1,
       updatedAt: '2026-03-11T08:00:00.000Z',
-      settings: { showWeekends: false, bannerDismissed: true, tipsSeen: { 1: true, 2: true, 3: true, 4: true, 5: true } },
+      settings: { showWeekends: false, bannerDismissed: true, tipsSeen: { 1: true, 2: true, 3: true, 4: true } },
       tasks: [
         { id: 't_a', title: 'A', date: '2026-03-11', quadrant: 'do', order: 1, done: true, doneAt: null, createdAt: 'x', updatedAt: 'x', timer: null },
         { id: 't_b', title: 'B', date: '2026-03-11', quadrant: null, order: 2, done: false, doneAt: null, createdAt: 'x', updatedAt: 'x', timer: null },
       ],
     },
   });
-  await page.clock.setFixedTime(new Date(2026, 2, 11, 9, 0, 0)); // a weekday: on a real weekend the arrows would show Sat/Sun
+  await page.clock.setFixedTime(new Date(2026, 2, 11, 9, 0, 0));
   await page.goto('/');
   await expect(activeTitle(page)).toHaveText(TITLES[3]);
-  await expect(page.locator('.daybar__date')).toHaveText('Wednesday, 11 March 2026');
-  await expect(page.locator('.daybar__progress')).toContainText('1/2 done');
-  await expect(page.locator('.bubble')).toHaveCount(0);
-
-  await page.locator('#daybar [aria-label="Next day"]').click();
-  await expect(page.locator('.daybar__date')).toHaveText('Thursday, 12 March 2026');
-  await expect(page.locator('.daybar__progress')).toContainText('No tasks yet');
-  await page.locator('#daybar [aria-label="Next day"]').click();
-  await page.locator('#daybar [aria-label="Next day"]').click();
-  await expect(page.locator('.daybar__date')).toHaveText('Monday, 16 March 2026', 'weekends are skipped');
-
-  const ui = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), UI_KEY);
-  expect(ui).toEqual({ selectedDate: '2026-03-16', stage: 3, calendarMonth: '2026-03' });
+  await expect(activePanel(page)).toHaveAttribute('data-stage', '3');
+  // The day it restored is the one whose tasks show on the board.
+  await page.locator('#stepper .step').nth(3).click();
+  await expect(activePanel(page).locator('.task-card')).toContainText(['A']);
 });
 
 test('"Sign in with Google" opens the not-connected modal when firebaseConfig is null', async ({ page }) => {

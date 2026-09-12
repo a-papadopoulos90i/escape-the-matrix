@@ -40,11 +40,12 @@ Common: each stage panel has a heading "Stage N" (small, gray) and the stage tit
 Bottom of each panel: `← Back` and `Next →` buttons (Stage 1 has no Back; Stage 4 has "Back to
 calendar" instead of Next). The stepper at the top also allows direct jumps.
 
-### Stage 1 — "calendar of the month March"
+### Stage 1 — "Pick your day"
 
-Title: `calendar of the month {Month}` (Month = the month currently displayed, e.g. "March").
-Controls: `‹` previous month, `›` next month, `Today` button, and a `Show weekends` toggle (default
-**off**, persisted in settings).
+Title: `Pick your day` (the displayed month shows in the toolbar label, e.g. "March 2026").
+Controls: `‹` previous month, `›` next month, `Today`, and a `Show weekends` toggle (default **off**).
+The calendar **scrolls vertically**: a **`Show next month`** button appends the following month below
+(no popup, no resizing — the page just scrolls).
 
 Grid: rows of weekdays, **Mon–Fri when weekends are hidden** (5 columns, like the design), **Sun–Sat
 when shown** (the owner's week starts on Sunday). Always **6 rows**. The first row is the week that contains the 1st of the month, except
@@ -69,22 +70,16 @@ Cell design (rounded square, ~1:1, number centred, bold):
 Legend under the grid (small): green = done tasks (one stripe each, up to 10), blue = today,
 gray = empty.
 
-### Stage 2 — "Write down everything you have for today — all of it!"
+### Stage 2 — "Write it all down"
 
-Title: `Write down everything you have for today — ` + **`all of it!` in red `#f24822`, bold**.
-Sub-line (small, gray): the selected date, e.g. "Wednesday, 11 March 2026".
+Title: `Write it all down`. Subtitle: "Don't judge, don't sort. Just get everything out of your head."
 
-Layout: a faded, empty 4-quadrant matrix in the background (light gray `#e6e6e6` outlines, white
-fill, no colours, no labels). Centred over it, a vertical stack of **task rows**: bordered white
-boxes (`#333` 1.5px border, radius 6px, centred text), one per task. Below the last real task, two
-placeholder rows showing `......` (empty inputs with that placeholder) and a large **`+`** button
-that adds another row. Behaviour:
-- Typing in a row and pressing **Enter** commits it and focuses the next (empty) row.
-- **Escape**/blur on an empty new row discards it.
-- Each row has a small `✕` (visible on hover/focus) to delete the task.
-- Rows are editable inline (click to edit an existing task's title).
-- Tasks created here have `quadrant: null` (unsorted) and `date = selectedDate`.
-- `Next →` is enabled only when the day has ≥ 1 task.
+Layout (Lovable-style): a single rounded **"What's on your mind?"** field with a pencil glyph and a
+green **Add** button; Enter or Add commits, the field clears and keeps focus. Below, a **numbered
+list** of the day's tasks — each row a rounded card with a number circle, the (inline-editable)
+title and a red **✕** (delete, with Undo). At the bottom, when earlier days hold unfinished tasks, a
+**"Pull them here"** button and a **scrollable list** of those tasks (title + day) — pulling carries
+them forward. Tasks created here have `quadrant: null` and `date = selectedDate`; `Next →` needs ≥ 1.
 
 Speech bubble (tip), verbatim: **"Write down everything you have for today — all of it!"**
 (bubble style: rounded, khaki-gray `#b9b098` background, dark text, small tail pointing at the
@@ -206,8 +201,8 @@ the header): **"Organize them by priority:"** then bullets `start the timer or t
   area**: `Sign in with Google` button (white, Google "G" glyph, "Sign in with Google") or, when
   signed in, avatar + first name + a menu (`Synced ✓ / Syncing… / Offline` status, `Sign out`,
   `Sign out & clear this device`). A `?` icon button re-opens the current stage's tip bubble.
-- Under the header, a **day bar**: "Wednesday, 11 March 2026" with a `Today` chip when it is today,
-  `‹ day` / `day ›` arrows to move the selected day, and the day's `3/5 done` mini-progress.
+- There is **no day bar** (removed at the owner's request): the day is chosen on the calendar, and
+  the logo returns there. Stage panels show no date line.
 - **Free-mode banner** (only when not signed in, dismissible, remembered): "You're in free mode —
   tasks are saved only in this browser. Clearing cookies/site data erases them. Sign in with Google
   to keep them everywhere."

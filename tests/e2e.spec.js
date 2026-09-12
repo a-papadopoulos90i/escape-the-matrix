@@ -130,9 +130,9 @@ async function touchDrag(page, from, to) {
 }
 
 async function typeTasks(page, titles) {
-  await panel(page).locator('.dump-row--blank input').first().click();
+  const input = panel(page).locator('.dump__input');
   for (const title of titles) {
-    await page.keyboard.type(title);
+    await input.fill(title);
     await page.keyboard.press('Enter');
   }
 }
@@ -161,17 +161,16 @@ test('walkthrough: pick a day, dump, sort, work the board, organize, back to a g
   await page.goto('/');
 
   // Stage 1 → an empty day opens Stage 2.
-  await expect(stageTitle(page)).toHaveText('calendar of the month March');
+  await expect(stageTitle(page)).toHaveText('Pick your day');
   await closeTip(page);
   await cell(page, '2026-03-12').click();
   await settled(page);
-  await expect(stageTitle(page)).toHaveText('Write down everything you have for today — all of it!');
-  await expect(page.locator('.daybar__date')).toHaveText('Thursday, 12 March 2026');
+  await expect(stageTitle(page)).toHaveText('Write it all down');
   await closeTip(page);
 
   // Stage 2 → three tasks, then Next.
   await typeTasks(page, TITLES);
-  await expect(panel(page).locator('.dump-row:not(.dump-row--blank)')).toHaveCount(3);
+  await expect(panel(page).locator('.dump-row')).toHaveCount(3);
   await panel(page).locator('.stage-nav__next').click();
   await settled(page);
 
@@ -200,18 +199,16 @@ test('walkthrough: pick a day, dump, sort, work the board, organize, back to a g
   await closeTip(page);
   await card(page, TITLES[2]).locator('.task-card__check').check();
   await expect(card(page, TITLES[2])).toHaveClass(/task-card--done/);
-  await expect(page.locator('.daybar__progress')).toContainText('1/3 done');
 
   // Still on stage 4 → send one task to the next day (the fast-organize popover), then back to the calendar.
   await openSchedule(page, TITLES[1]);
   await popover(page).locator('.schedule-picker__nextday').click();
   await expect(card(page, TITLES[1])).toHaveCount(0);
   await expect(page.locator('.toast')).toContainText('Moved to Fri 13 Mar');
-  await expect(page.locator('.daybar__progress')).toContainText('1/2 done');
   await panel(page).locator('.stage-nav__next').click();
   await settled(page);
 
-  await expect(stageTitle(page)).toHaveText('calendar of the month March');
+  await expect(stageTitle(page)).toHaveText('Pick your day');
   await expect(cell(page, '2026-03-12')).toHaveClass(/calendar__day--planned/);
   await expect(cell(page, '2026-03-12')).toHaveAttribute('title', '1 of 2 done');
   expect(await fillRatio(cell(page, '2026-03-12'))).toBeCloseTo(0.1, 1); // one done task → one stripe
@@ -229,7 +226,7 @@ test('1. fresh load shows Stage 1 with the current month, today outlined blue, w
   await page.clock.setFixedTime(FIXED_NOW);
   await page.goto('/');
   await expect(step(page, 1)).toHaveAttribute('aria-current', 'step');
-  await expect(stageTitle(page)).toHaveText('calendar of the month March');
+  await expect(stageTitle(page)).toHaveText('Pick your day');
   await expect(panel(page).locator('.calendar__month')).toHaveText('March 2026');
   await expect(panel(page).locator('.calendar__weekday')).toHaveText(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
   const days = panel(page).locator('.calendar__day');
@@ -243,8 +240,6 @@ test('1. fresh load shows Stage 1 with the current month, today outlined blue, w
   await expect(today).toHaveCSS('border-top-width', '2px');
   await expect(cell(page, '2026-03-12')).toHaveCSS('border-top-color', 'rgb(226, 222, 211)');
   await expect(panel(page).locator('.switch__input')).not.toBeChecked();
-  await expect(page.locator('.daybar__date')).toHaveText('Wednesday, 11 March 2026');
-  await expect(page.locator('#daybar .chip--today')).toHaveText('Today');
 });
 
 test('2. "Show weekends" adds Sat/Sun columns and persists across reload', async ({ page }) => {
@@ -269,16 +264,13 @@ test('3. clicking an empty day opens Stage 2 with that date in the day bar', asy
   await cell(page, '2026-03-19').click();
   await settled(page);
   await expect(step(page, 2)).toHaveAttribute('aria-current', 'step');
-  await expect(stageTitle(page)).toHaveText('Write down everything you have for today — all of it!');
-  await expect(stageTitle(page).locator('.stage-title__accent')).toHaveCSS('color', RGB.red);
-  await expect(page.locator('.daybar__date')).toHaveText('Thursday, 19 March 2026');
-  await expect(panel(page).locator('.stage-subtitle')).toHaveText('Thursday, 19 March 2026');
-  await expect(page.locator('#daybar .chip--today')).toHaveCount(0);
+  await expect(stageTitle(page)).toHaveText('Write it all down');
+  expect((await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), UI_KEY)).selectedDate).toBe('2026-03-19');
 });
 
 // ---------- 4: brain dump ----------
 
-test('4. typing 3 tasks + Enter creates 3 rows; + adds a row; ✕ deletes; reload keeps them', async ({ page }) => {
+test('4. adding tasks builds a numbered list; ✕ deletes with Undo; reload keeps them', async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW);
   await page.goto('/');
   await cell(page, TODAY).click();
@@ -287,16 +279,11 @@ test('4. typing 3 tasks + Enter creates 3 rows; + adds a row; ✕ deletes; reloa
   await expect(next).toBeDisabled();
 
   await typeTasks(page, TITLES);
-  const rows = panel(page).locator('.dump-row:not(.dump-row--blank)');
+  const rows = panel(page).locator('.dump-row');
   await expect(rows).toHaveCount(3);
   await expect.poll(() => inputValues(rows.locator('input'))).toEqual(TITLES);
+  await expect(rows.locator('.dump-row__num')).toHaveText(['1', '2', '3']);
   await expect(next).toBeEnabled();
-
-  const blanks = panel(page).locator('.dump-row--blank input');
-  await expect(blanks).toHaveCount(2);
-  await panel(page).locator('.dump__add').click();
-  await expect(blanks).toHaveCount(3);
-  await expect(blanks.nth(2)).toBeFocused();
 
   await rows.nth(1).hover();
   await rows.nth(1).locator('.dump-row__delete').click();
@@ -305,8 +292,8 @@ test('4. typing 3 tasks + Enter creates 3 rows; + adds a row; ✕ deletes; reloa
   await waitForSaved(page, (doc) => doc.tasks.filter((item) => !item.deleted).length === 2);
 
   await page.reload();
-  await expect(stageTitle(page)).toHaveText('Write down everything you have for today — all of it!');
-  await expect.poll(() => inputValues(panel(page).locator('.dump-row:not(.dump-row--blank) input'))).toEqual([TITLES[0], TITLES[2]]);
+  await expect(stageTitle(page)).toHaveText('Write it all down');
+  await expect.poll(() => inputValues(panel(page).locator('.dump-row input'))).toEqual([TITLES[0], TITLES[2]]);
 });
 
 // ---------- 5: sorting ----------
@@ -385,7 +372,6 @@ test('7. ticking a task strikes it through and Stage 1 shows one green stripe pe
   const done = card(page, TITLES[0]);
   await expect(done).toHaveClass(/task-card--done/);
   await expect(done.locator('.task-card__title')).toHaveCSS('text-decoration-line', 'line-through');
-  await expect(page.locator('.daybar__progress')).toContainText('1/3 done');
   await waitForSaved(page, (doc) => taskById(doc, 't_1').done === true);
 
   await goToStage(page, 1);
@@ -402,7 +388,7 @@ test('7. ticking a task strikes it through and Stage 1 shows one green stripe pe
   await settled(page);
   await expect(stageTitle(page)).toHaveText('Ready to start');
   await done.locator('.task-card__check').uncheck();
-  await expect(page.locator('.daybar__progress')).toContainText('0/3 done');
+  await expect(done).not.toHaveClass(/task-card--done/);
 });
 
 // ---------- 8–10: fast organize ----------
@@ -502,13 +488,12 @@ test('9. 📅 moves the task to the chosen date (gone here, visible there) and U
   await waitForSaved(page, (doc) => taskById(doc, 't_3').date === TODAY);
 
   await postpone();
-  await expect(page.locator('.daybar__progress')).toContainText('0/2 done');
   await goToStage(page, 1);
   await expect(cell(page, '2026-03-20')).toHaveAttribute('title', '0 of 1 done');
   await cell(page, '2026-03-20').click();
   await settled(page);
   await expect(stageTitle(page)).toHaveText('Ready to start');
-  await expect(page.locator('.daybar__date')).toHaveText('Friday, 20 March 2026');
+  expect((await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), UI_KEY)).selectedDate).toBe('2026-03-20');
   await expect(quadrant(page, 'plan').locator('.task-card')).toHaveText([TITLES[2]]);
 });
 
@@ -517,7 +502,6 @@ test('10. ⏩ sends a Friday task to Monday when weekends are hidden; Undo works
   const friday = '2026-03-13';
   await seed(page, { tasks: sortedTasks(friday), stage: 4, date: friday });
   await page.goto('/');
-  await expect(page.locator('.daybar__date')).toHaveText('Friday, 13 March 2026');
 
   await openSchedule(page, TITLES[0]);
   await popover(page).locator('.schedule-picker__nextday').click();
@@ -528,10 +512,6 @@ test('10. ⏩ sends a Friday task to Monday when weekends are hidden; Undo works
   await page.locator('.toast__action', { hasText: 'Undo' }).click();
   await expect(quadrant(page, 'do').locator('.task-card')).toHaveText([TITLES[0]]);
   await waitForSaved(page, (doc) => taskById(doc, 't_1').date === friday);
-
-  // Day-bar arrows skip the weekend too.
-  await page.locator('#daybar [aria-label="Next day"]').click();
-  await expect(page.locator('.daybar__date')).toHaveText('Monday, 16 March 2026');
 });
 
 // ---------- 11: quadrant menus ----------
@@ -637,7 +617,7 @@ test('13. stepper and ←/→ keys navigate with animated transitions; reduced m
   expect(await transitions(page)).toEqual(['panel--enter-forward', 'panel--exit-forward', 'panel--ghost']);
 
   await page.keyboard.press('ArrowLeft');
-  await expect(stageTitle(page)).toHaveText('Write down everything you have for today — all of it!');
+  await expect(stageTitle(page)).toHaveText('Write it all down');
   await settled(page);
   expect(await transitions(page)).toContain('panel--enter-back');
 
@@ -787,7 +767,7 @@ test('19. every asset URL is relative: the app boots unchanged under a /escape-t
   });
   await page.goto('/escape-the-matrix/');
   await expect(page).toHaveTitle('Escape the Matrix');
-  await expect(stageTitle(page)).toHaveText(/^calendar of the month/);
+  await expect(stageTitle(page)).toHaveText('Pick your day');
   await expect(page.locator('#stepper .step')).toHaveCount(4);
   await goToStage(page, 4);
   await expect(panel(page).locator('.quadrant__label')).toHaveCount(4);

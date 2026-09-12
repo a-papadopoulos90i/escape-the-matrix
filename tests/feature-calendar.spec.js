@@ -102,7 +102,7 @@ test('March 2026 renders Mon–Fri, six rows, starting on Mar 2 (SPEC §2 grid r
   await seed(page);
   await page.goto('/');
 
-  await expect(title(page)).toHaveText('calendar of the month March');
+  await expect(title(page)).toHaveText('Pick your day');
   await expect(panel(page).locator('.calendar__month')).toHaveText('March 2026');
   await expect(weekdays(page)).toHaveText(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
   await expect(cells(page)).toHaveCount(30);
@@ -209,20 +209,20 @@ test('‹ › change the displayed month, update the title and persist the month
   const prev = panel(page).locator('[aria-label="Previous month"]');
 
   await next.click();
-  await expect(title(page)).toHaveText('calendar of the month April');
+  await expect(panel(page).locator('.calendar__month')).toHaveText('April 2026');
   await expect(panel(page).locator('.calendar__month')).toHaveText('April 2026');
   expect((await cellKeys(page))[0]).toBe('2026-03-30');
   await expect(panel(page).locator('.calendar__day--planned')).toHaveCount(0);
 
   await prev.click();
   await prev.click();
-  await expect(title(page)).toHaveText('calendar of the month February');
+  await expect(panel(page).locator('.calendar__month')).toHaveText('February 2026');
   expect((await cellKeys(page))[0]).toBe('2026-02-02', '1 Feb 2026 is a hidden Sunday → start on Monday the 2nd');
 
   const ui = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), UI_KEY);
   expect(ui.calendarMonth).toBe('2026-02');
   await page.reload();
-  await expect(title(page)).toHaveText('calendar of the month February');
+  await expect(panel(page).locator('.calendar__month')).toHaveText('February 2026');
 });
 
 test('clicking an empty day opens Stage 2, a day with tasks opens Stage 4', async ({ page }) => {
@@ -231,7 +231,6 @@ test('clicking an empty day opens Stage 2, a day with tasks opens Stage 4', asyn
 
   await cell(page, '2026-03-12').click();
   await expect(panel(page)).toHaveAttribute('data-stage', '2');
-  await expect(page.locator('.daybar__date')).toHaveText('Thursday, 12 March 2026');
 
   await page.locator('#stepper .step').nth(0).click();
   await expect(panel(page)).toHaveAttribute('data-stage', '1');
@@ -239,8 +238,8 @@ test('clicking an empty day opens Stage 2, a day with tasks opens Stage 4', asyn
 
   await cell(page, '2026-03-02').click();
   await expect(panel(page)).toHaveAttribute('data-stage', '4');
-  await expect(page.locator('.daybar__date')).toHaveText('Monday, 2 March 2026');
-  await expect(page.locator('.daybar__progress')).toContainText('3/5 done');
+  expect((await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), UI_KEY)).selectedDate).toBe('2026-03-02');
+  await expect(panel(page).locator('.task-card').first()).toBeVisible();
 });
 
 test('keyboard: arrows move between cells without leaving the stage; Enter opens the day', async ({ page }) => {
@@ -265,7 +264,7 @@ test('keyboard: arrows move between cells without leaving the stage; Enter opens
 
   await page.keyboard.press('Enter');
   await expect(panel(page)).toHaveAttribute('data-stage', '4');
-  await expect(page.locator('.daybar__date')).toHaveText('Monday, 2 March 2026');
+  expect((await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), UI_KEY)).selectedDate).toBe('2026-03-02');
 });
 
 test('re-renders when the document changes underneath (cross-tab storage event)', async ({ page }) => {
@@ -298,18 +297,11 @@ test('on a weekend, weekends are shown (with a note) so today is outlined and re
   expect((await metrics(page, '2026-03-14')).borderColor).toBe(TODAY_BLUE);
   await panel(page).locator('.calendar__today').click();
   await expect(today).toBeFocused();
-  await expect(page.locator('#daybar .chip--today')).toHaveText('Today');
-
-  // The day-bar arrows walk through the weekend too.
-  await page.locator('#daybar [aria-label="Previous day"]').click();
-  await expect(page.locator('.daybar__date')).toHaveText('Friday, 13 March 2026');
-  await page.locator('#daybar [aria-label="Next day"]').click();
-  await expect(page.locator('.daybar__date')).toHaveText('Saturday, 14 March 2026');
 
   // Tasks written for Saturday show up on its cell.
   await cell(page, '2026-03-14').click();
   await expect(panel(page)).toHaveAttribute('data-stage', '2');
-  await panel(page).locator('.dump-row--blank input').first().fill('Weekend chore');
+  await panel(page).locator('.dump__input').fill('Weekend chore');
   await page.keyboard.press('Enter');
   await page.locator('#stepper .step').nth(0).click();
   await expect(cell(page, '2026-03-14')).toHaveClass(/calendar__day--planned/);

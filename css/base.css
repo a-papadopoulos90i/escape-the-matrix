@@ -475,7 +475,9 @@ a {
   display: flex;
   justify-content: space-between;
   gap: var(--space-3);
-  margin-top: var(--space-6);
+  width: 100%;
+  max-width: 720px; /* align Back / Next with the content (matrix) width, not the screen edges */
+  margin: var(--space-6) auto 0;
 }
 
 .stage-nav__next {

@@ -113,7 +113,6 @@ test('a waiting task has its own checkbox: it completes in place and counts as d
   await expect(wcard.locator('.task-card__check')).toHaveCount(1);
   await wcard.locator('.task-card__check').check();
   await expect(wcard).toHaveClass(/task-card--done/);
-  await expect(page.locator('.daybar__progress')).toContainText('1/4 done'); // waiting is the 5th category, still counted
   await waitForSaved(page, (doc) => taskById(doc, 't_9').done === true && taskById(doc, 't_9').quadrant === null);
 });
 
@@ -126,14 +125,12 @@ test('ticking a task strikes it through, sinks it to the bottom, persists and up
   await expect(done).toHaveClass(/task-card--done/);
   await expect(done.locator('.task-card__title')).toHaveCSS('text-decoration-line', 'line-through');
   await expect(quadrant(page, 'do').locator('.task-card')).toHaveText(['Call supplier', 'Marketing Order A5']);
-  await expect(page.locator('.daybar__progress')).toContainText('1/4 done');
 
   await waitForSaved(page, (doc) => taskById(doc, 't_1').done);
   await page.reload();
   await expect(card(page, 'Marketing Order A5').locator('.task-card__check')).toBeChecked();
   await card(page, 'Marketing Order A5').locator('.task-card__check').uncheck();
   await expect(card(page, 'Marketing Order A5')).not.toHaveClass(/task-card--done/);
-  await expect(page.locator('.daybar__progress')).toContainText('0/4 done');
 });
 
 test('the footer + adds a task straight into the quadrant (no more "…" menu)', async ({ page }) => {

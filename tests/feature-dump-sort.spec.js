@@ -61,71 +61,67 @@ const noOverflow = (page) => page.evaluate(() => document.documentElement.scroll
 
 // ---------- Stage 2 ----------
 
-test('stage 2: rows are created by typing, edited inline, deleted with undo, and persist', async ({ page }) => {
+test('stage 2: add via the field, edit inline, delete with undo, and persist', async ({ page }) => {
   const errors = collectErrors(page);
   await seed(page, { stage: 2 });
   await page.goto('/');
 
-  const title = panel(page).locator('.stage-title');
-  await expect(title).toHaveText('Write down everything you have for today — all of it!');
-  const accent = title.locator('.stage-title__accent');
-  await expect(accent).toHaveCSS('color', 'rgb(209, 62, 56)');
-  await expect(accent).toHaveCSS('font-weight', '700');
-  await expect(panel(page).locator('.stage-subtitle')).toHaveText('Wednesday, 11 March 2026');
-  await expect(panel(page).locator('.matrix--faded .quadrant')).toHaveCount(4);
-  const blanks = panel(page).locator('.dump-row--blank input');
-  await expect(blanks).toHaveCount(2);
-  await expect(blanks.first()).toHaveAttribute('placeholder', '......');
+  await expect(panel(page).locator('.stage-title')).toHaveText('Write it all down');
+  await expect(panel(page).locator('.stage-subtitle')).toHaveText("Don't judge, don't sort. Just get everything out of your head.");
+  const input = panel(page).locator('.dump__input');
   const next = panel(page).locator('.stage-nav__next');
   await expect(next).toBeDisabled();
 
-  // Type three tasks, Enter after each: the row commits and stays focused for the next one.
-  await blanks.first().click();
+  // Add three tasks: Enter submits, the field clears and keeps focus.
   for (const text of TITLES.slice(0, 3)) {
-    await page.keyboard.type(text);
+    await input.fill(text);
     await page.keyboard.press('Enter');
   }
-  const rows = panel(page).locator('.dump-row:not(.dump-row--blank)');
+  const rows = panel(page).locator('.dump-row');
   await expect(rows).toHaveCount(3);
   await expect.poll(() => inputValues(rows.locator('input'))).toEqual(TITLES.slice(0, 3));
-  await expect(blanks.first()).toBeFocused();
-  await expect(blanks.first()).toHaveValue('');
+  await expect(rows.locator('.dump-row__num')).toHaveText(['1', '2', '3']);
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue('');
   await expect(next).toBeEnabled();
 
-  // "+" adds a third placeholder row and focuses it; Escape discards it again.
-  await panel(page).locator('.dump__add').click();
-  await expect(blanks).toHaveCount(3);
-  await expect(blanks.nth(2)).toBeFocused();
-  await page.keyboard.press('Escape');
-  await expect(blanks).toHaveCount(2);
+  // The "Add" button also works.
+  await input.fill(TITLES[3]);
+  await panel(page).locator('.dump__add-btn').click();
+  await expect(rows).toHaveCount(4);
 
   // Inline edit of an existing row.
   await rows.nth(1).locator('input').fill('Invoice Send (edited)');
-  await page.keyboard.press('Enter');
-  await expect(rows.nth(2).locator('input')).toBeFocused();
+  await rows.nth(1).locator('input').press('Enter');
   await expect.poll(async () => (await storedTasks(page)).map((task) => task.title)).toContain('Invoice Send (edited)');
 
   // ✕ deletes with an Undo toast.
   await rows.nth(0).hover();
   await rows.nth(0).locator('.dump-row__delete').click();
-  await expect(rows).toHaveCount(2);
-  await page.locator('.toast__action', { hasText: 'Undo' }).click();
   await expect(rows).toHaveCount(3);
+  await page.locator('.toast__action', { hasText: 'Undo' }).click();
+  await expect(rows).toHaveCount(4);
 
   await page.reload();
-  await expect.poll(() => inputValues(panel(page).locator('.dump-row:not(.dump-row--blank) input'))).toEqual([TITLES[0], 'Invoice Send (edited)', TITLES[2]]);
+  await expect(panel(page).locator('.dump-row')).toHaveCount(4);
   await expect(panel(page).locator('.stage-nav__next')).toBeEnabled();
   expect(errors).toEqual([]);
 });
 
-test('stage 2: unsaved text in a placeholder row is kept when leaving the stage', async ({ page }) => {
+test('stage 2: the list renumbers after a delete', async ({ page }) => {
   await seed(page, { stage: 2 });
   await page.goto('/');
-  await panel(page).locator('.dump-row--blank input').first().fill('Typed but not entered');
-  await expect(panel(page).locator('.stage-nav__next')).toBeDisabled(); // nothing committed yet
-  await page.locator('#stepper .step').nth(2).click();
-  await expect(panel(page).locator('.stage-title')).toHaveText('Place them by priority:');
-  await expect(pileCards(page)).toHaveText(['Typed but not entered']);
+  const input = panel(page).locator('.dump__input');
+  for (const text of ['One', 'Two', 'Three']) {
+    await input.fill(text);
+    await page.keyboard.press('Enter');
+  }
+  const rows = panel(page).locator('.dump-row');
+  await expect(rows.locator('.dump-row__num')).toHaveText(['1', '2', '3']);
+  await rows.nth(0).hover();
+  await rows.nth(0).locator('.dump-row__delete').click();
+  await expect(rows.locator('.dump-row__num')).toHaveText(['1', '2']);
+  await expect.poll(() => inputValues(rows.locator('input'))).toEqual(['Two', 'Three']);
 });
 
 // ---------- Stage 3 ----------
@@ -278,7 +274,7 @@ test.describe('mobile', () => {
     await seed(page, { stage: 2, tasks: TITLES.slice(0, 3) });
     await page.goto('/');
     expect(await noOverflow(page)).toBeLessThanOrEqual(0);
-    await expect(panel(page).locator('.dump-row:not(.dump-row--blank)')).toHaveCount(3);
+    await expect(panel(page).locator('.dump-row')).toHaveCount(3);
 
     await page.locator('#stepper .step').nth(2).click();
     await page.locator('#stage .panel--ghost').waitFor({ state: 'detached' });

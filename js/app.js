@@ -1,4 +1,4 @@
-// App shell: boots the store with the local adapter, renders header/stepper/day bar/banner,
+// App shell: boots the store with the local adapter, renders header/stepper/banner,
 // routes between the four stage panels (slide + fade), shows the per-stage tip bubbles and wires
 // keyboard shortcuts. Stage modules only ever see the `ctx` object built in makeCtx().
 import { createStore } from './store.js';
@@ -83,49 +83,6 @@ function renderStepper() {
   els.stepper.replaceChildren(...items);
 }
 
-function renderDayBar() {
-  const key = state.selectedDate;
-  const isToday = key === dates.todayKey();
-  const { total, done, waiting } = store.statsForDate(key);
-  const percent = total ? Math.round((done / total) * 100) : 0;
-  const status = total ? t('day.doneOf', { done, total }) : t('day.noTasks');
-  const focusKey = document.activeElement?.dataset?.focusKey;
-
-  els.daybar.replaceChildren(
-    ui.h(
-      'div',
-      { class: 'daybar__inner' },
-      ui.h('button', { class: 'btn-icon', type: 'button', 'aria-label': t('day.prev'), dataset: { focusKey: 'prev' }, onClick: () => shiftDay(-1) }, ui.icon('chevron-left')),
-      ui.h(
-        'div',
-        { class: 'daybar__center' },
-        ui.h('h2', { class: 'daybar__date' }, dates.formatLong(key)),
-        isToday
-          ? ui.h('span', { class: 'chip chip--today' }, t('day.today'))
-          : ui.h(
-              'button',
-              { class: 'btn btn-ghost btn-sm daybar__today', type: 'button', 'aria-label': t('day.goToToday'), title: t('day.goToToday'), dataset: { focusKey: 'today' }, onClick: () => selectDay(dates.todayKey()) },
-              ui.icon('calendar', { size: 16 }),
-              ui.h('span', { class: 'daybar__today-label' }, t('day.goToToday')), // icon only on phones
-            ),
-      ),
-      ui.h('button', { class: 'btn-icon', type: 'button', 'aria-label': t('day.next'), dataset: { focusKey: 'next' }, onClick: () => shiftDay(1) }, ui.icon('chevron-right')),
-      ui.h(
-        'div',
-        { class: 'daybar__progress', title: status },
-        ui.h(
-          'div',
-          { class: 'meter', role: 'progressbar', 'aria-label': status, 'aria-valuemin': 0, 'aria-valuemax': total, 'aria-valuenow': done },
-          ui.h('div', { class: 'meter__fill', style: { width: `${percent}%` } }),
-        ),
-        ui.h('span', null, total ? t('day.progress', { done, total }) : t('day.noTasks')),
-        waiting ? ui.h('span', { class: 'daybar__waiting' }, `· ${t('day.waiting', { n: waiting })}`) : null,
-      ),
-    ),
-  );
-  if (focusKey) els.daybar.querySelector(`[data-focus-key="${focusKey}"]`)?.focus();
-}
-
 function renderBanner() {
   const show = !state.signedIn && !store.get().settings.bannerDismissed;
   if (els.banner.hidden === !show) return;
@@ -148,26 +105,12 @@ function setDate(key) {
   state.selectedDate = key;
   state.calendarMonth = dates.monthOfKey(key);
   persistUiState();
-  renderDayBar();
 }
 
 function setCalendarMonth(monthKey) {
   if (!dates.isValidMonthKey(monthKey)) return;
   state.calendarMonth = monthKey;
   persistUiState();
-}
-
-/** Day-bar navigation: change the day and re-render the current stage for it. */
-function selectDay(key) {
-  setDate(key);
-  mountStage(state.stage, null);
-}
-
-/** The arrows walk the days the calendar shows (weekends are also shown while today is one). */
-function shiftDay(direction) {
-  const visible = dates.weekendsVisible(store.get().settings.showWeekends);
-  const step = direction > 0 ? dates.nextVisibleDay : dates.prevVisibleDay;
-  selectDay(step(state.selectedDate, visible));
 }
 
 // ---------- Tips ----------
@@ -356,7 +299,6 @@ async function boot() {
   Object.assign(els, {
     stepper: document.getElementById('stepper'),
     stepperNav: document.getElementById('stepper-nav'),
-    daybar: document.getElementById('daybar'),
     banner: document.getElementById('banner'),
     stage: document.getElementById('stage'),
     account: document.getElementById('account'),
@@ -370,10 +312,7 @@ async function boot() {
   store.attach(local);
   initTimer({ store }); // the floating timer bar lives at document level, whatever stage is open
   store.onError(() => ui.toast(t('toast.saveFailed')));
-  store.subscribe(() => {
-    renderDayBar();
-    renderBanner();
-  });
+  store.subscribe(() => renderBanner());
   window.addEventListener('pagehide', () => store.flush({ immediate: true })); // no timer fires after this
 
   restoreUiState();
@@ -389,7 +328,6 @@ async function boot() {
   });
 
   renderStepper();
-  renderDayBar();
   renderBanner();
   mountStage(state.stage, null);
   bindKeyboard();
