@@ -14,12 +14,12 @@ const LONG_PRESS_MS = 250; // touch: hold this long (still) to lift a card
 const SCROLL_EDGE = 56; // px from the viewport edge where a drag auto-scrolls
 const SCROLL_STEP = 10;
 
-// Quadrant glyphs (inline stroke SVGs, same style as ui.icon): flame / star / people / trash.
+// Quadrant glyphs — the exact Lucide icons the Lovable design uses: flame / star / users / trash-2.
 const QUAD_ICON = {
-  do: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5Z"/>',
-  plan: '<path d="M12 3.5l2.32 4.7 5.18.76-3.75 3.65.88 5.16L12 15.9l-4.63 2.43.88-5.16L4.5 8.96l5.18-.76L12 3.5Z"/>',
-  delegate: '<circle cx="9" cy="8" r="3.1"/><path d="M3.6 19a5.4 5.4 0 0 1 10.8 0"/><path d="M16 5.2a3.1 3.1 0 0 1 0 5.9"/><path d="M15.6 13.5A5.4 5.4 0 0 1 20.4 19"/>',
-  delete: '<path d="M4 7h16"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7"/><path d="M6.2 7l.9 12.1A1.6 1.6 0 0 0 8.7 20.6h6.6a1.6 1.6 0 0 0 1.6-1.5L17.8 7"/>',
+  do: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5Z"/>',
+  plan: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+  delegate: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  delete: '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>',
 };
 
 function quadrantIcon(quadrant) {
@@ -120,17 +120,19 @@ function matrix(tasks) {
 function quadrantPanel(quadrant, tasks) {
   const { ui, i18n } = ctx;
   const labelId = `quadrant-${quadrant}-label`;
-  const more = ui.h(
+  // The footer is a single "+" that adds a task straight into this quadrant (owner request:
+  // the old "…" menu is gone).
+  const add = ui.h(
     'button',
     {
-      class: 'btn-icon quadrant__more',
+      class: 'btn-icon quadrant__add',
       type: 'button',
-      'aria-label': i18n.t('board.menu'),
-      'aria-haspopup': 'menu',
-      dataset: { focusKey: `more:${quadrant}` },
-      onClick: (event) => openQuadrantMenu(quadrant, tasks, event.currentTarget),
+      'aria-label': i18n.t('board.addTask'),
+      title: i18n.t('board.addTask'),
+      dataset: { focusKey: `addbtn:${quadrant}` },
+      onClick: () => startAdding(quadrant),
     },
-    ui.icon('more'),
+    ui.icon('plus', { size: 22 }),
   );
   const active = tasks.filter((task) => !isRecord(task)).length;
   return ui.h(
@@ -149,7 +151,7 @@ function quadrantPanel(quadrant, tasks) {
       ui.h('span', { class: 'quadrant__count', 'aria-hidden': 'true' }, String(active)),
     ),
     ui.h('div', { class: 'quadrant__body' }, tasks.map(taskCard), adding === quadrant && addRow(quadrant)),
-    ui.h('div', { class: 'quadrant__footer' }, more),
+    ui.h('div', { class: 'quadrant__footer' }, add),
   );
 }
 
@@ -346,38 +348,12 @@ function restoreFocus(key) {
   if (key) boardEl.querySelector(`[data-focus-key="${CSS.escape(key)}"]`)?.focus({ preventScroll: true });
 }
 
-// ---------- Quadrant "…" menu ----------
-
-function openQuadrantMenu(quadrant, tasks, anchor) {
-  const { ui, i18n } = ctx;
-  const active = tasks.filter((task) => !isRecord(task));
-  const unfinished = active.filter((task) => !task.done);
-  const finished = active.filter((task) => task.done);
-  const items = [
-    { label: i18n.t('board.addHere'), onSelect: () => startAdding(quadrant) },
-    { label: i18n.t('board.markAllDone'), disabled: !unfinished.length, onSelect: () => markAllDone(unfinished) },
-    { label: i18n.t('board.moveUnfinished'), disabled: !unfinished.length, onSelect: () => moveToNextDay(unfinished) },
-    { label: i18n.t('board.clearDone'), disabled: !finished.length, onSelect: () => deleteTasks(finished) },
-  ];
-  if (quadrant === 'delete') {
-    items.push('-', { label: i18n.t('board.deleteAll'), danger: true, disabled: !tasks.length, onSelect: () => deleteAll(tasks) });
-  }
-  ui.menu({ anchor, items });
-}
+// ---------- Add a task straight into a quadrant (the footer "+") ----------
 
 function startAdding(quadrant) {
   adding = quadrant;
   render();
   boardEl.querySelector(`[data-focus-key="add:${quadrant}"]`)?.focus();
-}
-
-function markAllDone(tasks) {
-  for (const task of tasks) ctx.store.toggleDone(task.id, true);
-}
-
-async function deleteAll(tasks) {
-  const { ui, i18n } = ctx;
-  if (await ui.confirm(i18n.t('confirm.deleteAll'), { okLabel: i18n.t('common.delete'), danger: true })) deleteTasks(tasks);
 }
 
 // ---------- Undoable batch actions ----------
@@ -404,9 +380,6 @@ function moveTasks(tasks, dateKey) {
   undoToast(i18n.t(hidden ? 'toast.movedToWeekend' : 'toast.movedTo', { date: dates.formatShort(dateKey) }), token);
 }
 
-function moveToNextDay(tasks) {
-  moveTasks(tasks, nextVisibleDay(ctx.getDate()));
-}
 
 function deleteTasks(tasks) {
   const { store, i18n } = ctx;
@@ -447,11 +420,11 @@ function actionButton(kind, label, onClick) {
   );
 }
 
-function showActions(task, body) {
+/** The popover title doubles as the rename control: click it to edit the task in place. Used in
+ *  every popover view (owner request). */
+function editableTitle(task, body) {
   const { ui, i18n } = ctx;
-  const play = actionButton('play', i18n.t('popover.start'), () => showTimerPicker(task, body));
-  // The title is the rename control: click it to edit in place (SPEC §2 / owner request).
-  const title = ui.h(
+  return ui.h(
     'button',
     { class: 'task-popover__title task-popover__title--edit', type: 'button', title: i18n.t('board.renameTask'), 'aria-label': i18n.t('board.renameTask'), onClick: () => showEdit(task, body) },
     ui.h('span', { class: 'task-popover__title-text' }, task.title),
@@ -461,19 +434,25 @@ function showActions(task, body) {
       html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
     }),
   );
+}
+
+// The ▶ "start timer" button is gone from the popover: the clock on the right of each card already
+// opens the timer (owner request — it was redundant). The popover keeps 📅 postpone and ⏩ next day.
+function showActions(task, body) {
+  const { ui, i18n } = ctx;
+  const postpone = actionButton('calendar', i18n.t('popover.postpone'), () => showPostpone(task, body));
   showView(
     body,
     [
-      title,
+      editableTitle(task, body),
       ui.h(
         'div',
         { class: 'task-popover__actions' },
-        play,
-        actionButton('calendar', i18n.t('popover.postpone'), () => showPostpone(task, body)),
+        postpone,
         actionButton('forward', i18n.t('popover.nextDay'), () => sendToNextDay(task)),
       ),
     ],
-    play,
+    postpone,
   );
 }
 
@@ -509,7 +488,7 @@ function onClickCapture(event) {
 function draggableCardAt(target) {
   const card = target.closest('.task-card');
   if (!card || card.classList.contains('task-card--new') || card.classList.contains('task-card--record')) return null;
-  if (target.closest('.task-card__check, .task-card__clock, .task-card__delete, .quadrant__more, .waiting-card__place')) return null;
+  if (target.closest('.task-card__check, .task-card__clock, .task-card__delete, .quadrant__add, .waiting-card__place')) return null;
   return card;
 }
 
@@ -689,7 +668,7 @@ function showTimerPicker(task, body) {
   showView(
     body,
     [
-      ui.h('p', { class: 'task-popover__title' }, task.title),
+      editableTitle(task, body),
       stopwatch,
       ui.h(
         'fieldset',
@@ -755,7 +734,7 @@ function showPostpone(task, body) {
     closePopover();
     moveTasks([task], key);
   };
-  showView(body, [ui.h('p', { class: 'task-popover__hint' }, i18n.t('popover.postpone')), formView(move, () => showActions(task, body), input, i18n.t('popover.move'))], input);
+  showView(body, [editableTitle(task, body), ui.h('p', { class: 'task-popover__hint' }, i18n.t('popover.postpone')), formView(move, () => showActions(task, body), input, i18n.t('popover.move'))], input);
 }
 
 /** Small form: `input` + Cancel / submit buttons. */

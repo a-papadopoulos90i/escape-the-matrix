@@ -126,21 +126,22 @@ Speech bubble, verbatim (khaki `#b9b098`, dark text):
 
 ### Stage 4 — "Ready to start"
 
-Title: `Ready to start`. The same coloured matrix, now with **labels inside each quadrant**
-(bold, top-centre):
-- `DO immediately` (red quadrant)
-- `PLAN and prioritize` (yellow)
-- `DELEGATE for completion` (blue)
-- `DELETE these tasks` (gray)
+Title: `Ready to start`. The coloured quadrant cards, each with an **icon tile** (the exact Lovable
+Lucide glyphs: flame / star / users / trash), a bold **label** and a small **subtitle**, plus a
+live **count badge** (owner adopted the Lovable names):
+- `Do now` — *Urgent & Important* (red, flame)
+- `Schedule` — *Important but Not Urgent* (yellow, star)
+- `Delegate` — *Urgent but Not Important* (blue, users)
+- `Drop` — *Not Urgent & Not Important* (gray, trash)
 
-Task card (white, dark border, radius 6px): **checkbox on the left** ("done mark"), title centred,
-**clock icon on the right** (gray outline when idle; running timer shows a live mm:ss in accent
-colour; finished timer shows the elapsed time in gray). Done tasks: checkbox checked with ✅ feel,
-title struck through and dimmed, moved to the bottom of the quadrant.
+Task card: **circular checkbox on the left** ("done mark"), title centred, **clock icon** (gray
+outline when idle; running timer shows a live mm:ss in accent colour; finished timer shows the
+elapsed time in gray), and a **red ✕ at the far right** that deletes the task at once (with an Undo
+toast). Done tasks: checkbox checked, title struck through and dimmed, moved to the bottom.
 
-Bottom of each quadrant: a `…` button that opens a small menu:
-`+ Add task here`, `Mark all done`, `Move unfinished to next day`, `Clear done tasks`, and in the
-gray quadrant additionally `Delete all tasks here`.
+Bottom of each quadrant: a single **`+`** button that adds a task straight into that quadrant
+(inline row). The old `…` menu (mark all done / move unfinished / clear done / delete all) was
+removed at the owner's request.
 
 Any unsorted tasks (still `quadrant: null`) are listed in a slim strip above the matrix:
 "2 tasks not placed yet — Place them" (link to Stage 3).
@@ -153,18 +154,18 @@ Speech bubble, verbatim: **"Done mark ✅"** — light-green pill `#cdf4d3` with
 (The board's stage 5 "fast organaze" was identical to stage 4, so the owner merged them; its
 actions live on stage 4.) Clicking a task's **title** (or its clock) opens a **popover** (white card
 with a tail): the task title on top (**clicking the title renames the task in place** — it turns
-into an input, Enter/blur saves, Escape cancels), then three large icon buttons in a row:
+into an input, Enter/blur saves, Escape cancels), then two large icon buttons in a row:
 
-1. ▶️ (green circle play) — **Start the timer or the countdown**
-2. 📅 (calendar) — **Postpone to another day**
-3. ⏩ (orange fast-forward) — **Send to the next day's list**
+1. 📅 (calendar) — **Postpone to another day**
+2. ⏩ (orange fast-forward) — **Send to the next day's list**
 
-There is no Edit / Move to / Delete text row: renaming is the title click above, **moving is drag &
-drop** (see below), and **deleting is a red ✕ at the far right of each card** (one click, with an
-Undo toast). Cards on the board are **draggable between quadrants** with Pointer Events (mouse and
-touch; a plain click still opens the popover, a press-and-drag — or a touch long-press — lifts the
-card; dropping on a quadrant re-files it, dropping on the waiting list unplaces it). This is in
-addition to the waiting list's `Place in ▾` menu.
+There is **no ▶️ button** in the popover: starting a timer is the **clock icon on the right of the
+card** (it opens the popover straight on the stopwatch / countdown picker). There is no Edit / Move
+to / Delete text row either: renaming is the title click above, **moving is drag & drop**, and
+**deleting is the red ✕** on each card. Cards on the board are **draggable between quadrants** with
+Pointer Events (mouse and touch; a plain click still opens the popover, a press-and-drag — or a
+touch long-press — lifts the card; dropping on a quadrant re-files it, dropping on the waiting list
+unplaces it). This is in addition to the waiting list's `Place in ▾` menu.
 
 - **▶️ Start:** shows two choices: `Stopwatch` (count up) or `Countdown` with presets
   `5 · 15 · 25 · 45 · 60 min` and a custom minutes field. Starting sets the task's clock icon live and
@@ -379,7 +380,7 @@ rising from the bottom (ten fill the cell). Buttons are pill-shaped; the primary
 3. Clicking an empty day opens Stage 2 with that date in the day bar.
 4. Typing 3 tasks + Enter each creates 3 rows; `+` adds a row; `✕` deletes; reload keeps them.
 5. Stage 3 shows the coloured matrix with the 3 tasks piled in the centre; drag (mouse) and tap-to-place both work; keyboard 1–4 works.
-6. Stage 4 shows labels DO immediately / PLAN and prioritize / DELEGATE for completion / DELETE these tasks and the tasks in their quadrants with checkbox + clock.
+6. Stage 4 shows labels Do now / Schedule / Delegate / Drop (with icon tiles + count badges) and the tasks in their quadrants with checkbox + clock + red ✕.
 7. Ticking a task strikes it through and Stage 1 shows one green stripe per done task (ten fill the cell).
 8. Stage 4 popover: ▶️ starts a countdown (timer bar visible, clock icon live); reload → timer still running; countdown end beeps.
 9. 📅 moves the task to the chosen date (visible on that day, gone from this one) with Undo working.

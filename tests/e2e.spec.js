@@ -359,7 +359,7 @@ test('6. Stage 4 shows the four labels and the tasks in their quadrants with che
   await seed(page, { tasks: sortedTasks(), stage: 4 });
   await page.goto('/');
   await expect(stageTitle(page)).toHaveText('Ready to start');
-  await expect(panel(page).locator('.quadrant__label')).toHaveText(['DO immediately', 'PLAN and prioritize', 'DELEGATE for completion', 'DELETE these tasks']);
+  await expect(panel(page).locator('.quadrant__label')).toHaveText(['Do now', 'Schedule', 'Delegate', 'Drop']);
   await expect(quadrant(page, 'do').locator('.task-card')).toHaveText([TITLES[0]]);
   await expect(quadrant(page, 'plan').locator('.task-card')).toHaveText([TITLES[2]]);
   await expect(quadrant(page, 'delegate').locator('.task-card')).toHaveText([TITLES[1]]);
@@ -368,7 +368,7 @@ test('6. Stage 4 shows the four labels and the tasks in their quadrants with che
     await expect(card(page, title).locator('input[type="checkbox"]')).toBeVisible();
     await expect(card(page, title).locator('.task-card__clock--idle svg')).toBeVisible();
   }
-  await expect(panel(page).locator('.quadrant__more')).toHaveCount(4);
+  await expect(panel(page).locator('.quadrant__add')).toHaveCount(4);
 });
 
 test('7. ticking a task strikes it through and Stage 1 shows one green stripe per done task', async ({ page }) => {
@@ -424,10 +424,8 @@ test('8. ▶ starts a countdown: timer bar + live clock icon, still running afte
   await page.goto('/');
   await expect(stageTitle(page)).toHaveText('Ready to start');
 
-  await openPopover(page, TITLES[0]);
+  await card(page, TITLES[0]).locator('.task-card__clock').click(); // the clock opens the timer picker
   await expect(popover(page).locator('.task-popover__title')).toHaveText(TITLES[0]);
-  await expect(popover(page).locator('.action-btn')).toHaveCount(3);
-  await popover(page).locator('.action-btn--play').click();
   await expect(popover(page).locator('.timer-picker__preset')).toHaveText(['5', '15', '25', '45', '60']);
   await popover(page).getByRole('button', { name: '5', exact: true }).click();
   await expect(popover(page)).toHaveCount(0);
@@ -533,65 +531,31 @@ test('10. ⏩ sends a Friday task to Monday when weekends are hidden; Undo works
 
 // ---------- 11: quadrant menus ----------
 
-test('11. the … menu works in each quadrant; "Delete all tasks here" only in the gray one', async ({ page }) => {
+test('11. each quadrant has a "+" that adds a task inline; the red ✕ deletes (no "…" menu)', async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW);
   const tasks = ['do', 'plan', 'delegate', 'delete'].flatMap((q, i) => [task(`t_${i * 2 + 1}`, `${q} one`, TODAY, q), task(`t_${i * 2 + 2}`, `${q} two`, TODAY, q)]);
   await seed(page, { tasks, stage: 4 });
   await page.goto('/');
-  const menu = page.locator('.popover--menu');
-  const item = (label) => menu.locator('[role="menuitem"]', { hasText: label });
-  const open = async (q) => {
-    await quadrant(page, q).locator('.quadrant__more').click();
-    await expect(menu).toBeVisible();
-  };
 
-  for (const q of ['do', 'plan', 'delegate']) {
-    await open(q);
-    await expect(menu.locator('[role="menuitem"]')).toHaveText(['+ Add task here', 'Mark all done', 'Move unfinished to next day', 'Clear done tasks']);
-    await page.keyboard.press('Escape');
-    await expect(menu).toHaveCount(0);
-  }
-  await open('delete');
-  await expect(menu.locator('[role="menuitem"]').last()).toHaveText('Delete all tasks here');
-  await page.keyboard.press('Escape');
+  await expect(panel(page).locator('.quadrant__add')).toHaveCount(4);
+  await expect(panel(page).locator('.quadrant__more')).toHaveCount(0);
 
-  await open('do');
-  await item('Add task here').click();
+  // "+" adds a task inline in that quadrant.
+  await quadrant(page, 'do').locator('.quadrant__add').click();
   const input = quadrant(page, 'do').locator('.task-card--new input');
   await expect(input).toBeFocused();
   await input.fill('do three');
   await page.keyboard.press('Enter');
   await expect(quadrant(page, 'do').locator('.task-card:not(.task-card--new)')).toHaveCount(3);
-  await page.keyboard.press('Escape'); // closes the follow-up add row
+  await page.keyboard.press('Escape');
   await expect(quadrant(page, 'do').locator('.task-card--new')).toHaveCount(0);
 
-  await open('plan');
-  await item('Mark all done').click();
-  await expect(quadrant(page, 'plan').locator('.task-card--done')).toHaveCount(2);
-  await open('plan');
-  await item('Clear done tasks').click();
-  await expect(quadrant(page, 'plan').locator('.task-card')).toHaveCount(0);
-  await expect(page.locator('.toast')).toContainText('2 tasks deleted');
-  await page.locator('.toast__action', { hasText: 'Undo' }).click();
-  await expect(quadrant(page, 'plan').locator('.task-card--done')).toHaveCount(2);
-
-  await open('delegate');
-  await item('Move unfinished to next day').click();
-  await expect(quadrant(page, 'delegate').locator('.task-card')).toHaveCount(0);
-  await expect(page.locator('.toast')).toContainText('Moved to Thu 12 Mar');
-  await waitForSaved(page, (doc) => taskById(doc, 't_5').date === '2026-03-12' && taskById(doc, 't_6').date === '2026-03-12');
-
-  await open('delete');
-  await item('Delete all tasks here').click();
-  const dialog = page.locator('[role="dialog"].modal');
-  await expect(dialog).toContainText('Delete all tasks in this quadrant?');
-  await dialog.locator('button', { hasText: 'Delete' }).click();
-  await expect(quadrant(page, 'delete').locator('.task-card')).toHaveCount(0);
-  // Deleted tasks persist as tombstones (so the deletion syncs to other devices), hidden everywhere.
-  await waitForSaved(page, (doc) => taskById(doc, 't_7')?.deleted === true && taskById(doc, 't_8')?.deleted === true);
+  // The red ✕ deletes at once (tombstoned so the deletion syncs), with an Undo toast.
+  await card(page, 'delete one').locator('.task-card__delete').click();
+  await expect(card(page, 'delete one')).toHaveCount(0);
+  await expect(page.locator('.toast')).toContainText('Task deleted');
+  await waitForSaved(page, (doc) => taskById(doc, 't_7')?.deleted === true);
 });
-
-// ---------- 12–13: tips, stepper, keys, transitions ----------
 
 test('12. every speech bubble appears verbatim on its stage the first time, closes, and ? re-opens it', async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW);

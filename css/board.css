@@ -189,15 +189,26 @@
   font-variant-numeric: tabular-nums;
 }
 
-.quadrant__more {
-  width: 36px;
-  height: 36px;
+/* Footer "+" that adds a task straight into the quadrant. */
+.quadrant__add {
+  width: 40px;
+  height: 40px;
   color: var(--ink);
-  opacity: 0.6;
+  opacity: 0.55;
+  border: 1.5px dashed transparent;
+  transition:
+    opacity var(--dur-fast),
+    border-color var(--dur-fast),
+    background var(--dur-fast),
+    color var(--dur-fast);
 }
 
-.quadrant__more:hover {
+.quadrant__add:hover,
+.quadrant__add:focus-visible {
   opacity: 1;
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
 }
 
 /* ---------- Task cards ---------- */
@@ -731,7 +742,7 @@ body.has-timer-bar .toast-root {
     min-height: var(--touch);
   }
 
-  .quadrant__more {
+  .quadrant__add {
     width: var(--touch);
     height: var(--touch);
   }

@@ -20,14 +20,14 @@ self-hosted) with soft tinted quadrant cards, refreshed from a Lovable UI study.
    quadrant: *Urgent & Important*, *Important but Not Urgent*, *Urgent but Not Important*,
    *Not Urgent & Not Important*. Whatever you leave in the pile stays on the day's **waiting list** —
    with forty things to do you pick the ten that matter today.
-4. **Ready** — the board: **DO immediately**, **PLAN and prioritize**, **DELEGATE for completion**,
-   **DELETE these tasks**. Tick tasks done; each quadrant has a `…` menu (add here, mark all done,
-   move unfinished to next day, clear done, delete all). Click a task title (or its clock) for the
-   quick actions: start a stopwatch or countdown, postpone to another day, or send it to the next
-   day's list. The waiting list sits under the matrix, and when earlier days still hold unfinished
-   tasks a strip offers to **pull them here**: each gets a fresh copy on this day (with a `×3`-style
-   badge counting how many times it has been on the plan) while the old day keeps a faded red record
-   that no longer counts.
+4. **Ready** — the board: **Do now**, **Schedule**, **Delegate**, **Drop** (icon tiles + a live
+   count). Tick a task done with its circular checkbox, delete it with the red **✕**, start a timer
+   from the **clock**, and **drag** a card to another quadrant. A **+** on each quadrant adds a task
+   there. Click a task's title for its quick actions: rename in place, postpone to another day, or
+   send it to the next day's list. The waiting list sits under the matrix, and when earlier days
+   still hold unfinished tasks a strip offers to **pull them here**: each gets a fresh copy on this
+   day (with a `×3`-style badge counting how many times it has been on the plan) while the old day
+   keeps a faded red record that no longer counts.
 
 Stages 2–4 reproduce the speech bubbles from the original design word for word (the board carries
 two); stage 1 shows a short hint instead. Close a bubble and reopen it any time with the `?` button.

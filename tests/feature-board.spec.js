@@ -68,12 +68,18 @@ async function openPopover(page, title) {
   await expect(popover(page)).toBeVisible();
 }
 
+/** The clock on a card opens the popover straight on the timer picker (the ▶ button is gone). */
+async function openTimer(page, title) {
+  await card(page, title).locator('.task-card__clock').click();
+  await expect(popover(page).locator('.timer-picker__stopwatch')).toBeVisible();
+}
+
 test('stage 4 shows the labelled quadrants, cards with checkbox + clock, and the waiting list', async ({ page }) => {
   const errors = collectErrors(page);
   await seed(page, { tasks: [...SORTED(), task('t_4', 'Loose end', null)] });
   await page.goto('/');
   await expect(panel(page).locator('.stage-title')).toHaveText('Ready to start');
-  await expect(panel(page).locator('.quadrant__label')).toHaveText(['DO immediately', 'PLAN and prioritize', 'DELEGATE for completion', 'DELETE these tasks']);
+  await expect(panel(page).locator('.quadrant__label')).toHaveText(['Do now', 'Schedule', 'Delegate', 'Drop']);
   await expect(quadrant(page, 'do').locator('.task-card')).toHaveText(['Marketing Order A5']);
   await expect(quadrant(page, 'plan').locator('.task-card')).toHaveText(['Make - Excel Report']);
   await expect(quadrant(page, 'delegate').locator('.task-card')).toHaveText(['Invoice Send']);
@@ -81,13 +87,14 @@ test('stage 4 shows the labelled quadrants, cards with checkbox + clock, and the
   const first = card(page, 'Marketing Order A5');
   await expect(first.locator('.task-card__check')).not.toBeChecked();
   await expect(first.locator('.task-card__clock--idle svg')).toBeVisible();
-  await expect(panel(page).locator('.quadrant__more')).toHaveCount(4);
+  await expect(panel(page).locator('.quadrant__add')).toHaveCount(4);
+  await expect(panel(page).locator('.quadrant__more')).toHaveCount(0);
 
   const waiting = panel(page).locator('.waiting');
   await expect(waiting.locator('.waiting__label')).toHaveText('Waiting list (1)');
   await expect(waiting.locator('.waiting-card')).toHaveText(/Loose end/);
   await waiting.locator('.waiting-card__place').click();
-  await page.locator('[role="menuitem"]', { hasText: 'DO immediately' }).click();
+  await page.locator('[role="menuitem"]', { hasText: 'Do now' }).click();
   await expect(quadrant(page, 'do').locator('.task-card')).toHaveText(['Marketing Order A5', 'Loose end']);
   await expect(panel(page).locator('.waiting')).toHaveCount(0);
   expect(errors).toEqual([]);
@@ -112,20 +119,17 @@ test('ticking a task strikes it through, sinks it to the bottom, persists and up
   await expect(page.locator('.daybar__progress')).toContainText('0/4 done');
 });
 
-test('"…" menu: add here, mark all done, clear done with undo, delete all only in the gray quadrant', async ({ page }) => {
+test('the footer + adds a task straight into the quadrant (no more "…" menu)', async ({ page }) => {
   const errors = collectErrors(page);
   await seed(page, { tasks: SORTED() });
   await page.goto('/');
 
-  // Only the gray quadrant offers "Delete all tasks here".
-  await quadrant(page, 'do').locator('.quadrant__more').click();
-  await expect(page.locator('[role="menuitem"]')).toHaveText(['+ Add task here', 'Mark all done', 'Move unfinished to next day', 'Clear done tasks']);
-  await page.keyboard.press('Escape');
-  await quadrant(page, 'delete').locator('.quadrant__more').click();
-  await expect(page.locator('[role="menuitem"]').last()).toHaveText('Delete all tasks here');
+  // Each quadrant has a single "+" and no "…" menu.
+  await expect(panel(page).locator('.quadrant__add')).toHaveCount(4);
+  await expect(panel(page).locator('.quadrant__more')).toHaveCount(0);
 
-  // Add task here → inline row; Enter commits and keeps a fresh row; Escape closes it.
-  await page.locator('[role="menuitem"]', { hasText: 'Add task here' }).click();
+  // + opens an inline row; Enter commits and keeps a fresh row; Escape closes it.
+  await quadrant(page, 'delete').locator('.quadrant__add').click();
   const input = quadrant(page, 'delete').locator('.task-card__input');
   await expect(input).toBeFocused();
   await input.fill('Sort old emails');
@@ -134,42 +138,10 @@ test('"…" menu: add here, mark all done, clear done with undo, delete all only
   await expect(quadrant(page, 'delete').locator('.task-card__input')).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(quadrant(page, 'delete').locator('.task-card__input')).toHaveCount(0);
-
-  // Mark all done, then clear done tasks (undoable).
-  await quadrant(page, 'delegate').locator('.quadrant__more').click();
-  await page.locator('[role="menuitem"]', { hasText: 'Mark all done' }).click();
-  await expect(card(page, 'Invoice Send')).toHaveClass(/task-card--done/);
-  await quadrant(page, 'delegate').locator('.quadrant__more').click();
-  await page.locator('[role="menuitem"]', { hasText: 'Clear done tasks' }).click();
-  await expect(card(page, 'Invoice Send')).toHaveCount(0);
-  await expect(page.locator('.toast')).toContainText('Task deleted');
-  await page.locator('.toast__action', { hasText: 'Undo' }).click();
-  await expect(card(page, 'Invoice Send')).toHaveClass(/task-card--done/);
-
-  // Delete all tasks here (gray) asks for confirmation.
-  await quadrant(page, 'delete').locator('.quadrant__more').click();
-  await page.locator('[role="menuitem"]', { hasText: 'Delete all tasks here' }).click();
-  const dialog = page.locator('[role="dialog"].modal');
-  await expect(dialog).toContainText('Delete all tasks in this quadrant?');
-  await dialog.locator('button', { hasText: 'Cancel' }).click();
-  await expect(card(page, 'Sort old emails')).toHaveCount(1);
-  await quadrant(page, 'delete').locator('.quadrant__more').click();
-  await page.locator('[role="menuitem"]', { hasText: 'Delete all tasks here' }).click();
-  await dialog.locator('button', { hasText: 'Delete' }).click();
-  await expect(card(page, 'Sort old emails')).toHaveCount(0);
-  await expect.poll(async () => (await readDoc(page)).tasks.filter((t) => !t.deleted).map((t) => t.title).sort()).toEqual(['Invoice Send', 'Make - Excel Report', 'Marketing Order A5']);
+  await expect
+    .poll(async () => (await readDoc(page)).tasks.filter((t) => !t.deleted).map((t) => t.title).sort())
+    .toEqual(['Invoice Send', 'Make - Excel Report', 'Marketing Order A5', 'Sort old emails']);
   expect(errors).toEqual([]);
-});
-
-test('"Move unfinished to next day" moves only open tasks and can be undone', async ({ page }) => {
-  await seed(page, { tasks: [...SORTED(), task('t_6', 'Already done', 'do', { done: true })] });
-  await page.goto('/');
-  await quadrant(page, 'do').locator('.quadrant__more').click();
-  await page.locator('[role="menuitem"]', { hasText: 'Move unfinished to next day' }).click();
-  await expect(page.locator('.toast')).toContainText('Moved to Thu 12 Mar');
-  await expect(quadrant(page, 'do').locator('.task-card')).toHaveText(['Already done']);
-  await page.locator('.toast__action', { hasText: 'Undo' }).click();
-  await expect(quadrant(page, 'do').locator('.task-card')).toHaveText(['Marketing Order A5', 'Already done']);
 });
 
 const centre = async (loc) => {
@@ -177,7 +149,7 @@ const centre = async (loc) => {
   return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
 };
 
-test('popover: three fast-organize actions; clicking the title renames in place', async ({ page }) => {
+test('popover: postpone + next-day actions; clicking the title renames in place', async ({ page }) => {
   const errors = collectErrors(page);
   await seed(page, { tasks: SORTED(), stage: 4 });
   await page.goto('/');
@@ -185,12 +157,12 @@ test('popover: three fast-organize actions; clicking the title renames in place'
 
   await openPopover(page, 'Marketing Order A5');
   await expect(popover(page).locator('.task-popover__title')).toHaveText('Marketing Order A5');
-  await expect(popover(page).locator('.action-btn')).toHaveCount(3);
-  await expect(popover(page).locator('.action-btn--play')).toHaveAttribute('aria-label', 'Start the timer or the countdown');
+  await expect(popover(page).locator('.action-btn')).toHaveCount(2); // 📅 postpone + ⏩ next day (▶ moved to the card clock)
+  await expect(popover(page).locator('.action-btn--play')).toHaveCount(0);
   await expect(popover(page).locator('.action-btn--calendar')).toHaveAttribute('aria-label', 'Postpone to another day');
   await expect(popover(page).locator('.action-btn--forward')).toHaveAttribute('aria-label', "Send to the next day's list");
   await expect(popover(page).locator('.task-popover__link')).toHaveCount(0); // Edit / Move to / Delete removed
-  await expect(popover(page).locator('.action-btn--play')).toBeFocused();
+  await expect(popover(page).locator('.action-btn--calendar')).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(popover(page)).toHaveCount(0);
   await expect(card(page, 'Marketing Order A5').locator('.task-card__title')).toBeFocused();
@@ -244,8 +216,7 @@ test('▶ starts a countdown: clock live, bar visible, survives reload, pause/re
   await page.goto('/');
   await expect(bar(page)).toBeHidden();
 
-  await openPopover(page, 'Marketing Order A5');
-  await popover(page).locator('.action-btn--play').click();
+  await openTimer(page, 'Marketing Order A5');
   await expect(popover(page).locator('.timer-picker__stopwatch')).toHaveText('Stopwatch');
   await expect(popover(page).locator('.timer-picker__preset')).toHaveText(['5', '15', '25', '45', '60']);
   await expect(popover(page).locator('.timer-picker__custom')).toBeVisible();
@@ -292,13 +263,11 @@ test('▶ starts a countdown: clock live, bar visible, survives reload, pause/re
 test('starting a second timer asks to stop the first; Done ✓ ticks the task', async ({ page }) => {
   await seed(page, { tasks: SORTED(), stage: 4 });
   await page.goto('/');
-  await openPopover(page, 'Marketing Order A5');
-  await popover(page).locator('.action-btn--play').click();
+  await openTimer(page, 'Marketing Order A5');
   await popover(page).locator('.timer-picker__stopwatch').click();
   await expect(bar(page).locator('.timer-bar__title')).toHaveText('Marketing Order A5');
 
-  await openPopover(page, 'Invoice Send');
-  await popover(page).locator('.action-btn--play').click();
+  await openTimer(page, 'Invoice Send');
   await popover(page).locator('.timer-picker__preset', { hasText: '15' }).click();
   const dialog = page.locator('[role="dialog"].modal');
   await expect(dialog).toContainText('Stop the current timer and start a new one?');
@@ -424,7 +393,7 @@ test('the clock icon opens the timer picker directly; presets carry the "min" un
   await popover(page).locator('.timer-picker__stopwatch').click();
   await expect(bar(page)).toBeVisible();
   await card(page, 'Invoice Send').locator('.task-card__clock').click();
-  await expect(popover(page).locator('.action-btn')).toHaveCount(3, 'a live timer opens the actions');
+  await expect(popover(page).locator('.action-btn')).toHaveCount(2, 'a live timer opens the actions (postpone + next day)');
 });
 
 test('a countdown that ran out while the page was closed alarms once after the reload', async ({ page }) => {
@@ -523,8 +492,7 @@ test('mobile: no horizontal scroll with the popover and the timer bar open', asy
   await page.setViewportSize({ width: 375, height: 740 });
   await seed(page, { tasks: SORTED(), stage: 4 });
   await page.goto('/');
-  await openPopover(page, 'Marketing Order A5');
-  await popover(page).locator('.action-btn--play').click();
+  await openTimer(page, 'Marketing Order A5');
   await popover(page).locator('.timer-picker__preset', { hasText: '25' }).click();
   await expect(bar(page)).toBeVisible();
   await openPopover(page, 'Invoice Send');
@@ -546,7 +514,8 @@ for (const [label, viewport] of Object.entries({ desktop: { width: 1280, height:
     await page.screenshot({ path: path.join(SHOTS, `${label}-stage4.png`), fullPage: true, animations: 'disabled' });
     await openPopover(page, 'Marketing Order A5');
     await page.screenshot({ path: path.join(SHOTS, `${label}-stage4-popover.png`), fullPage: true, animations: 'disabled' });
-    await popover(page).locator('.action-btn--play').click();
+    await page.keyboard.press('Escape');
+    await openTimer(page, 'Marketing Order A5');
     await page.screenshot({ path: path.join(SHOTS, `${label}-stage4-picker.png`), fullPage: true, animations: 'disabled' });
     await popover(page).locator('.timer-picker__preset', { hasText: '25' }).click();
     await expect(bar(page)).toBeVisible();
