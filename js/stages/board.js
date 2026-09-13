@@ -4,7 +4,7 @@
 // (timer / postpone / next day) opened from a task title or its clock.
 import * as timer from '../timer.js';
 import { QUADRANTS, isRecord } from '../store.js';
-import { carryStrip, attemptBadge, recordLabel, dayNav, QUAD_ICON } from '../carry.js';
+import { carryStrip, attemptBadge, recordLabel, dayNav, QUAD_ICON, quadrantGlyph } from '../carry.js';
 
 const PRESET_MINUTES = [5, 15, 25, 45, 60];
 const TIP_ROOM = 150; // px free beside the matrix needed to put the "Done mark" bubble on the left
@@ -212,10 +212,11 @@ function openPriorityMenu(task, anchor) {
   const { ui, i18n, store } = ctx;
   const items = QUADRANTS.map((quadrant) => ({
     label: i18n.quadrantLabel(quadrant),
+    iconEl: quadrantGlyph(ctx, quadrant),
     disabled: task.tag === quadrant,
     onSelect: () => store.setTag(task.id, quadrant),
   }));
-  items.push('-', { label: i18n.t('board.noTag'), onSelect: () => store.setTag(task.id, null) });
+  items.push('-', { label: i18n.t('board.noTag'), icon: 'tag', disabled: !task.tag, onSelect: () => store.setTag(task.id, null) });
   ui.menu({ anchor, items });
 }
 

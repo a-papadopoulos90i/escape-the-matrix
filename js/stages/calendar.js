@@ -7,7 +7,7 @@
 // A "Manage" toggle flips the calendar over: each cell then previews the day's task titles, and
 // tapping a day opens a popup to add / edit / tick / delete that day's tasks without leaving.
 import { isRecord, QUADRANTS } from '../store.js';
-import { QUAD_ICON } from '../carry.js';
+import { QUAD_ICON, quadrantGlyph } from '../carry.js';
 
 let ctx = null;
 let root = null;
@@ -275,11 +275,12 @@ function openTagMenu(task, anchor) {
   const { ui, store, i18n } = ctx;
   const items = QUADRANTS.map((quadrant) => ({
     label: i18n.quadrantLabel(quadrant),
+    iconEl: quadrantGlyph(ctx, quadrant),
     disabled: task.tag === quadrant,
     onSelect: () => store.setTag(task.id, quadrant),
   }));
-  items.push('-', { label: i18n.t('board.noTag'), disabled: !task.tag, onSelect: () => store.setTag(task.id, null) });
-  ui.menu({ anchor, items });
+  items.push('-', { label: i18n.t('board.noTag'), icon: 'tag', disabled: !task.tag, onSelect: () => store.setTag(task.id, null) });
+  ui.menu({ anchor, items, tail: 'right' }); // opens to the left of the button, inside the dialog
 }
 
 function openDayPopup(key) {

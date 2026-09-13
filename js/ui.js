@@ -430,7 +430,7 @@ export function popover({ anchor, content, onClose, tail = 'top', className = ''
  * Popover menu. items: [{ label, onSelect, icon?, danger?, disabled? }] or '-' for a separator.
  * Arrow keys move between items; Enter/Space select.
  */
-export function menu({ anchor, items, onClose } = {}) {
+export function menu({ anchor, items, onClose, tail = 'top' } = {}) {
   const list = h('div', { class: 'menu', role: 'menu' });
   let api = null;
   for (const item of items) {
@@ -451,7 +451,7 @@ export function menu({ anchor, items, onClose } = {}) {
             item.onSelect?.();
           },
         },
-        item.icon && icon(item.icon, { size: 16 }),
+        item.iconEl ?? (item.icon && icon(item.icon, { size: 16 })),
         item.label,
       ),
     );
@@ -464,7 +464,7 @@ export function menu({ anchor, items, onClose } = {}) {
     const step = event.key === 'ArrowDown' ? 1 : -1;
     buttons[(index + step + buttons.length) % buttons.length]?.focus();
   });
-  api = popover({ anchor, content: list, onClose, className: 'popover--menu', role: 'presentation' });
+  api = popover({ anchor, content: list, onClose, tail, className: 'popover--menu', role: 'presentation' });
   return api;
 }
 

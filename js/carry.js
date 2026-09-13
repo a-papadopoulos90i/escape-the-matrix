@@ -52,6 +52,15 @@ export function attemptBadge(ctx, task) {
   return ctx.ui.h('span', { class: 'attempt-badge', title, 'aria-label': title }, ctx.i18n.t('carry.attempt', { n: task.attempt }));
 }
 
+/** The quadrant's glyph in its own colour — for menu rows and tag buttons. `filled` paints it in. */
+export function quadrantGlyph(ctx, quadrant, { size = 16, filled = true } = {}) {
+  return ctx.ui.h('span', {
+    class: `menu__glyph priority-icon--${quadrant}`,
+    'aria-hidden': 'true',
+    html: `<svg viewBox="0 0 24 24" fill="${filled ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="${size}" height="${size}">${QUAD_ICON[quadrant]}</svg>`,
+  });
+}
+
 /** "Pulled to Thu 17 Sep" label for a record left behind. */
 export function recordLabel(ctx, task) {
   return ctx.ui.h('span', { class: 'record-label' }, ctx.i18n.t('carry.record', { date: ctx.dates.formatShort(task.carriedTo) }));
