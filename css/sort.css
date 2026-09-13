@@ -3,7 +3,7 @@
    tagged tasks in their quadrants. */
 
 .sort__list-panel {
-  max-width: 640px;
+  max-width: 720px; /* exactly the matrix width above, centred on the same axis */
   margin: var(--space-5) auto 0;
   padding: var(--space-3) var(--space-4) var(--space-4);
   border: 1.5px dashed var(--border);

@@ -9,14 +9,36 @@
 }
 
 /* ---------- Toolbar ---------- */
+/* Month nav · centred "STAGE 1" · All Tasks — a 1fr auto 1fr grid so the label sits dead centre
+   whatever the two sides weigh. */
 .calendar__toolbar {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-2) var(--space-4);
   max-width: var(--calendar-width);
   margin: 0 auto var(--space-4);
+}
+
+.calendar__toolbar > .calendar__nav {
+  justify-self: start;
+}
+
+.calendar__toolbar > .calendar__tools {
+  justify-self: end;
+}
+
+/* Narrow screens: the label takes its own centred row above the month nav and All Tasks. */
+@media (max-width: 560px) {
+  .calendar__toolbar {
+    grid-template-columns: 1fr 1fr;
+    row-gap: var(--space-2);
+  }
+
+  .calendar__toolbar > .stage-kicker--inline {
+    grid-row: 1;
+    grid-column: 1 / -1;
+  }
 }
 
 .calendar__nav {

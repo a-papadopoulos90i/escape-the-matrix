@@ -80,8 +80,8 @@ two-month sample (mostly-done past days → a green calendar, plus a few backlog
 confirm — local only, nothing uploaded; it replaces what's saved in this browser. The **"Demo
 Version"** label (title case, no underline) sits on its own line below the legend, low on the page.
 
-The **Time report** lives in the header **gear (Settings) menu** — reachable from every stage, signed
-in or not (the account/login settings will join it there later). It opens a modal that sums each
+The **Time report** lives in the **logo's Settings menu** (click the brand mark) — reachable from
+every stage, signed in or not (the account/login settings will join it there later). It opens a modal that sums each
 task's tracked timer time across every day it appeared and lists them most-time-first with a running
 total. Tasks carried forward under the same title are aggregated (each day's copy keeps its own
 elapsed seconds) and badged **×N** for the number of days tracked. Tasks with no timer, or zero
@@ -117,20 +117,24 @@ task rows).
 
 Title: `Place them by priority` (plain).
 
-**No matrix here** (removed at the owner's request). Stage 3 is a single **"Your tasks" list** — the
-global backlog plus the tasks already placed on the open day — in a dashed card headed `Your tasks`
-with a short hint. The list scrolls **vertically only**.
+Stage 3 has **the four quadrant boxes on top** — the same look as the board, showing what the day
+being viewed holds and updating as you step the date with the day switcher. Under them sits the
+**fixed "Your tasks" list**: every open task, whatever its day, all gathered in one place
+(`store.allTasks()`), in a dashed card headed `Your tasks` with a short hint. Changing the day
+changes the boxes, never the list. The list scrolls **vertically only**.
 
 Each card shows the task title (with its `×n` attempt badge when carried), then a row of the **four
 colour-coded priority icons** (Do now flame / Schedule star / Delegate users / Drop trash) and a
 **red ✕** (delete, with Undo). There is no drag, no matrix and no `▾` menu.
 
-- **Tap a priority icon to tag** the task with that priority — it sets the task's quadrant and
-  assigns it to the open day. The card **stays in the list**; the chosen icon is **ringed green**.
+- **Tap a priority icon to tag** the task with that priority — it sets the task's quadrant and moves
+  it onto the day being viewed (that is how you choose *when*). The card **stays in the list**; the
+  chosen icon **fills with its own colour** (no ring), and it only lights up on the day the task
+  belongs to.
 - **Tap the active icon again to untag** it (back to the backlog). Enter on a focused icon does the
   same, so it works by keyboard and touch.
 - The tag decides which quadrant the task lands in on the Stage 4 board.
-- `Next →` is always enabled; while some tasks are still untagged it says `Next (N waiting) →`.
+- `Next →` is always enabled and reads the same as on every other stage.
 
 Quadrant fill / accent colours (the icons here, and the board on Stage 4): do `#fdede8` / red, plan
 `#fef2de` / yellow, delegate `#e8f4fb` / blue, drop `#f5f3ed` / muted gray.
