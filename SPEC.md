@@ -60,8 +60,9 @@ Cell design (rounded square, ~1:1, number centred, bold):
 - **Has tasks:** green border `#3e9b4b`, and **one green stripe per done task rising from the
   bottom** — the cell has ten stripe slots, so ten done tasks fill it completely and more than ten
   still show ten (the tooltip keeps the real counts). Each stripe is a tenth of the cell, colour
-  `#66d575` with a `#4eb25c` line between stripes. A day with tasks but 0 done shows the green
-  border with a thin green base line so it is visibly "planned".
+  `#66d575` with a `#4eb25c` line between stripes. **Green means done:** a day turns green only once
+  at least one task on it is completed. A day with tasks but nothing done yet shows the plain gray
+  tray (like an empty day); the tooltip still reports "0 of N done".
 - **Today:** blue border `#4da3ff` (2px) regardless of tasks; if it has tasks, show the fill too.
 - **Selected day** (the day currently open in stages 2–4): subtle blue glow/ring.
 - Hover/focus: tooltip/`title` "3 of 5 done" (or "No tasks yet").

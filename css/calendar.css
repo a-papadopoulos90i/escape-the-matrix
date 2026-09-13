@@ -206,10 +206,10 @@
   pointer-events: none;
 }
 
-/* Day with tasks: green border and one green stripe (a tenth of the cell) per done task, ten at
-   most. The fill is done/10 of the cell tall and its bands are fill/done tall, so every band is
-   exactly one tenth of the cell whatever the count; a thin base line marks a planned day with
-   nothing done yet. */
+/* A day only turns green once a task is actually **done** (calendar.js adds --planned when done > 0).
+   Green border and one green stripe (a tenth of the cell) per done task, ten at most. The fill is
+   done/10 of the cell tall and its bands are fill/done tall, so every band is exactly one tenth of
+   the cell whatever the count. A day with tasks but nothing done shows the plain gray tray. */
 .calendar__day--planned {
   border-color: var(--green);
 }

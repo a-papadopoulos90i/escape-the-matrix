@@ -136,10 +136,11 @@ test('cells show one green stripe per done task (a tenth of the cell each, ten a
   const half = await metrics(page, '2026-03-06');
   expect(half.ratio).toBeCloseTo(Math.min(await doneCount('2026-03-06'), 10) / 10, 1);
 
+  // A day with tasks but nothing done shows no green — the plain gray tray, like an empty day.
   const planned = await metrics(page, '2026-03-20');
-  expect(planned.borderColor).toBe(GREEN);
-  expect(planned.fillHeight).toBeGreaterThanOrEqual(3);
-  expect(planned.fillHeight).toBeLessThanOrEqual(6);
+  expect(planned.borderColor).toBe(GRAY);
+  expect(planned.striped).toBe(false);
+  await expect(cell(page, '2026-03-20')).not.toHaveClass(/calendar__day--planned/);
   await expect(cell(page, '2026-03-20')).toHaveAttribute('title', '0 of 2 done');
 
   const empty = await metrics(page, '2026-03-16');
@@ -268,11 +269,11 @@ test('re-renders when the document changes underneath (cross-tab storage event)'
       localStorage.setItem(docKey, JSON.stringify(doc));
       window.dispatchEvent(new StorageEvent('storage', { key: docKey, storageArea: localStorage }));
     },
-    { docKey: DOC_KEY, doc: { ...makeDoc(), tasks: tasksFor({ '2026-03-02': [5, 5], '2026-03-16': [1, 0] }) } },
+    { docKey: DOC_KEY, doc: { ...makeDoc(), tasks: tasksFor({ '2026-03-02': [5, 5], '2026-03-16': [1, 1] }) } },
   );
   await expect(cell(page, '2026-03-02')).toHaveAttribute('title', '5 of 5 done');
   expect((await metrics(page, '2026-03-02')).ratio).toBeCloseTo(0.5, 1);
-  await expect(cell(page, '2026-03-16')).toHaveClass(/calendar__day--planned/);
+  await expect(cell(page, '2026-03-16')).toHaveClass(/calendar__day--planned/); // now 1 of 1 done → green
   await expect(cell(page, '2026-03-05')).toHaveAttribute('title', 'No tasks yet');
 });
 
@@ -287,13 +288,13 @@ test('a weekend day sits on the grid, outlined as today and reachable', async ({
   await panel(page).locator('.calendar__today').click();
   await expect(today).toBeFocused();
 
-  // Tasks written for Saturday show up on its cell.
+  // Tasks written for Saturday register on its cell (a count in the tooltip; green only once done).
   await cell(page, '2026-03-14').click();
   await expect(panel(page)).toHaveAttribute('data-stage', '2');
   await panel(page).locator('.dump__input').fill('Weekend chore');
   await page.keyboard.press('Enter');
   await page.locator('#stepper .step').nth(0).click();
-  await expect(cell(page, '2026-03-14')).toHaveClass(/calendar__day--planned/);
+  await expect(cell(page, '2026-03-14')).toHaveAttribute('title', '0 of 1 done');
 });
 
 test('another tab clearing the saved document empties this one too (cross-tab "clear this device")', async ({ page }) => {

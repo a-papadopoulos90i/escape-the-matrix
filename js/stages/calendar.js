@@ -138,7 +138,7 @@ function dayCell(key, tabbable) {
   const status = total ? t('day.doneOf', { done, total }) : t('day.noTasks');
   const classes = [
     'calendar__day',
-    total && 'calendar__day--planned',
+    done > 0 && 'calendar__day--planned', // green only when a task is actually done, not merely planned
     isToday && 'calendar__day--today',
     key === ctx.getDate() && 'calendar__day--selected',
   ];
