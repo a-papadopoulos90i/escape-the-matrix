@@ -78,6 +78,12 @@ gray = empty. Beside the legend, a subtle **"demo version"** link fills this bro
 two-month sample (mostly-done past days → a green calendar, plus a few backlog items) after a
 confirm — local only, nothing uploaded; it replaces what's saved in this browser.
 
+**Manage mode (flip).** A **"Flip to edit"** toggle in the toolbar flips the calendar over (a flip
+animation): each cell then previews the day's task titles (trimmed, done ones struck) instead of the
+green fill, and tapping a day opens a **day popup** — add a task, rename, tick done, delete — plus an
+**"Open day →"** button that jumps into that day's stage. Toggling back ("Back to calendar") returns
+to the normal view where a tap opens the day directly.
+
 ### Stage 2 — "Write it all down"
 
 Title: `Write it all down`. Subtitle: "Don't judge, don't sort. Just get everything out of your head."

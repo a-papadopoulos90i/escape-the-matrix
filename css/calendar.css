@@ -346,3 +346,149 @@
     min-width: 8em;
   }
 }
+
+/* ---------- Manage mode: flip the calendar, preview tasks, edit a day in a popup ---------- */
+.calendar__flip {
+  gap: 6px;
+}
+
+.calendar__months--flipping {
+  animation: calendar-flip 0.45s ease;
+  transform-style: preserve-3d;
+}
+
+@keyframes calendar-flip {
+  0% {
+    transform: perspective(1400px) rotateX(0);
+  }
+  50% {
+    transform: perspective(1400px) rotateX(90deg);
+    opacity: 0.35;
+  }
+  100% {
+    transform: perspective(1400px) rotateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .calendar__months--flipping {
+    animation: none;
+  }
+}
+
+/* In manage mode the cell previews the day's task titles instead of the green fill. */
+.calendar--flipped .calendar__fill {
+  display: none;
+}
+
+.calendar__preview {
+  position: absolute;
+  inset: 26px 6px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+  font-size: 9px;
+  line-height: 1.3;
+  text-align: left;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.calendar__preview-item {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.calendar__preview-item.is-done {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+.calendar--flipped .calendar__day {
+  cursor: pointer;
+}
+
+/* Day popup (add / rename / tick / delete a single day's tasks). */
+.day-pop {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 340px;
+  max-width: 100%;
+}
+
+.day-pop__add {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.day-pop__add-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 var(--space-3);
+  border: 1.5px solid var(--card-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+
+.day-pop__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+.day-pop__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.day-pop__title {
+  flex: 1;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: var(--text-sm);
+}
+
+.day-pop__title:hover,
+.day-pop__title:focus {
+  border-color: var(--card-border);
+  background: var(--surface);
+}
+
+.day-pop__row.task-card--done .day-pop__title {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.day-pop__del {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--red);
+  opacity: 0.6;
+}
+
+.day-pop__del:hover,
+.day-pop__del:focus-visible {
+  opacity: 1;
+  background: var(--red-fill);
+}
+
+.day-pop__empty {
+  padding: var(--space-3);
+  text-align: center;
+  font-size: var(--text-sm);
+}

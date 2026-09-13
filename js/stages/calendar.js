@@ -3,11 +3,16 @@
 // resizing). Each day cell is a gray tray when empty, a green striped fill (one stripe per done
 // task) when planned, a blue border for today and a soft ring on the selected day. Clicking a day
 // opens Stage 2 (no tasks) or Stage 4 (has tasks).
+//
+// A "Manage" toggle flips the calendar over: each cell then previews the day's task titles, and
+// tapping a day opens a popup to add / edit / tick / delete that day's tasks without leaving.
+import { isRecord } from '../store.js';
 
 let ctx = null;
 let root = null;
 let els = {};
 let cols = 5;
+let flipped = false; // Manage mode: cells preview task titles and a tap opens the day popup
 let monthsShown = 1; // grows as the user reveals more months below
 let unsubscribe = null;
 
@@ -41,6 +46,7 @@ export function mount(container, context) {
   els.title = root.querySelector('.stage-title');
 
   monthsShown = 1;
+  flipped = false;
   render();
   unsubscribe = store.subscribe(render);
   container.append(root);
@@ -72,8 +78,26 @@ function toolbar() {
       'div',
       { class: 'calendar__tools' },
       ui.h('button', { class: 'btn btn-sm calendar__today', type: 'button', onClick: goToToday }, t('calendar.today')),
+      (els.flip = ui.h(
+        'button',
+        { class: 'btn btn-sm calendar__flip', type: 'button', 'aria-pressed': String(flipped), onClick: toggleFlip },
+        ui.icon('refresh', { size: 15 }),
+        t(flipped ? 'calendar.manageOff' : 'calendar.manage'),
+      )),
     ),
   );
+}
+
+/** Flips the calendar between the normal view and Manage mode (task previews + day popup). */
+function toggleFlip() {
+  flipped = !flipped;
+  root.classList.toggle('calendar--flipped', flipped);
+  els.months.classList.remove('calendar__months--flipping');
+  void els.months.offsetWidth; // restart the flip animation
+  els.months.classList.add('calendar__months--flipping');
+  els.flip.setAttribute('aria-pressed', String(flipped));
+  els.flip.replaceChildren(ctx.ui.icon('refresh', { size: 15 }), ctx.i18n.t(flipped ? 'calendar.manageOff' : 'calendar.manage'));
+  render();
 }
 
 /** Legend under the grid (the stage tip has no anchor here: app.js places it under the header). */
@@ -148,6 +172,19 @@ function dayCell(key, tabbable) {
     key === ctx.getDate() && 'calendar__day--selected',
   ];
 
+  // Manage mode: show a trimmed preview of the day's task titles on the flipped cell.
+  const preview = flipped
+    ? ui.h(
+        'span',
+        { class: 'calendar__preview', 'aria-hidden': 'true' },
+        store
+          .tasksForDate(key)
+          .filter((task) => !isRecord(task))
+          .slice(0, 4)
+          .map((task) => ui.h('span', { class: `calendar__preview-item ${task.done ? 'is-done' : ''}`.trim() }, task.title)),
+      )
+    : null;
+
   return ui.h(
     'button',
     {
@@ -159,10 +196,11 @@ function dayCell(key, tabbable) {
       'aria-current': isToday ? 'date' : null,
       tabindex: tabbable ? 0 : -1,
       style: `--done:${Math.min(done, 10)}`, // one green stripe per done task, ten at most
-      onClick: () => openDay(key),
+      onClick: () => (flipped ? openDayPopup(key) : openDay(key)),
     },
     ui.h('span', { class: 'calendar__fill', 'aria-hidden': 'true' }),
     ui.h('span', { class: 'calendar__num' }, String(dates.fromKey(key).getDate())),
+    preview,
   );
 }
 
@@ -171,6 +209,75 @@ function dayCell(key, tabbable) {
 function openDay(key) {
   ctx.setDate(key);
   ctx.goTo(ctx.store.statsForDate(key).total ? 4 : 2);
+}
+
+/** Manage-mode popup: view / add / rename / tick / delete a single day's tasks, without leaving the
+ *  calendar. Re-renders live while open. "Open day" jumps into that day's stage. */
+function openDayPopup(key) {
+  const { ui, store, dates, i18n } = ctx;
+  const list = ui.h('div', { class: 'day-pop__list' });
+
+  const rowEl = (task) => {
+    const check = ui.h('input', {
+      class: 'task-card__check',
+      type: 'checkbox',
+      checked: task.done,
+      'aria-label': task.title,
+      onChange: (event) => store.toggleDone(task.id, event.currentTarget.checked),
+    });
+    const title = ui.h('input', {
+      class: 'day-pop__title',
+      type: 'text',
+      value: task.title,
+      maxlength: 200,
+      'aria-label': i18n.t('board.editTitle'),
+      onChange: (event) => {
+        const value = event.currentTarget.value.trim();
+        value ? store.updateTask(task.id, { title: value }) : store.removeTask(task.id);
+      },
+    });
+    const del = ui.h(
+      'button',
+      { class: 'btn-icon day-pop__del', type: 'button', 'aria-label': i18n.t('board.deleteTask'), onClick: () => store.removeTask(task.id) },
+      ui.icon('close', { size: 14 }),
+    );
+    return ui.h('div', { class: `day-pop__row ${task.done ? 'task-card--done' : ''}`.trim(), dataset: { id: task.id } }, ui.h('label', { class: 'task-card__done' }, check), title, del);
+  };
+
+  const renderRows = () => {
+    const tasks = store.tasksForDate(key).filter((task) => !isRecord(task));
+    list.replaceChildren(...(tasks.length ? tasks.map(rowEl) : [ui.h('p', { class: 'day-pop__empty text-muted' }, i18n.t('calendar.dayEmpty'))]));
+  };
+
+  const input = ui.h('input', { class: 'day-pop__add-input', type: 'text', maxlength: 200, placeholder: i18n.t('dump.whatsOnYourMind'), 'aria-label': i18n.t('dump.whatsOnYourMind') });
+  const addForm = ui.h(
+    'form',
+    {
+      class: 'day-pop__add',
+      onSubmit: (event) => {
+        event.preventDefault();
+        const value = input.value.trim();
+        if (!value) return;
+        store.addTask({ title: value, date: key });
+        input.value = '';
+        input.focus();
+      },
+    },
+    input,
+    ui.h('button', { class: 'btn btn-sm btn-primary', type: 'submit' }, i18n.t('dump.add')),
+  );
+
+  renderRows();
+  const unsubscribeRows = store.subscribe(renderRows);
+  ui.modal({
+    title: dates.formatLong(key),
+    content: ui.h('div', { class: 'day-pop' }, addForm, list),
+    actions: [
+      { label: i18n.t('calendar.openDay'), primary: true, onClick: () => openDay(key) },
+      { label: i18n.t('common.close') },
+    ],
+    onClose: () => unsubscribeRows(),
+  });
 }
 
 /** Appends the next month below and scrolls it into view (SPEC §2 — no popup, just more to scroll). */

@@ -324,6 +324,27 @@ test('the "demo version" link loads a local two-month demo', async ({ page }) =>
   await expect(panel(page).locator('.calendar__day--planned').first()).toBeVisible();
 });
 
+test('Manage mode: flip the calendar, then a day popup adds and deletes tasks', async ({ page }) => {
+  await onAWeekday(page);
+  await seed(page); // DAYS puts 5 tasks on 2026-03-02
+  await page.goto('/');
+  await panel(page).locator('.calendar__flip').click();
+  await expect(panel(page).locator('.calendar')).toHaveClass(/calendar--flipped/);
+  await expect(cell(page, '2026-03-02').locator('.calendar__preview-item').first()).toBeVisible();
+
+  await cell(page, '2026-03-02').click();
+  const dialog = page.locator('[role="dialog"]');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('.day-pop__row')).toHaveCount(5);
+
+  await dialog.locator('.day-pop__add-input').fill('New from the popup');
+  await dialog.locator('.day-pop__add button[type="submit"]').click();
+  await expect(dialog.locator('.day-pop__row')).toHaveCount(6);
+
+  await dialog.locator('.day-pop__row').first().locator('.day-pop__del').click();
+  await expect(dialog.locator('.day-pop__row')).toHaveCount(5);
+});
+
 test('no stage tip and no "?" button (tips were removed)', async ({ page }) => {
   await seed(page, { doc: makeDoc({ tipSeen: false }) });
   await page.goto('/');

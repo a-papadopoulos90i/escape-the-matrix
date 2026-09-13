@@ -64,6 +64,7 @@ const STROKE_ICONS = {
   'chevron-down': '<path d="M6 9l6 6 6-6"/>',
   question: '<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.5a2.4 2.4 0 114.1 1.7c-.9.8-1.7 1.3-1.7 2.6M12 17h.01"/>',
   undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h9.5a5.5 5.5 0 010 11H10"/>',
+  refresh: '<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>',
 };
 
 const BRAND_ICONS = {
