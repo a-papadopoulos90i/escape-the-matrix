@@ -356,6 +356,17 @@ function buildDemoDoc(ctx) {
   const { dates } = ctx;
   const today = dates.todayKey();
   const iso = (key) => `${key}T12:00:00.000Z`;
+  // A stopped stopwatch with a plausible, deterministic duration (20–128 min) so the Time report
+  // has real data to add up. Only past days get one — upcoming days aren't tracked yet.
+  const demoTimer = (offset, i, date) => ({
+    mode: 'stopwatch',
+    durationSec: 0,
+    startedAt: null,
+    elapsedSec: (20 + ((Math.abs(offset) * 5 + i * 17) % 10) * 12) * 60,
+    running: false,
+    stoppedAt: iso(date),
+    alarmedAt: null,
+  });
   const tasks = [];
   let order = 1;
   for (let offset = -45; offset <= 12; offset += 1) {
@@ -373,7 +384,7 @@ function buildDemoDoc(ctx) {
         doneAt: done ? iso(date) : null,
         createdAt: iso(date),
         updatedAt: iso(date),
-        timer: null,
+        timer: offset < 0 ? demoTimer(offset, i, date) : null,
         attempt: 1,
         carriedTo: null,
       });

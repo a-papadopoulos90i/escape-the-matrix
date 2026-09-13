@@ -322,6 +322,13 @@ test('the "demo version" link loads a local two-month demo', async ({ page }) =>
     .poll(async () => (await page.evaluate((k) => JSON.parse(localStorage.getItem(k)).tasks.length, DOC_KEY)))
     .toBeGreaterThan(20);
   await expect(panel(page).locator('.calendar__day--planned').first()).toBeVisible();
+  // Past demo tasks carry tracked time so the Time report has data to show.
+  await expect
+    .poll(async () => page.evaluate((k) => JSON.parse(localStorage.getItem(k)).tasks.filter((t) => t.timer && t.timer.elapsedSec > 0).length, DOC_KEY))
+    .toBeGreaterThan(10);
+  await panel(page).locator('.calendar__analysis').click();
+  await expect(page.locator('[role="dialog"] .analysis__row').first()).toBeVisible();
+  await expect(page.locator('[role="dialog"] .analysis__total')).toContainText(':');
 });
 
 test('the time report sums tracked time per task, most first', async ({ page }) => {
