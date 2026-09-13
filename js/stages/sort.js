@@ -17,12 +17,12 @@ export function mount(container, ctx) {
   const header = ui.stageHeader({ stage: 3, title: t('stage.3.title'), kicker: false });
   const listEl = ui.h('div', { class: 'sort__list', role: 'list', 'aria-label': t('sort.pile') });
   const live = ui.h('div', { class: 'sr-only', 'aria-live': 'polite' });
-  const nav = ui.stageNav({ onBack: () => ctx.goTo(2), onNext: () => ctx.goTo(4), center: ui.stageKicker(3) });
+  const nav = ui.stageNav({ onBack: () => ctx.goTo(2), onNext: () => ctx.goTo(4), day: dayNav(ctx) });
 
   const root = ui.h(
     'div',
     { class: 'stage-body sort', onClick },
-    ui.stageDayBar(dayNav(ctx)),
+    nav,
     header,
     ui.h(
       'section',
@@ -36,7 +36,7 @@ export function mount(container, ctx) {
       listEl,
     ),
     live,
-    nav,
+    ui.stageKicker(3),
   );
 
   state = {

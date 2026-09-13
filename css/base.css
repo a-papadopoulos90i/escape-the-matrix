@@ -407,13 +407,6 @@ a {
   }
 }
 
-/* The current-day switcher sits at the top of stages 2–4, above the title. */
-.stage-daybar {
-  display: flex;
-  justify-content: center;
-  margin-bottom: var(--space-3);
-}
-
 .stage-header {
   text-align: center;
   margin-bottom: var(--space-5);
@@ -464,7 +457,7 @@ a {
   gap: var(--space-2);
   width: 100%;
   max-width: 720px; /* align Back / Next with the content (matrix) width, not the screen edges */
-  margin: var(--space-6) auto 0;
+  margin: 0 auto var(--space-4);
 }
 
 .stage-nav__side {
@@ -476,9 +469,9 @@ a {
   justify-content: flex-end;
 }
 
-/* The "STAGE N" label sits in the bottom nav's centre (no header kicker on stages 2–4). */
-.stage-nav__stage {
-  margin: 0;
+/* The "STAGE N" label sits alone, centred, at the very bottom of stages 2–4. */
+.stage-kicker--footer {
+  margin: var(--space-6) 0 0;
   text-align: center;
 }
 
@@ -513,8 +506,7 @@ a {
     grid-template-columns: 1fr 1fr;
     row-gap: var(--space-2);
   }
-  .stage-nav__day,
-  .stage-nav__stage {
+  .stage-nav__day {
     grid-row: 1;
     grid-column: 1 / -1;
     justify-self: center;
@@ -1252,7 +1244,7 @@ body.has-modal {
   }
 
   .stage-nav {
-    margin-top: var(--space-5);
+    margin-bottom: var(--space-3);
   }
 }
 

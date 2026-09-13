@@ -192,7 +192,7 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignO
       ui.h('input', { class: 'signin__email', type: 'email', placeholder: t('account.emailPlaceholder'), 'aria-label': t('account.continueEmail') }),
       option('mail', 'account.continueEmail', () => ui.toast(t('account.soon')), 'email'),
     );
-    const handle = ui.modal({ title: t('account.signInTitle'), content, actions: [{ label: t('common.cancel') }] });
+    const handle = ui.modal({ title: t('account.signInTitle'), content, actions: [{ label: t('common.cancel') }], className: 'modal--signin' });
   }
 
   return view;

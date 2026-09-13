@@ -283,7 +283,7 @@ export function toast(message, { action, duration = TOAST_DURATION } = {}) {
  * Accessible dialog. actions: [{ label, onClick(api), primary, danger, autofocus }] — the modal
  * closes after onClick unless it returns false. Escape / backdrop click close it too.
  */
-export function modal({ title, content, actions, onClose } = {}) {
+export function modal({ title, content, actions, onClose, className = '' } = {}) {
   const root = document.getElementById('modal-root');
   const previousFocus = document.activeElement;
   const titleId = `modal-title-${Date.now().toString(36)}`;
@@ -296,7 +296,7 @@ export function modal({ title, content, actions, onClose } = {}) {
   const api = { close: () => close() };
   const dialog = h(
     'div',
-    { class: 'modal', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': title ? titleId : null },
+    { class: `modal ${className}`.trim(), role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': title ? titleId : null },
     title && h('h2', { class: 'modal__title', id: titleId }, title),
     body,
     list.length &&
@@ -479,26 +479,22 @@ export function stageHeader({ stage, title, subtitle, kicker = true }) {
   );
 }
 
-/** The "STAGE N" label, styled to sit in the bottom nav's centre (stages 2–4). */
+/** The "STAGE N" label, shown centred at the very bottom of stages 2–4. */
 export function stageKicker(stage) {
-  return h('p', { class: 'stage-kicker stage-nav__stage' }, t('stage.heading', { n: stage }));
+  return h('p', { class: 'stage-kicker stage-kicker--footer' }, t('stage.heading', { n: stage }));
 }
 
-/** Bottom navigation: omit onBack / onNext to hide that button. Query .stage-nav__next to update it.
- *  `center` fills the middle slot (e.g. the "STAGE N" label). */
-export function stageNav({ onBack, onNext, backLabel = t('nav.back'), nextLabel = t('nav.next'), nextDisabled = false, center = null } = {}) {
+/** Navigation row: Back and Next flank the centred day switcher (pass `day`). Omit onBack / onNext to
+ *  hide that button; `center` overrides the middle slot when no `day` is given. Query .stage-nav__next
+ *  to update the Next button. */
+export function stageNav({ onBack, onNext, backLabel = t('nav.back'), nextLabel = t('nav.next'), nextDisabled = false, day = null, center = null } = {}) {
   return h(
     'nav',
     { class: 'stage-nav', 'aria-label': t('nav.label') },
     h('span', { class: 'stage-nav__side stage-nav__side--start' }, onBack ? h('button', { class: 'btn stage-nav__back', type: 'button', onClick: onBack }, backLabel) : null),
-    center ?? h('span'),
+    day ? daySwitcher(day) : center ?? h('span'),
     h('span', { class: 'stage-nav__side stage-nav__side--end' }, onNext ? h('button', { class: 'btn btn-primary stage-nav__next', type: 'button', disabled: nextDisabled, onClick: onNext }, nextLabel) : null),
   );
-}
-
-/** Top day bar: the current-day switcher placed above the stage title (stages 2–4). */
-export function stageDayBar(day) {
-  return h('div', { class: 'stage-daybar' }, daySwitcher(day));
 }
 
 /** Centred current-day display with discreet ‹ › arrows to step the day, shown on every stage. */

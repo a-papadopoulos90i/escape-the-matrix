@@ -416,9 +416,10 @@ test('a stage change starts at the top of the page and moves focus to the new st
   const many = Array.from({ length: 8 }, (_, i) => task(`t_${i + 1}`, `Task ${i + 1}`, 'do'));
   await seed(page, { tasks: many, stage: 3, settings: { tipsSeen: { 1: true, 2: true, 3: true, 4: false } } });
   await page.goto('/');
+  // Scroll well down the long list first (Back / Next now sit at the top, beside the date).
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
   const next = panel(page).locator('.stage-nav__next');
-  await next.scrollIntoViewIfNeeded();
-  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
   await next.click();
   await expect(panel(page).locator('.stage-title')).toHaveText('Ready to start');
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);

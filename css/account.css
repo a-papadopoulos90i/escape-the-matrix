@@ -190,12 +190,15 @@
   text-align: center;
 }
 
-/* The sign-in chooser is centred throughout — title, subtitle and Cancel. */
-.modal:has(.signin) .modal__title {
+/* The sign-in chooser is centred throughout — title, subtitle and Cancel. Both selectors so it
+ * works whether or not the page's JS is fresh (:has needs only the .signin markup). */
+.modal:has(.signin) .modal__title,
+.modal--signin .modal__title {
   text-align: center;
 }
 
-.modal:has(.signin) .modal__actions {
+.modal:has(.signin) .modal__actions,
+.modal--signin .modal__actions {
   justify-content: center;
 }
 
