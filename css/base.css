@@ -165,23 +165,24 @@ a {
 }
 
 /* ---------- Stepper (stage tabs) ---------- */
-/* The four stages read as tabs: adjacent, rounded on top, sitting on a shared bar. Only the
-   current tab is filled. */
+/* Real tabs: the strip sits flush on the header's bottom edge and the active tab shares the page's
+   background, breaking that line so tab and page read as one card. Same on every stage. */
 .stepper-nav {
   display: flex;
   justify-content: center;
+  align-self: end;
   min-width: 0;
+  margin-bottom: calc(-1 * var(--space-2) - 1px);
 }
 
 .stepper {
   display: inline-flex;
   align-items: flex-end;
-  gap: 2px;
+  gap: 4px;
   max-width: 100%;
   margin: 0;
   padding: 0;
   list-style: none;
-  border-bottom: 2px solid var(--primary);
 }
 
 .stepper__item {
@@ -198,10 +199,11 @@ a {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 34px;
-  padding: 6px var(--space-3);
+  min-height: 38px;
+  padding: 9px var(--space-3);
+  border: 1px solid transparent;
+  border-bottom: none;
   border-radius: 10px 10px 0 0;
-  background: var(--surface-2);
   color: var(--muted);
   white-space: nowrap;
   transition:
@@ -229,14 +231,19 @@ a {
 }
 
 .step:hover {
-  background: var(--hover);
   color: var(--ink);
+  background: var(--hover);
 }
 
+/* The open tab: page-coloured, outlined, its top edge marked green — fused with the page below. */
 .step.is-current,
 .step.is-current:hover {
-  background: var(--primary);
-  color: var(--primary-fg);
+  background: var(--bg);
+  border-color: var(--border);
+  border-top: 3px solid var(--primary);
+  padding-top: 7px;
+  color: var(--primary);
+  font-weight: 700;
 }
 
 /* ---------- Day bar ---------- */

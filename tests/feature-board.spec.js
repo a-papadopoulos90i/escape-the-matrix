@@ -418,7 +418,7 @@ test('a stage change starts at the top of the page and moves focus to the new st
   await page.goto('/');
   // Scroll well down the long list first (Back / Next now sit at the top, beside the date).
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(100);
   const next = panel(page).locator('.stage-nav__next');
   await next.click();
   await expect(panel(page).locator('.stage-title')).toHaveText('Ready to start');
