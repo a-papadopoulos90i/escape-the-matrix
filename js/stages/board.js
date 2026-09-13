@@ -396,19 +396,15 @@ function undoToast(message, token) {
 }
 
 function nextVisibleDay(fromKey) {
-  return ctx.dates.nextVisibleDay(fromKey, ctx.store.get().settings.showWeekends);
+  return ctx.dates.nextVisibleDay(fromKey, true); // weekends are always part of the week now
 }
 
-/**
- * Moves tasks to another day. A day the calendar hides (a weekend while "Show weekends" is off)
- * would make them unreachable, so weekends are switched on then and the toast says so.
- */
+/** Moves tasks to another day. Every day (weekends included) is shown on the calendar, so a moved
+ *  task is always reachable. */
 function moveTasks(tasks, dateKey) {
   const { store, dates, i18n } = ctx;
-  const hidden = dates.isWeekend(dateKey) && !store.get().settings.showWeekends;
   const token = store.undoable(() => tasks.forEach((task) => store.moveTaskToDate(task.id, dateKey)));
-  if (hidden) store.setSetting('showWeekends', true);
-  undoToast(i18n.t(hidden ? 'toast.movedToWeekend' : 'toast.movedTo', { date: dates.formatShort(dateKey) }), token);
+  undoToast(i18n.t('toast.movedTo', { date: dates.formatShort(dateKey) }), token);
 }
 
 

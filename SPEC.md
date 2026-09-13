@@ -43,15 +43,15 @@ calendar" instead of Next). The stepper at the top also allows direct jumps.
 ### Stage 1 — "Pick your day"
 
 Title: `Pick your day` (the displayed month shows in the toolbar label, e.g. "March 2026").
-Controls: `‹` previous month, `›` next month, `Today`, and a `Show weekends` toggle (default **off**).
-The calendar **scrolls vertically**: a **`Show next month`** button appends the following month below
-(no popup, no resizing — the page just scrolls).
+Controls: `‹` previous month, `›` next month, `Today`. There is **no "Show weekends" toggle** and
+**no Back/Next nav** on this stage (removed at the owner's request): you advance simply by picking a
+day. The calendar **scrolls vertically**: a **`Show next month`** button appends the following month
+below (no popup, no resizing — the page just scrolls).
 
-Grid: rows of weekdays, **Mon–Fri when weekends are hidden** (5 columns, like the design), **Sun–Sat
-when shown** (the owner's week starts on Sunday). Always **6 rows**. The first row is the week that contains the 1st of the month, except
-when the 1st falls on a hidden weekend day, in which case start with the following Monday (this
-exactly reproduces the design: March 2026 starts on Sunday, so the grid shows Mar 2–6, 9–13, 16–20,
-23–27, 30–31 + Apr 1–3, Apr 6–10). Days from the next month show only their number, same styling.
+Grid: the **full week is always shown, Sun–Sat** (7 columns; the owner's week starts on Sunday).
+Always **6 rows**. The first row is the week that contains the 1st of the month (e.g. March 2026
+starts on Sunday 1 March, so the grid runs Mar 1–7, 8–14, …, 29–31 + Apr 1–4, Apr 5–11). Days from
+the next month show only their number, same styling.
 
 Cell design (rounded square, ~1:1, number centred, bold):
 - **No tasks:** gray border `#757575` (1.5px), white top, a light-gray "tray" `#d9d9d9` filling the
@@ -87,12 +87,16 @@ task rows).
 
 ### Stage 3 — "Place them by priority:"
 
-Title: `Place them by priority:` followed by a centred bullet list (large):
-`URGENT`, `NOT URGENT`, `IMPORTANT`, `NOT IMPORTANT`.
+Title: `Place them by priority` (plain — the old colon and the big `URGENT / NOT URGENT / IMPORTANT /
+NOT IMPORTANT` bullet list under it were removed at the owner's request; the axis captions and the
+tip already carry that meaning).
 
 Layout: the 2×2 matrix, now coloured, **no quadrant labels inside** (as in the design) but with
 small axis captions around it: `URGENT` / `NOT URGENT` above the two columns, `IMPORTANT` /
-`NOT IMPORTANT` beside the two rows (rotated or stacked).
+`NOT IMPORTANT` beside the two rows (rotated or stacked). The task list below sits in the same grid
+column as the matrix, so it matches the matrix's width and left edge, and it scrolls **vertically
+only** (never sideways). While a card is dragged, its floating clone shrinks to about the width it
+will have once dropped in a quadrant.
 
 Quadrant colours (fill / border):
 - Top-left **Urgent & Important** (`do`): fill `#ffc7c2`, border `#f24822`
@@ -175,15 +179,17 @@ unplaces it).
   the bar, and, if Notification permission was granted, posts a browser notification.
 - **📅 Postpone:** a native `<input type="date">` (min = today) → sets `task.date`; the task leaves
   this day's board. Toast: "Moved to Tue 15 Sep" with **Undo**.
-- **⏩ Next day:** sets `task.date` to the **next visible day** (next weekday when weekends are hidden,
-  otherwise tomorrow). Toast with **Undo**.
+- **⏩ Next day:** sets `task.date` to **tomorrow** (the literal next day — weekends are ordinary days
+  now, so a Friday task goes to Saturday). Toast with **Undo**.
 
 **Waiting list (the 5th category).** Tasks left unplaced on stage 3 (`quadrant: null`) are listed
-under the matrix in a "Waiting list (N)" panel. Each waiting card has its own **checkbox** (so it
-can be completed in place — a done waiting task stays here, struck through, and still counts in the
-day total), the title (rename), a row of **four small colour-coded glyphs** (Do now / Schedule /
-Delegate / Drop) that file it straight into that quadrant, and the **red ✕**. They are on hold: the
-`Next →` button on Stage 3 carries the "· N waiting" count.
+under the matrix in a "Waiting list (N)" panel, the **same width as the matrix** above it. Each
+waiting card has its own **checkbox** (so it can be completed in place — a done waiting task stays
+here, struck through, and still counts in the day total), the title (rename), a row of **four small
+colour-coded glyphs** (Do now / Schedule / Delegate / Drop) that file it straight into that quadrant,
+and the **red ✕**. On a device with a pointer the glyph row and the ✕ stay hidden until the card is
+hovered or focused (touch devices always show them). They are on hold: the `Next →` button on Stage 3
+carries the "· N waiting" count.
 
 **Pulling unfinished tasks forward.** When earlier days still hold unfinished tasks (not done, not
 in DELETE, not already pulled), stages 2 and 4 show a strip "N unfinished tasks left on Mon 9 Mar,
@@ -377,8 +383,8 @@ rising from the bottom (ten fill the cell). Buttons are pill-shaped; the primary
 
 ## 8. Acceptance checklist (verifiers test every line)
 
-1. Fresh load shows Stage 1 with the current month; today is outlined blue; weekends hidden.
-2. `Show weekends` toggle adds Sat/Sun columns and persists across reload.
+1. Fresh load shows Stage 1 with the current month; today is outlined blue; the full week (Sun–Sat) is shown; no weekends toggle and no Back/Next on this stage.
+2. The calendar always shows all seven columns; a weekend day is on the grid and reachable.
 3. Clicking an empty day opens Stage 2 for that date.
 4. Typing 3 tasks + Enter each creates 3 rows; `+` adds a row; `✕` deletes; reload keeps them.
 5. Stage 3 shows the coloured matrix with the 3 tasks in a "Your tasks" list below it; drag up (mouse) and tap-to-place both work; keyboard 1–4 works.
@@ -386,7 +392,7 @@ rising from the bottom (ten fill the cell). Buttons are pill-shaped; the primary
 7. Ticking a task strikes it through and Stage 1 shows one green stripe per done task (ten fill the cell).
 8. Stage 4 popover: ▶️ starts a countdown (timer bar visible, clock icon live); reload → timer still running; countdown end beeps.
 9. 📅 moves the task to the chosen date (visible on that day, gone from this one) with Undo working.
-10. ⏩ moves to next weekday when weekends hidden (Fri → Mon), Undo works.
+10. ⏩ moves the task to the literal next day, weekends included (Fri → Sat), Undo works.
 11. `…` menu actions work in each quadrant; "Delete all tasks here" only in gray quadrant.
 12. Every speech bubble text from §2 appears on its stage the first time, can be closed, and `?` re-opens it.
 13. Stepper and ←/→ keys navigate; transitions animate; reduced-motion disables animation.

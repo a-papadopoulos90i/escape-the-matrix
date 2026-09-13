@@ -134,7 +134,6 @@ test.describe('stage 3 (desktop)', () => {
     await seed(page, { stage: 3, tasks: TITLES });
     await page.goto('/');
 
-    await expect(panel(page).locator('.sort__bullets li')).toHaveText(['URGENT', 'NOT URGENT', 'IMPORTANT', 'NOT IMPORTANT']);
     await expect(panel(page).locator('.sort__axis--x')).toHaveText(/URGENT.*NOT URGENT/);
     await expect(panel(page).locator('.sort__axis--y')).toHaveText(/IMPORTANT.*NOT IMPORTANT/);
     await expect(panel(page).locator('.quadrant__label')).toHaveCount(0);
@@ -281,11 +280,15 @@ test.describe('mobile', () => {
     expect(await noOverflow(page)).toBeLessThanOrEqual(0);
     await expect(panel(page).locator('.quadrant__caption').first()).toBeVisible();
 
-    // The task list sits below the tall stacked matrix. Bring the "Drop" quadrant (matrix bottom,
-    // nearest the list) into view so a card and a quadrant are on screen together, then drag up
-    // into it. A real finger can also drag to the top edge and let the page auto-scroll.
+    // The task list sits below the tall stacked matrix. Scroll so the "Drop" quadrant (matrix
+    // bottom, nearest the list) and a list card share the screen, then drag up into it. A real
+    // finger can instead drag to the top edge and let the page auto-scroll.
     const target = panel(page).locator('.quadrant--delete');
-    await target.scrollIntoViewIfNeeded();
+    const geo = await page.evaluate(() => {
+      const dr = document.querySelector('.quadrant--delete').getBoundingClientRect();
+      return { delMid: dr.top + window.scrollY + dr.height / 2, vh: window.innerHeight };
+    });
+    await page.evaluate((y) => window.scrollTo(0, Math.max(0, y)), geo.delMid - geo.vh * 0.35);
     const from = await centre(pileCards(page).first());
     const to = await centre(target);
     const cdp = await page.context().newCDPSession(page);

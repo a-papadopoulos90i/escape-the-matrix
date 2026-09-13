@@ -77,7 +77,6 @@ const cells = (page) => panel(page).locator('.calendar__day');
 const cell = (page, key) => panel(page).locator(`.calendar__day[data-key="${key}"]`);
 const weekdays = (page) => panel(page).locator('.calendar__weekday');
 const title = (page) => panel(page).locator('.stage-title');
-const weekendSwitch = (page) => panel(page).locator('.switch__input');
 const cellKeys = (page) => cells(page).evaluateAll((nodes) => nodes.map((node) => node.dataset.key));
 
 /** Geometry + colours of one cell as the browser painted it. */
@@ -96,7 +95,7 @@ const metrics = (page, key) =>
     };
   });
 
-test('March 2026 renders Mon–Fri, six rows, starting on Mar 2 (SPEC §2 grid rule)', async ({ page }) => {
+test('March 2026 renders Sun–Sat, six rows, starting on Mar 1 (the full week is always shown)', async ({ page }) => {
   const errors = collectErrors(page);
   await onAWeekday(page);
   await seed(page);
@@ -104,15 +103,18 @@ test('March 2026 renders Mon–Fri, six rows, starting on Mar 2 (SPEC §2 grid r
 
   await expect(title(page)).toHaveText('Pick your day');
   await expect(panel(page).locator('.calendar__month')).toHaveText('March 2026');
-  await expect(weekdays(page)).toHaveText(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
-  await expect(cells(page)).toHaveCount(30);
+  await expect(weekdays(page)).toHaveText(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
+  await expect(cells(page)).toHaveCount(42);
 
   const keys = await cellKeys(page);
-  expect(keys.slice(0, 5)).toEqual(['2026-03-02', '2026-03-03', '2026-03-04', '2026-03-05', '2026-03-06']);
-  expect(keys.slice(20, 25)).toEqual(['2026-03-30', '2026-03-31', '2026-04-01', '2026-04-02', '2026-04-03']);
-  expect(keys[29]).toBe('2026-04-10');
-  await expect(cells(page).nth(22).locator('.calendar__num')).toHaveText('1');
+  expect(keys.slice(0, 7)).toEqual(['2026-03-01', '2026-03-02', '2026-03-03', '2026-03-04', '2026-03-05', '2026-03-06', '2026-03-07']);
+  expect(keys[31]).toBe('2026-04-01');
+  expect(keys[41]).toBe('2026-04-11');
+  await expect(cells(page).nth(31).locator('.calendar__num')).toHaveText('1');
   await expect(panel(page).locator('.calendar__legend-item')).toHaveText(['green = done tasks, one stripe each (up to 10)', 'blue = today', 'gray = empty']);
+  // The weekends toggle and its note are gone; the week is always Sun–Sat.
+  await expect(panel(page).locator('.switch__input')).toHaveCount(0);
+  await expect(panel(page).locator('.calendar__note')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
@@ -153,8 +155,7 @@ test('cells show one green stripe per done task (a tenth of the cell each, ten a
 test('today gets the 2px blue border and aria-current="date"', async ({ page }) => {
   await seed(page);
   await page.goto('/');
-  // Weekends on so today is visible whatever weekday it is.
-  await weekendSwitch(page).check();
+  // The full week is always shown, so today is visible whatever weekday it is.
   await panel(page).locator('.calendar__today').click();
 
   const todayKey = await page.evaluate(() => {
@@ -176,29 +177,18 @@ test('today gets the 2px blue border and aria-current="date"', async ({ page }) 
   expect(ui.calendarMonth).toBe(todayKey.slice(0, 7));
 });
 
-test('"Show weekends" adds Sat/Sun columns and persists across reload', async ({ page }) => {
+test('the calendar always shows the full week (Sun–Sat), with no weekends toggle', async ({ page }) => {
   await onAWeekday(page);
   await seed(page);
   await page.goto('/');
-  const toggle = weekendSwitch(page);
-  await expect(toggle).toHaveAttribute('role', 'switch');
-  await expect(toggle).not.toBeChecked();
-
-  await toggle.check();
   await expect(weekdays(page)).toHaveText(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
   await expect(cells(page)).toHaveCount(42);
   expect((await cellKeys(page))[0]).toBe('2026-03-01');
+  await expect(panel(page).locator('.switch__input')).toHaveCount(0);
 
-  await expect
-    .poll(async () => (await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), DOC_KEY)).settings.showWeekends)
-    .toBe(true);
   await page.reload();
-  await expect(weekendSwitch(page)).toBeChecked();
+  await expect(weekdays(page)).toHaveCount(7);
   await expect(cells(page)).toHaveCount(42);
-
-  await weekendSwitch(page).uncheck();
-  await expect(cells(page)).toHaveCount(30);
-  expect((await cellKeys(page))[0]).toBe('2026-03-02');
 });
 
 test('‹ › change the displayed month, update the title and persist the month', async ({ page }) => {
@@ -210,14 +200,13 @@ test('‹ › change the displayed month, update the title and persist the month
 
   await next.click();
   await expect(panel(page).locator('.calendar__month')).toHaveText('April 2026');
-  await expect(panel(page).locator('.calendar__month')).toHaveText('April 2026');
-  expect((await cellKeys(page))[0]).toBe('2026-03-30');
+  expect((await cellKeys(page))[0]).toBe('2026-03-29', 'the Sun–Sat week containing 1 Apr 2026 starts on Sun 29 Mar');
   await expect(panel(page).locator('.calendar__day--planned')).toHaveCount(0);
 
   await prev.click();
   await prev.click();
   await expect(panel(page).locator('.calendar__month')).toHaveText('February 2026');
-  expect((await cellKeys(page))[0]).toBe('2026-02-02', '1 Feb 2026 is a hidden Sunday → start on Monday the 2nd');
+  expect((await cellKeys(page))[0]).toBe('2026-02-01', '1 Feb 2026 is a Sunday, so the grid starts there');
 
   const ui = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), UI_KEY);
   expect(ui.calendarMonth).toBe('2026-02');
@@ -255,13 +244,15 @@ test('keyboard: arrows move between cells without leaving the stage; Enter opens
   await page.keyboard.press('ArrowLeft');
   await expect(cell(page, '2026-03-18')).toBeFocused();
   await page.keyboard.press('End');
-  await expect(cell(page, '2026-04-10')).toBeFocused();
+  await expect(cell(page, '2026-04-11')).toBeFocused();
   await page.keyboard.press('ArrowRight');
-  await expect(cell(page, '2026-04-10')).toBeFocused();
+  await expect(cell(page, '2026-04-11')).toBeFocused();
   await page.keyboard.press('Home');
-  await expect(cell(page, '2026-03-02')).toBeFocused();
+  await expect(cell(page, '2026-03-01')).toBeFocused();
   await expect(panel(page)).toHaveAttribute('data-stage', '1');
 
+  await page.keyboard.press('ArrowRight'); // Mar 2 has tasks
+  await expect(cell(page, '2026-03-02')).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(panel(page)).toHaveAttribute('data-stage', '4');
   expect((await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), UI_KEY)).selectedDate).toBe('2026-03-02');
@@ -285,13 +276,11 @@ test('re-renders when the document changes underneath (cross-tab storage event)'
   await expect(cell(page, '2026-03-05')).toHaveAttribute('title', 'No tasks yet');
 });
 
-test('on a weekend, weekends are shown (with a note) so today is outlined and reachable; the setting stays off', async ({ page }) => {
+test('a weekend day sits on the grid, outlined as today and reachable', async ({ page }) => {
   await page.clock.setFixedTime(new Date(2026, 2, 14, 9, 0, 0)); // Saturday 14 March 2026
   await seed(page, { ui: { selectedDate: '2026-03-14', stage: 1, calendarMonth: '2026-03' } });
   await page.goto('/');
   await expect(weekdays(page)).toHaveCount(7);
-  await expect(weekendSwitch(page)).not.toBeChecked();
-  await expect(panel(page).locator('.calendar__note')).toHaveText('Today is Saturday, so weekends are shown.');
   const today = panel(page).locator('.calendar__day--today');
   await expect(today).toHaveAttribute('data-key', '2026-03-14');
   expect((await metrics(page, '2026-03-14')).borderColor).toBe(TODAY_BLUE);
@@ -305,7 +294,6 @@ test('on a weekend, weekends are shown (with a note) so today is outlined and re
   await page.keyboard.press('Enter');
   await page.locator('#stepper .step').nth(0).click();
   await expect(cell(page, '2026-03-14')).toHaveClass(/calendar__day--planned/);
-  await expect(panel(page).locator('.calendar__note')).toBeVisible();
 });
 
 test('another tab clearing the saved document empties this one too (cross-tab "clear this device")', async ({ page }) => {
@@ -329,22 +317,18 @@ test('stage tip shows on first visit, anchored inside the panel', async ({ page 
   await expect(bubble).toHaveCount(0);
 });
 
-test('mobile 375px: no horizontal scroll and cells stay ≥ 44px, with and without weekends', async ({ page }) => {
+test('mobile 375px: no horizontal scroll and cells stay ≥ 44px with the full week shown', async ({ page }) => {
   const errors = collectErrors(page);
   await page.setViewportSize({ width: 375, height: 760 });
+  await onAWeekday(page);
   await seed(page);
   await page.goto('/');
   const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 
-  expect(await overflow()).toBeLessThanOrEqual(0);
-  expect((await metrics(page, '2026-03-02')).width).toBeGreaterThanOrEqual(44);
-  await page.screenshot({ path: path.join(OUT, 'calendar-mobile.png'), fullPage: true });
-
-  await weekendSwitch(page).check();
   await expect(cells(page)).toHaveCount(42);
   expect(await overflow()).toBeLessThanOrEqual(0);
   expect((await metrics(page, '2026-03-02')).width).toBeGreaterThanOrEqual(44);
-  await page.screenshot({ path: path.join(OUT, 'calendar-mobile-weekends.png'), fullPage: true });
+  await page.screenshot({ path: path.join(OUT, 'calendar-mobile.png'), fullPage: true });
   expect(errors).toEqual([]);
 });
 
@@ -356,7 +340,4 @@ test('desktop screenshots for visual comparison with design/stage1.png', async (
   await page.screenshot({ path: path.join(OUT, 'calendar-desktop-tip.png'), fullPage: true });
   await panel(page).locator('.bubble__close').click();
   await page.screenshot({ path: path.join(OUT, 'calendar-desktop.png'), fullPage: true });
-  await weekendSwitch(page).check();
-  await expect(cells(page)).toHaveCount(42);
-  await page.screenshot({ path: path.join(OUT, 'calendar-desktop-weekends.png'), fullPage: true });
 });

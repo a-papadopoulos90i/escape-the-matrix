@@ -6,7 +6,7 @@ const DOC_KEY = 'escape-the-matrix:v1';
 const TITLES = {
   1: 'Pick your day',
   2: 'Write it all down',
-  3: 'Place them by priority:',
+  3: 'Place them by priority',
   4: 'Ready to start',
 };
 
@@ -68,15 +68,17 @@ test('clicking each stepper step shows the right stage title', async ({ page }) 
 
 test('Back / Next buttons walk the stages; stage 4 returns to the calendar', async ({ page }) => {
   await page.goto('/');
-  await expect(activePanel(page).locator('.stage-nav__back')).toHaveCount(0);
-  for (const n of [2, 3, 4]) {
+  // Stage 1 has no nav buttons — you enter by picking a day.
+  await expect(activePanel(page).locator('.stage-nav')).toHaveCount(0);
+  await activePanel(page).locator('.calendar__day').first().click(); // an empty day → Stage 2
+  await expect(activeTitle(page)).toHaveText(TITLES[2]);
+
+  // Stage 2 only lets Next through once the day has a task (SPEC §2).
+  await activePanel(page).locator('.dump__input').fill('Smoke task');
+  await page.keyboard.press('Enter');
+  for (const n of [3, 4]) {
     await activePanel(page).locator('.stage-nav__next').click();
     await expect(activeTitle(page)).toHaveText(TITLES[n]);
-    if (n === 2) {
-      // Stage 2 only lets Next through once the day has a task (SPEC §2).
-      await activePanel(page).locator('.dump__input').fill('Smoke task');
-      await page.keyboard.press('Enter');
-    }
   }
   await expect(activePanel(page).locator('.stage-nav__next')).toHaveText('Back to calendar');
   await activePanel(page).locator('.stage-nav__next').click();

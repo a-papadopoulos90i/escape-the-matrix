@@ -70,7 +70,7 @@
 
 /* ---------- Waiting list: tasks left unplaced, on hold for the day ---------- */
 .waiting {
-  max-width: 680px;
+  max-width: 720px; /* same width as the matrix above it */
   margin: var(--space-5) auto 0;
   padding: var(--space-3) var(--space-4) var(--space-4);
   border: 1.5px dashed var(--border);
@@ -108,11 +108,28 @@
   padding-right: var(--space-2);
 }
 
-/* Row of four small colour-coded glyphs that file the task into a quadrant. */
+/* Row of four small colour-coded glyphs that file the task into a quadrant. On a device with a
+   pointer they (and the ✕) stay hidden until the card is hovered or focused, so a resting card
+   reads cleanly; touch devices (no hover) always show them. */
 .waiting-card__places {
   display: flex;
   flex-shrink: 0;
   gap: 2px;
+}
+
+@media (hover: hover) {
+  .waiting-card__places,
+  .waiting-card .task-card__delete {
+    opacity: 0;
+    transition: opacity var(--dur-fast);
+  }
+
+  .waiting-card:hover .waiting-card__places,
+  .waiting-card:focus-within .waiting-card__places,
+  .waiting-card:hover .task-card__delete,
+  .waiting-card:focus-within .task-card__delete {
+    opacity: 1;
+  }
 }
 
 .waiting-place {
@@ -292,7 +309,7 @@
 .task-card__delete {
   display: inline-grid;
   place-items: center;
-  width: 28px;
+  width: 24px;
   height: 28px;
   flex-shrink: 0;
   border-radius: 50%;
@@ -414,9 +431,9 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  min-width: 26px;
+  min-width: 22px;
   min-height: 28px;
-  padding: 0 2px;
+  padding: 0;
   border-radius: var(--radius-sm);
   color: var(--muted);
   font-size: var(--text-xs);
@@ -437,9 +454,9 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  min-width: 26px;
+  min-width: 22px;
   min-height: 28px;
-  padding: 0 2px;
+  padding: 0;
   border-radius: var(--radius-sm);
   color: var(--muted);
   transition:

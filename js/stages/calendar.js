@@ -17,13 +17,6 @@ export function mount(container, context) {
 
   els.months = ui.h('div', { class: 'calendar__months', role: 'group', onKeydown: onGridKeydown });
   els.month = ui.h('p', { class: 'calendar__month', 'aria-live': 'polite' });
-  els.note = ui.h('p', { class: 'calendar__note text-muted', hidden: true });
-  els.toggle = ui.h('input', {
-    class: 'switch__input',
-    type: 'checkbox',
-    role: 'switch',
-    onChange: (event) => store.setSetting('showWeekends', event.target.checked),
-  });
   els.more = ui.h(
     'button',
     { class: 'btn btn-sm calendar__more', type: 'button', onClick: showNextMonth },
@@ -36,11 +29,9 @@ export function mount(container, context) {
     { class: 'stage-body calendar' },
     ui.stageHeader({ stage: 1, title: '' }),
     toolbar(),
-    els.note,
     els.months,
     els.more,
     legend(),
-    ui.stageNav({ onNext: () => ctx.goTo(2) }),
   );
   els.title = root.querySelector('.stage-title');
 
@@ -76,13 +67,6 @@ function toolbar() {
       'div',
       { class: 'calendar__tools' },
       ui.h('button', { class: 'btn btn-sm calendar__today', type: 'button', onClick: goToToday }, t('calendar.today')),
-      ui.h(
-        'label',
-        { class: 'switch' },
-        els.toggle,
-        ui.h('span', { class: 'switch__track', 'aria-hidden': 'true' }),
-        ui.h('span', null, t('calendar.showWeekends')),
-      ),
     ),
   );
 }
@@ -102,27 +86,20 @@ function legend() {
 
 // ---------- Rendering ----------
 
-/**
- * Rebuilds the title, the toolbar label and every visible month. Weekend columns follow the setting
- * — except while today is a weekend day, when they are shown regardless (with a note) so today's
- * cell always exists; the switch keeps reflecting the setting.
- */
+/** Rebuilds the title, the toolbar label and every visible month. The calendar always shows the
+ *  full week (Sun–Sat). */
 function render() {
-  const { store, dates, i18n: { t }, ui } = ctx;
-  const { showWeekends } = store.get().settings;
-  const weekendsShown = dates.weekendsVisible(showWeekends);
+  const { dates, i18n: { t } } = ctx;
+  const weekendsShown = true;
   const baseMonth = ctx.getCalendarMonth();
   const base = dates.fromMonthKey(baseMonth);
 
   els.title.textContent = t('stage.1.title');
   els.month.textContent = `${dates.monthName(base.month)} ${base.year}`;
-  els.toggle.checked = showWeekends;
-  els.note.hidden = !(weekendsShown && !showWeekends);
-  els.note.textContent = els.note.hidden ? '' : t('calendar.weekendNote', { weekday: dates.weekdayName(dates.todayKey()) });
 
-  cols = weekendsShown ? 7 : 5;
+  cols = 7;
   root.style.setProperty('--cols', cols);
-  root.classList.toggle('calendar--weekends', weekendsShown);
+  root.classList.add('calendar--weekends');
 
   // One tabbable cell across every visible month (the focused one on re-render, else selected,
   // else today, else the very first cell).

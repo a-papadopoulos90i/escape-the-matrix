@@ -19,7 +19,7 @@ export const strings = {
   'stage.2.title': 'Write it all down',
   'stage.2.subtitle': "Don't judge, don't sort. Just get everything out of your head.",
   'stage.2.titleAccent': 'all of it!',
-  'stage.3.title': 'Place them by priority:',
+  'stage.3.title': 'Place them by priority',
   'stage.4.title': 'Ready to start',
 
   'nav.label': 'Stage navigation',
@@ -207,9 +207,6 @@ export const tips = {
     },
   ],
 };
-
-/** Stage 3 bullet list under the title. */
-export const priorityBullets = ['axis.urgent', 'axis.notUrgent', 'axis.important', 'axis.notImportant'];
 
 export function t(key, params) {
   const template = strings[key];

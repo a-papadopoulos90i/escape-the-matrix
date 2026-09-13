@@ -23,7 +23,6 @@ export function mount(container, ctx) {
   const { t } = i18n;
 
   const header = ui.stageHeader({ stage: 3, title: t('stage.3.title') });
-  header.append(ui.h('ul', { class: 'sort__bullets' }, i18n.priorityBullets.map((key) => ui.h('li', null, t(key)))));
 
   const bodies = {};
   const quadrants = QUADRANTS.map((quadrant) => {
@@ -60,17 +59,19 @@ export function mount(container, ctx) {
       axis(ui, 'x', [t('axis.urgent'), t('axis.notUrgent')]),
       axis(ui, 'y', [t('axis.important'), t('axis.notImportant')]),
       ui.h('div', { class: 'sort__stage' }, ui.h('div', { class: 'matrix' }, quadrants)),
-    ),
-    ui.h(
-      'section',
-      { class: 'sort__list-panel' },
+      // The task list lives in the board grid too (column 2, below the matrix) so it lines up
+      // exactly with the coloured quadrants above it.
       ui.h(
-        'div',
-        { class: 'sort__list-head' },
-        ui.h('h3', { class: 'sort__list-title' }, t('sort.listTitle')),
-        ui.h('p', { class: 'sort__list-hint text-muted', id: HINT_ID }, t('sort.listHint')),
+        'section',
+        { class: 'sort__list-panel' },
+        ui.h(
+          'div',
+          { class: 'sort__list-head' },
+          ui.h('h3', { class: 'sort__list-title' }, t('sort.listTitle')),
+          ui.h('p', { class: 'sort__list-hint text-muted', id: HINT_ID }, t('sort.listHint')),
+        ),
+        pile,
       ),
-      pile,
     ),
     live,
     nav,
@@ -309,14 +310,19 @@ function onPointerCancel(event) {
 /** Turns the press into a drag: a fixed ghost follows the pointer, the original card dims. */
 function liftCard(drag) {
   const rect = drag.card.getBoundingClientRect();
-  drag.offsetX = drag.startX - rect.left;
+  // Preview the card at the width it will have once dropped in a quadrant — about half the list
+  // width on desktop, near full width on a phone where the matrix is stacked. Keep the grab point
+  // under the finger by scaling the horizontal offset to the ghost's smaller width.
+  const quadWidth = state.bodies.do.getBoundingClientRect().width || rect.width;
+  const ghostWidth = Math.min(rect.width, Math.max(140, Math.round(quadWidth)));
+  drag.offsetX = (drag.startX - rect.left) * (ghostWidth / rect.width);
   drag.offsetY = drag.startY - rect.top;
   const ghost = drag.card.cloneNode(true);
   ghost.className = 'task-card sort-card sort-ghost task-card--dragging';
   ghost.removeAttribute('data-id');
   ghost.setAttribute('aria-hidden', 'true');
   ghost.inert = true;
-  ghost.style.width = `${rect.width}px`;
+  ghost.style.width = `${ghostWidth}px`;
   document.body.append(ghost);
   drag.ghost = ghost;
   drag.active = true;

@@ -1,19 +1,11 @@
-/* sort.css — Stage 3 (place by priority): axis captions, coloured matrix, centre pile, drag ghost. */
+/* sort.css — Stage 3 (place by priority): axis captions, coloured matrix, the task list below, drag ghost. */
 
-.sort__bullets {
-  margin: var(--space-2) 0 0;
-  padding: 0;
-  list-style: disc inside;
-  font-size: clamp(1.25rem, 1rem + 1.4vw, 1.75rem);
-  line-height: 1.45;
-  text-transform: uppercase;
-}
-
-/* Board grid: [ . | x-axis ] / [ y-axis | matrix + pile ] */
+/* Board grid — column 1 is the y-axis caption, column 2 holds (top to bottom) the x-axis captions,
+   the matrix, and the task list. Keeping the list in column 2 lines it up under the quadrants. */
 .sort__board {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
   gap: var(--space-2);
   width: 100%;
   max-width: 720px;
@@ -62,10 +54,12 @@
   max-width: none;
 }
 
-/* The unsorted tasks live in a panel below the matrix; drag one up into a quadrant. */
+/* The unsorted tasks live in a panel below the matrix (grid column 2, so it matches the matrix
+   width and left edge exactly); drag one up into a quadrant. */
 .sort__list-panel {
-  max-width: 680px;
-  margin: var(--space-5) auto 0;
+  grid-column: 2;
+  grid-row: 3;
+  margin-top: var(--space-3);
   padding: var(--space-3) var(--space-4) var(--space-4);
   border: 1.5px dashed var(--border);
   border-radius: var(--radius-lg);
@@ -93,6 +87,22 @@
   gap: var(--space-2);
   max-height: 300px; /* scrolls instead of pushing the page down forever */
   overflow-y: auto;
+  overflow-x: hidden; /* only ever a vertical scrollbar, never a sideways one */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.sort__list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sort__list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--radius-pill);
+}
+
+.sort__list::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .sort__done {
@@ -235,12 +245,17 @@
 
   .sort__board {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto;
+    grid-template-rows: auto auto;
   }
 
   .sort__stage {
     grid-column: 1;
     grid-row: 1;
+  }
+
+  .sort__list-panel {
+    grid-column: 1;
+    grid-row: 2;
   }
 
   .sort .quadrant__caption {

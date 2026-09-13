@@ -175,7 +175,7 @@ test('walkthrough: pick a day, dump, sort, work the board, organize, back to a g
   await settled(page);
 
   // Stage 3 → place each task a different way.
-  await expect(stageTitle(page)).toHaveText('Place them by priority:');
+  await expect(stageTitle(page)).toHaveText('Place them by priority');
   await closeTip(page);
   await expect(pileCards(page)).toHaveCount(3);
   await expect(panel(page).locator('.stage-nav__next')).toHaveText('Next (3 waiting) →');
@@ -222,42 +222,41 @@ test('walkthrough: pick a day, dump, sort, work the board, organize, back to a g
 
 // ---------- 1–3: calendar ----------
 
-test('1. fresh load shows Stage 1 with the current month, today outlined blue, weekends hidden', async ({ page }) => {
+test('1. fresh load shows Stage 1 with the current month, today outlined blue, the full week shown', async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW);
   await page.goto('/');
   await expect(step(page, 1)).toHaveAttribute('aria-current', 'step');
   await expect(stageTitle(page)).toHaveText('Pick your day');
   await expect(panel(page).locator('.calendar__month')).toHaveText('March 2026');
-  await expect(panel(page).locator('.calendar__weekday')).toHaveText(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
+  await expect(panel(page).locator('.calendar__weekday')).toHaveText(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
   const days = panel(page).locator('.calendar__day');
-  await expect(days).toHaveCount(30);
-  await expect(days.first()).toHaveAttribute('data-key', '2026-03-02');
-  await expect(days.last()).toHaveAttribute('data-key', '2026-04-10');
+  await expect(days).toHaveCount(42);
+  await expect(days.first()).toHaveAttribute('data-key', '2026-03-01');
+  await expect(days.last()).toHaveAttribute('data-key', '2026-04-11');
   const today = cell(page, TODAY);
   await expect(today).toHaveClass(/calendar__day--today/);
   await expect(today).toHaveAttribute('aria-current', 'date');
   await expect(today).toHaveCSS('border-top-color', RGB.today);
   await expect(today).toHaveCSS('border-top-width', '2px');
   await expect(cell(page, '2026-03-12')).toHaveCSS('border-top-color', 'rgb(226, 222, 211)');
-  await expect(panel(page).locator('.switch__input')).not.toBeChecked();
+  await expect(panel(page).locator('.switch__input')).toHaveCount(0);
 });
 
-test('2. "Show weekends" adds Sat/Sun columns and persists across reload', async ({ page }) => {
+test('2. the calendar always shows the full week (Sun–Sat); a weekend day is reachable', async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW);
   await page.goto('/');
-  await panel(page).locator('.switch').click();
   await expect(panel(page).locator('.calendar__weekday')).toHaveText(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
   await expect(panel(page).locator('.calendar__day')).toHaveCount(42);
   await expect(panel(page).locator('.calendar__day').first()).toHaveAttribute('data-key', '2026-03-01');
-  await waitForSaved(page, (doc) => doc.settings.showWeekends === true);
+  await expect(cell(page, '2026-03-14')).toBeVisible(); // a Saturday
+  await expect(panel(page).locator('.switch__input')).toHaveCount(0);
 
   await page.reload();
-  await expect(panel(page).locator('.switch__input')).toBeChecked();
   await expect(panel(page).locator('.calendar__weekday')).toHaveCount(7);
-  await expect(cell(page, '2026-03-14')).toBeVisible();
+  await expect(panel(page).locator('.calendar__day')).toHaveCount(42);
 });
 
-test('3. clicking an empty day opens Stage 2 with that date in the day bar', async ({ page }) => {
+test('3. clicking an empty day opens Stage 2 for that date', async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW);
   await page.goto('/');
   await expect(cell(page, '2026-03-19')).toHaveAttribute('title', 'No tasks yet');
@@ -304,8 +303,7 @@ test('5. Stage 3: coloured matrix, tasks listed below; mouse drag, tap-to-place 
   await seed(page, { tasks: unsortedTasks(), stage: 3 });
   await page.goto('/');
 
-  await expect(stageTitle(page)).toHaveText('Place them by priority:');
-  await expect(panel(page).locator('.sort__bullets li')).toHaveText(['URGENT', 'NOT URGENT', 'IMPORTANT', 'NOT IMPORTANT']);
+  await expect(stageTitle(page)).toHaveText('Place them by priority');
   await expect(panel(page).locator('.sort__axis-text')).toHaveText(['URGENT', 'NOT URGENT', 'IMPORTANT', 'NOT IMPORTANT']);
   await expect(panel(page).locator('.quadrant__label')).toHaveCount(0);
   for (const [q, fill, border] of [['do', RGB.redFill, RGB.red], ['plan', RGB.yellowFill, RGB.yellow], ['delegate', RGB.blueFill, RGB.blue], ['delete', RGB.grayFill, RGB.gray]]) {
@@ -496,7 +494,7 @@ test('9. 📅 moves the task to the chosen date (gone here, visible there) and U
   await expect(quadrant(page, 'plan').locator('.task-card')).toHaveText([TITLES[2]]);
 });
 
-test('10. ⏩ sends a Friday task to Monday when weekends are hidden; Undo works', async ({ page }) => {
+test('10. ⏩ sends a task to the next day (weekends included); Undo works', async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW);
   const friday = '2026-03-13';
   await seed(page, { tasks: sortedTasks(friday), stage: 4, date: friday });
@@ -505,8 +503,8 @@ test('10. ⏩ sends a Friday task to Monday when weekends are hidden; Undo works
   await openSchedule(page, TITLES[0]);
   await popover(page).locator('.schedule-picker__nextday').click();
   await expect(card(page, TITLES[0])).toHaveCount(0);
-  await expect(page.locator('.toast')).toContainText('Moved to Mon 16 Mar');
-  await waitForSaved(page, (doc) => taskById(doc, 't_1').date === '2026-03-16');
+  await expect(page.locator('.toast')).toContainText('Moved to Sat 14 Mar'); // weekends are ordinary days now
+  await waitForSaved(page, (doc) => taskById(doc, 't_1').date === '2026-03-14');
 
   await page.locator('.toast__action', { hasText: 'Undo' }).click();
   await expect(quadrant(page, 'do').locator('.task-card')).toHaveText([TITLES[0]]);
@@ -629,7 +627,7 @@ test('13. stepper and ←/→ keys navigate with animated transitions; reduced m
   await page.keyboard.press('Escape');
   await page.locator('body').click({ position: { x: 5, y: 400 } });
   await page.keyboard.press('ArrowRight');
-  await expect(stageTitle(page)).toHaveText('Place them by priority:');
+  await expect(stageTitle(page)).toHaveText('Place them by priority');
   await expect(page.locator('#announcer')).toHaveText('Stage 3 of 4: Prioritize');
   await page.keyboard.press('?');
   await expect(bubble(page)).toContainText('Organize them by priority:');
@@ -687,7 +685,7 @@ test.describe('mobile', () => {
       if (n > 1) await goToStage(page, n);
       await expect(bubble(page)).toHaveCount(n === 4 ? 2 : 1); // the board carries both of its comments
       expect(await overflow(page), `stage ${n}`).toBeLessThanOrEqual(0);
-      await expect(panel(page).locator('.stage-nav__next')).toBeVisible();
+      if (n > 1) await expect(panel(page).locator('.stage-nav__next')).toBeVisible(); // Stage 1 has no nav
       // On a phone the tips sit in the flow under the stage header: they hide neither the title
       // (nor stage 3's bullet list) nor the cards they explain.
       const boxes = await bubble(page).evaluateAll((els) => els.map((el) => el.getBoundingClientRect().toJSON()));
@@ -704,10 +702,14 @@ test.describe('mobile', () => {
     // Tips were seen on the first pass, so none re-open on the way back.
     await goToStage(page, 3);
     await expect(bubble(page)).toHaveCount(0);
-    // The list is below the tall stacked matrix; bring the bottom quadrant ("Drop") into view so a
-    // card and a quadrant share the screen, then drag the card up into it.
+    // The list is below the tall stacked matrix; scroll so the bottom quadrant ("Drop") and a list
+    // card share the screen, then drag the card up into it.
     const target = quadrant(page, 'delete');
-    await target.scrollIntoViewIfNeeded();
+    const geo = await page.evaluate(() => {
+      const dr = document.querySelector('.quadrant--delete').getBoundingClientRect();
+      return { delMid: dr.top + window.scrollY + dr.height / 2, vh: window.innerHeight };
+    });
+    await page.evaluate((y) => window.scrollTo(0, Math.max(0, y)), geo.delMid - geo.vh * 0.35);
     await touchDrag(page, await centre(pileCards(page).first()), await centre(target));
     await expect(target.locator('.sort-card')).toHaveText([TITLES[0]]);
     expect(await overflow(page)).toBeLessThanOrEqual(0);
