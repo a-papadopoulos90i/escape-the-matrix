@@ -14,10 +14,10 @@ export function mount(container, ctx) {
   const { ui, i18n } = ctx;
   const { t } = i18n;
 
-  const header = ui.stageHeader({ stage: 3, title: t('stage.3.title') });
+  const header = ui.stageHeader({ stage: 3, title: t('stage.3.title'), kicker: false });
   const listEl = ui.h('div', { class: 'sort__list', role: 'list', 'aria-label': t('sort.pile') });
   const live = ui.h('div', { class: 'sr-only', 'aria-live': 'polite' });
-  const nav = ui.stageNav({ onBack: () => ctx.goTo(2), onNext: () => ctx.goTo(4) });
+  const nav = ui.stageNav({ onBack: () => ctx.goTo(2), onNext: () => ctx.goTo(4), center: ui.stageKicker(3) });
 
   const root = ui.h(
     'div',

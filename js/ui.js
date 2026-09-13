@@ -469,23 +469,29 @@ export function menu({ anchor, items, onClose } = {}) {
 // ---------- Stage chrome ----------
 
 /** "Stage N" kicker + large title (focusable: the shell moves focus there on a stage change). */
-export function stageHeader({ stage, title, subtitle }) {
+export function stageHeader({ stage, title, subtitle, kicker = true }) {
   return h(
     'header',
     { class: 'stage-header' },
-    h('p', { class: 'stage-kicker' }, t('stage.heading', { n: stage })),
+    kicker ? h('p', { class: 'stage-kicker' }, t('stage.heading', { n: stage })) : null,
     h('h1', { class: 'stage-title', id: `stage-title-${stage}`, tabindex: -1 }, title),
     subtitle && h('p', { class: 'stage-subtitle' }, subtitle),
   );
 }
 
-/** Bottom navigation: omit onBack / onNext to hide that button. Query .stage-nav__next to update it. */
-export function stageNav({ onBack, onNext, backLabel = t('nav.back'), nextLabel = t('nav.next'), nextDisabled = false, day = null } = {}) {
+/** The "STAGE N" label, styled to sit in the bottom nav's centre (stages 2–4). */
+export function stageKicker(stage) {
+  return h('p', { class: 'stage-kicker stage-nav__stage' }, t('stage.heading', { n: stage }));
+}
+
+/** Bottom navigation: omit onBack / onNext to hide that button. Query .stage-nav__next to update it.
+ *  `center` fills the middle slot (e.g. the "STAGE N" label). */
+export function stageNav({ onBack, onNext, backLabel = t('nav.back'), nextLabel = t('nav.next'), nextDisabled = false, center = null } = {}) {
   return h(
     'nav',
     { class: 'stage-nav', 'aria-label': t('nav.label') },
     h('span', { class: 'stage-nav__side stage-nav__side--start' }, onBack ? h('button', { class: 'btn stage-nav__back', type: 'button', onClick: onBack }, backLabel) : null),
-    day ? daySwitcher(day) : h('span'),
+    center ?? h('span'),
     h('span', { class: 'stage-nav__side stage-nav__side--end' }, onNext ? h('button', { class: 'btn btn-primary stage-nav__next', type: 'button', disabled: nextDisabled, onClick: onNext }, nextLabel) : null),
   );
 }

@@ -476,6 +476,12 @@ a {
   justify-content: flex-end;
 }
 
+/* The "STAGE N" label sits in the bottom nav's centre (no header kicker on stages 2–4). */
+.stage-nav__stage {
+  margin: 0;
+  text-align: center;
+}
+
 /* Centred current-day display with discreet arrows to step the day. */
 .stage-nav__day {
   display: inline-flex;
@@ -501,13 +507,14 @@ a {
   color: var(--ink);
 }
 
-/* Narrow screens: the day switcher gets its own centred row above Back / Next so nothing overflows. */
+/* Narrow screens: the centre label gets its own row above Back / Next so nothing overflows. */
 @media (max-width: 560px) {
   .stage-nav {
     grid-template-columns: 1fr 1fr;
     row-gap: var(--space-2);
   }
-  .stage-nav__day {
+  .stage-nav__day,
+  .stage-nav__stage {
     grid-row: 1;
     grid-column: 1 / -1;
     justify-self: center;

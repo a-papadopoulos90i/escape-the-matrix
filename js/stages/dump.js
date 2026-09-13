@@ -32,13 +32,13 @@ export function mount(container, ctx) {
   const listEl = ui.h('div', { class: 'dump__list' });
   const hintEl = ui.h('p', { class: 'dump__hint text-muted', hidden: true }, t('dump.needTask'));
   const carryEl = ui.h('div', { class: 'dump__carry' });
-  const nav = ui.stageNav({ onBack: () => ctx.goTo(1), onNext: () => ctx.goTo(3), nextDisabled: true });
+  const nav = ui.stageNav({ onBack: () => ctx.goTo(1), onNext: () => ctx.goTo(3), nextDisabled: true, center: ui.stageKicker(2) });
 
   const root = ui.h(
     'div',
     { class: 'stage-body dump' },
     ui.stageDayBar(dayNav(ctx)),
-    ui.stageHeader({ stage: 2, title: t('stage.2.title'), subtitle: t('stage.2.subtitle') }),
+    ui.stageHeader({ stage: 2, title: t('stage.2.title'), subtitle: t('stage.2.subtitle'), kicker: false }),
     addForm,
     listEl,
     hintEl,
