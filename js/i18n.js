@@ -94,7 +94,9 @@ export const strings = {
 
   'sort.allPlaced': 'All placed ✓',
   'sort.placeIn': 'Place in ▾',
-  'sort.pile': 'Waiting list',
+  'sort.pile': 'Your tasks',
+  'sort.listTitle': 'Your tasks',
+  'sort.listHint': 'Drag a card up into a quadrant — or tap a card, then a quadrant (keys 1–4 work too). What you leave here stays on the waiting list.',
   'sort.pileHint': 'Waiting list — what you leave here stays on hold for this day',
   'sort.keyHint': 'Press 1–4 to place: 1 do, 2 plan, 3 delegate, 4 delete',
   'sort.placed': 'Placed in {quadrant}',

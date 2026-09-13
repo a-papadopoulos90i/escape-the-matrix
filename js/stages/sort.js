@@ -35,7 +35,9 @@ export function mount(container, ctx) {
       bodies[quadrant],
     );
   });
-  const pile = ui.h('div', { class: 'sort__pile', role: 'group', 'aria-label': t('sort.pile'), 'data-tip-anchor': '' });
+  // The unsorted tasks live in a list *below* the matrix; drag one up into a quadrant (or tap it
+  // then a quadrant, or press 1–4). Sorted cards sit inside their quadrant and can be dragged again.
+  const pile = ui.h('div', { class: 'sort__list', role: 'group', 'aria-label': t('sort.pile') });
   const live = ui.h('div', { class: 'sr-only', 'aria-live': 'polite' });
   const nav = ui.stageNav({ onBack: () => ctx.goTo(2), onNext: () => ctx.goTo(4) });
 
@@ -57,9 +59,19 @@ export function mount(container, ctx) {
       { class: 'sort__board' },
       axis(ui, 'x', [t('axis.urgent'), t('axis.notUrgent')]),
       axis(ui, 'y', [t('axis.important'), t('axis.notImportant')]),
-      ui.h('div', { class: 'sort__stage' }, ui.h('div', { class: 'matrix' }, quadrants), pile),
+      ui.h('div', { class: 'sort__stage' }, ui.h('div', { class: 'matrix' }, quadrants)),
     ),
-    ui.h('p', { class: 'sort__hint text-muted', id: HINT_ID }, t('sort.keyHint')),
+    ui.h(
+      'section',
+      { class: 'sort__list-panel' },
+      ui.h(
+        'div',
+        { class: 'sort__list-head' },
+        ui.h('h3', { class: 'sort__list-title' }, t('sort.listTitle')),
+        ui.h('p', { class: 'sort__list-hint text-muted', id: HINT_ID }, t('sort.listHint')),
+      ),
+      pile,
+    ),
     live,
     nav,
   );
@@ -113,9 +125,7 @@ function render(focusId) {
 
   for (const quadrant of QUADRANTS) bodies[quadrant].replaceChildren(...tasks.filter((task) => task.quadrant === quadrant).map(cardEl));
   pile.replaceChildren(
-    ...(waiting.length
-      ? [ui.h('p', { class: 'sort__pile-hint' }, i18n.t('sort.pileHint')), ...waiting.map(cardEl)]
-      : [ui.h('p', { class: 'sort__done' }, i18n.t('sort.allPlaced'))]),
+    ...(waiting.length ? waiting.map(cardEl) : [ui.h('p', { class: 'sort__done' }, i18n.t('sort.allPlaced'))]),
   );
   nextButton.textContent = waiting.length ? i18n.t('nav.nextWaiting', { n: waiting.length }) : i18n.t('nav.next');
   if (focused) focusCard(focused);

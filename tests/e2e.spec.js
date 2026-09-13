@@ -36,7 +36,7 @@ const step = (page, n) => page.locator('#stepper .step').nth(n - 1);
 const cell = (page, key) => panel(page).locator(`.calendar__day[data-key="${key}"]`);
 const quadrant = (page, q) => panel(page).locator(`.quadrant--${q}`);
 const card = (page, title) => panel(page).locator('.task-card', { hasText: title });
-const pileCards = (page) => panel(page).locator('.sort__pile .sort-card');
+const pileCards = (page) => panel(page).locator('.sort__list .sort-card');
 const popover = (page) => page.locator('.popover--task');
 const bubble = (page) => page.locator('.bubble');
 const bar = (page) => page.locator('.timer-bar');
@@ -298,7 +298,7 @@ test('4. adding tasks builds a numbered list; ✕ deletes with Undo; reload keep
 
 // ---------- 5: sorting ----------
 
-test('5. Stage 3: coloured matrix, 3 tasks piled in the centre; mouse drag, tap-to-place and keys 1–4 work', async ({ page }) => {
+test('5. Stage 3: coloured matrix, tasks listed below; mouse drag, tap-to-place and keys 1–4 work', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 1100 });
   await page.clock.setFixedTime(FIXED_NOW);
   await seed(page, { tasks: unsortedTasks(), stage: 3 });
@@ -314,9 +314,8 @@ test('5. Stage 3: coloured matrix, 3 tasks piled in the centre; mouse drag, tap-
   }
   await expect(pileCards(page)).toHaveText(TITLES);
   const matrix = await panel(page).locator('.matrix').boundingBox();
-  const pile = await panel(page).locator('.sort__pile').boundingBox();
-  expect(Math.abs(pile.x + pile.width / 2 - (matrix.x + matrix.width / 2))).toBeLessThan(2);
-  expect(Math.abs(pile.y + pile.height / 2 - (matrix.y + matrix.height / 2))).toBeLessThan(2);
+  const list = await panel(page).locator('.sort__list-panel').boundingBox();
+  expect(list.y).toBeGreaterThan(matrix.y + matrix.height - 1); // the task list sits below the matrix
 
   // Mouse drag into the red quadrant.
   await mouseDrag(page, await centre(pileCards(page).first()), await centre(quadrant(page, 'do')));
@@ -705,7 +704,9 @@ test.describe('mobile', () => {
     // Tips were seen on the first pass, so none re-open on the way back.
     await goToStage(page, 3);
     await expect(bubble(page)).toHaveCount(0);
-    const target = quadrant(page, 'do');
+    // The list is below the tall stacked matrix; bring the bottom quadrant ("Drop") into view so a
+    // card and a quadrant share the screen, then drag the card up into it.
+    const target = quadrant(page, 'delete');
     await target.scrollIntoViewIfNeeded();
     await touchDrag(page, await centre(pileCards(page).first()), await centre(target));
     await expect(target.locator('.sort-card')).toHaveText([TITLES[0]]);

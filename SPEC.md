@@ -100,18 +100,22 @@ Quadrant colours (fill / border):
 - Bottom-left **Urgent but Not Important** (`delegate`): fill `#c2e5ff`, border `#3dadff`
 - Bottom-right **Not Urgent & Not Important** (`delete`): fill `#d9d9d9`, border `#a5a5a5`
 
-Unsorted tasks (`quadrant === null`) sit as a **stacked pile of white cards in the centre** of the
-matrix (overlapping the 4 quadrants, like the design). Interaction, all must work:
-- **Drag & drop** a card into a quadrant (Pointer Events; works with mouse *and* touch; the card
-  follows the pointer, the hovered quadrant highlights).
-- **Tap-to-place:** tap/click a card to select it (highlight), then tap a quadrant.
+Unsorted tasks (`quadrant === null`) sit in a **"Your tasks" list panel below the matrix** (a
+dashed card headed `Your tasks` with a short hint, like the design), from which each card is
+dragged **up** into a quadrant. The list scrolls inside itself (max-height) so a long day never
+pushes the page down forever. Interaction, all must work:
+- **Drag & drop** a card up into a quadrant (Pointer Events; works with mouse *and* touch; the card
+  follows the pointer, the hovered quadrant highlights). On a narrow phone the matrix stacks above
+  the list, so a drag toward the top edge **auto-scrolls** the page to reveal the quadrants.
+- **Tap-to-place:** tap/click a card to select it (highlight), then tap a quadrant (the selection
+  survives scrolling, so on a phone you select in the list, scroll up, and tap a quadrant).
 - **Keyboard:** focus a card, press `1` `2` `3` `4` (do/plan/delegate/delete), or use a small
   "Place in ▾" menu on the card.
 - Sorted tasks appear inside their quadrant as small white cards and can be dragged again to
   another quadrant. Cards in quadrants are simple (title only) at this stage.
-- The pile is the day's **waiting list** (captioned so): whatever the user leaves there stays on
-  hold for the day — with forty things to do they pick the ten that matter. When the pile is empty,
-  show a small "All placed ✓" state. `Next →` is always enabled; with tasks still waiting it says
+- The list is the day's **waiting list**: whatever the user leaves there stays on hold for the day
+  — with forty things to do they pick the ten that matter. When the list is empty, show a small
+  "All placed ✓" state. `Next →` is always enabled; with tasks still waiting it says
   `Next (2 waiting) →`.
 
 Speech bubble, verbatim (khaki `#b9b098`, dark text):
@@ -179,7 +183,7 @@ under the matrix in a "Waiting list (N)" panel. Each waiting card has its own **
 can be completed in place — a done waiting task stays here, struck through, and still counts in the
 day total), the title (rename), a row of **four small colour-coded glyphs** (Do now / Schedule /
 Delegate / Drop) that file it straight into that quadrant, and the **red ✕**. They are on hold: the
-day bar shows "· N waiting" next to the done count.
+`Next →` button on Stage 3 carries the "· N waiting" count.
 
 **Pulling unfinished tasks forward.** When earlier days still hold unfinished tasks (not done, not
 in DELETE, not already pulled), stages 2 and 4 show a strip "N unfinished tasks left on Mon 9 Mar,
@@ -301,7 +305,7 @@ check, plus, close, more, chevron-left/right, google, question); `bubble({ text|
 export function mount(container, ctx)   // ctx = { store, ui, dates, i18n, getDate(), setDate(key), goTo(stage), showTip() }
 export function unmount()               // remove listeners/timers
 ```
-`js/app.js` owns the shell, stepper, day bar, routing (`ui.stage` 1–4), tip logic (auto-show once
+`js/app.js` owns the shell, stepper, routing (`ui.stage` 1–4), tip logic (auto-show once
 per stage, `?` re-shows), keyboard shortcuts, and instantiates the store with the local adapter,
 then (if `firebaseConfig`) the auth module.
 
@@ -375,9 +379,9 @@ rising from the bottom (ten fill the cell). Buttons are pill-shaped; the primary
 
 1. Fresh load shows Stage 1 with the current month; today is outlined blue; weekends hidden.
 2. `Show weekends` toggle adds Sat/Sun columns and persists across reload.
-3. Clicking an empty day opens Stage 2 with that date in the day bar.
+3. Clicking an empty day opens Stage 2 for that date.
 4. Typing 3 tasks + Enter each creates 3 rows; `+` adds a row; `✕` deletes; reload keeps them.
-5. Stage 3 shows the coloured matrix with the 3 tasks piled in the centre; drag (mouse) and tap-to-place both work; keyboard 1–4 works.
+5. Stage 3 shows the coloured matrix with the 3 tasks in a "Your tasks" list below it; drag up (mouse) and tap-to-place both work; keyboard 1–4 works.
 6. Stage 4 shows labels Do now / Schedule / Delegate / Drop (with icon tiles + count badges) and the tasks in their quadrants with checkbox + clock + red ✕.
 7. Ticking a task strikes it through and Stage 1 shows one green stripe per done task (ten fill the cell).
 8. Stage 4 popover: ▶️ starts a countdown (timer bar visible, clock icon live); reload → timer still running; countdown end beeps.

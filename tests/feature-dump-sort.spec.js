@@ -11,7 +11,7 @@ const OUT = process.env.SCREENSHOT_DIR ?? path.join(process.cwd(), 'test-results
 const TITLES = ['Marketing Order A5', 'Invoice Send', 'Make - Excel Report', 'Call the bank'];
 
 const panel = (page) => page.locator('#stage .panel:not(.panel--ghost)');
-const pileCards = (page) => panel(page).locator('.sort__pile .sort-card');
+const pileCards = (page) => panel(page).locator('.sort__list .sort-card');
 const quadrantCards = (page, q) => panel(page).locator(`.quadrant--${q} .sort-card`);
 const cardByTitle = (page, title) => panel(page).locator('.sort-card', { hasText: title });
 
@@ -281,7 +281,10 @@ test.describe('mobile', () => {
     expect(await noOverflow(page)).toBeLessThanOrEqual(0);
     await expect(panel(page).locator('.quadrant__caption').first()).toBeVisible();
 
-    const target = panel(page).locator('.quadrant--do');
+    // The task list sits below the tall stacked matrix. Bring the "Drop" quadrant (matrix bottom,
+    // nearest the list) into view so a card and a quadrant are on screen together, then drag up
+    // into it. A real finger can also drag to the top edge and let the page auto-scroll.
+    const target = panel(page).locator('.quadrant--delete');
     await target.scrollIntoViewIfNeeded();
     const from = await centre(pileCards(page).first());
     const to = await centre(target);
@@ -293,27 +296,27 @@ test.describe('mobile', () => {
     }
     await expect(target).toHaveClass(/is-drop-target/);
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-    await expect(quadrantCards(page, 'do')).toHaveText([TITLES[0]]);
+    await expect(quadrantCards(page, 'delete')).toHaveText([TITLES[0]]);
     expect(await noOverflow(page)).toBeLessThanOrEqual(0);
   });
 
-  test('375px: a plain swipe over a full pile scrolls the page instead of lifting a card', async ({ page }) => {
+  test('375px: a plain swipe over a full list scrolls it instead of lifting a card', async ({ page }) => {
     const many = Array.from({ length: 25 }, (_, i) => `Task number ${i + 1}`);
     await seed(page, { stage: 3, tasks: many });
     await page.goto('/');
     await expect(pileCards(page)).toHaveCount(25);
-    const pile = panel(page).locator('.sort__pile');
-    await pile.scrollIntoViewIfNeeded();
-    const before = await page.evaluate(() => window.scrollY);
-    const from = await centre(pileCards(page).nth(8));
+    const list = panel(page).locator('.sort__list');
+    await list.scrollIntoViewIfNeeded();
+    const before = await list.evaluate((el) => el.scrollTop);
+    const from = await centre(pileCards(page).nth(3));
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [from] });
     for (let step = 1; step <= 8; step += 1) {
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: from.x, y: from.y - step * 30 }] });
     }
-    await expect(page.locator('.sort-ghost')).toHaveCount(0);
+    await expect(page.locator('.sort-ghost')).toHaveCount(0); // a quick swipe never lifts a card
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(before);
+    await expect.poll(() => list.evaluate((el) => el.scrollTop)).toBeGreaterThan(before);
     await expect(pileCards(page)).toHaveCount(25);
   });
 });
@@ -321,24 +324,30 @@ test.describe('mobile', () => {
 test.describe('tips over the board (desktop)', () => {
   test.use({ viewport: { width: 1280, height: 1100 } });
 
-  test('stage 3: the tip does not block a drop or a tap under it', async ({ page }) => {
+  test('stage 3: the tip sits clear of the board and never blocks a drop or a tap', async ({ page }) => {
     await seed(page, { stage: 3, tasks: TITLES.slice(0, 2), tipsSeen: false });
     await page.goto('/');
     const tip = page.locator('.bubble');
     await expect(tip).toBeVisible();
-    const box = await tip.boundingBox();
-    const under = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-    const targetQuadrant = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('.quadrant')?.dataset.quadrant ?? null, under);
-    expect(targetQuadrant).not.toBeNull(); // the bubble lets pointer input through
 
-    await mouseDrag(page, await centre(pileCards(page).first()), under);
-    await expect(panel(page).locator(`.quadrant--${targetQuadrant}`)).toHaveClass(/is-drop-target/);
+    // The tip sits above the board in the flow, so it covers neither the matrix nor the task list
+    // (matrix on top, list below) and cannot intercept a drop or a tap on either.
+    const tipBox = await tip.boundingBox();
+    const matrixBox = await panel(page).locator('.sort__stage .matrix').boundingBox();
+    const listBox = await panel(page).locator('.sort__list-panel').boundingBox();
+    expect(tipBox.y + tipBox.height).toBeLessThanOrEqual(matrixBox.y + 1);
+    expect(matrixBox.y + matrixBox.height).toBeLessThanOrEqual(listBox.y + 1);
+
+    // With the tip showing, a drag from the list still lands a card in a quadrant...
+    await mouseDrag(page, await centre(pileCards(page).first()), await centre(panel(page).locator('.quadrant--do')));
+    await expect(panel(page).locator('.quadrant--do')).toHaveClass(/is-drop-target/);
     await page.mouse.up();
-    await expect(quadrantCards(page, targetQuadrant)).toHaveText([TITLES[0]]);
+    await expect(quadrantCards(page, 'do')).toHaveText([TITLES[0]]);
 
+    // ...and tap-to-place works too: select the remaining card, click an empty quadrant.
     await pileCards(page).first().locator('.sort-card__grab').click();
-    await page.mouse.click(under.x, under.y);
-    await expect(quadrantCards(page, targetQuadrant)).toHaveText([TITLES[0], TITLES[1]]);
+    await panel(page).locator('.quadrant--plan').click({ position: { x: 30, y: 30 } });
+    await expect(quadrantCards(page, 'plan')).toHaveText([TITLES[1]]);
     await expect(tip).toBeVisible();
     await tip.locator('.bubble__close').click();
     await expect(tip).toHaveCount(0);
