@@ -128,12 +128,12 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignO
       closeMenu();
       user = null;
       statusNodes = [];
+      // A compact icon button (matches the gear), no wording — it opens the sign-in chooser.
       slot.replaceChildren(
         ui.h(
           'button',
-          { class: 'btn btn-google', type: 'button', onClick: onSignIn },
-          ui.icon('google', { size: 18 }),
-          ui.h('span', { class: 'btn-google__label' }, t('account.signIn')), // visually hidden on phones, still the accessible name
+          { class: 'btn-icon account-signin', type: 'button', 'aria-haspopup': 'dialog', 'aria-label': t('account.signIn'), title: t('account.signIn'), onClick: openSignInModal },
+          ui.icon('user', { size: 20 }),
         ),
       );
     },
@@ -164,14 +164,37 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignO
       }
     },
 
-    /** Disables the sign-in button while the Google popup is open. */
+    /** Disables the sign-in button while the provider popup is open. */
     setBusy(busy) {
-      const button = slot.querySelector('.btn-google');
+      const button = slot.querySelector('.account-signin');
       if (!button) return;
       button.disabled = busy;
       button.setAttribute('aria-busy', String(busy));
     },
   };
+
+  /** Rough sign-in chooser (placeholder): Google works; Apple + email land later. */
+  function openSignInModal() {
+    const option = (iconName, labelKey, onSelect, variant) =>
+      ui.h(
+        'button',
+        { class: `btn signin-option signin-option--${variant}`, type: 'button', onClick: onSelect },
+        ui.icon(iconName, { size: 18 }),
+        ui.h('span', null, t(labelKey)),
+      );
+    const content = ui.h(
+      'div',
+      { class: 'signin' },
+      ui.h('p', { class: 'signin__subtitle text-muted' }, t('account.signInSubtitle')),
+      option('google', 'account.continueGoogle', () => { handle.close(); onSignIn(); }, 'google'),
+      option('apple', 'account.continueApple', () => ui.toast(t('account.soon')), 'apple'),
+      ui.h('div', { class: 'signin__sep' }, ui.h('span', null, t('account.or'))),
+      ui.h('input', { class: 'signin__email', type: 'email', placeholder: t('account.emailPlaceholder'), 'aria-label': t('account.continueEmail') }),
+      option('mail', 'account.continueEmail', () => ui.toast(t('account.soon')), 'email'),
+    );
+    const handle = ui.modal({ title: t('account.signInTitle'), content, actions: [{ label: t('common.cancel') }] });
+  }
+
   return view;
 }
 

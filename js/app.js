@@ -300,29 +300,20 @@ async function initAuth() {
 
 // ---------- Settings (gear menu in the header) ----------
 
-/** A gear button in the header opens a small menu. Time report lives here (and later the account /
- *  sign-in settings), so it's reachable from every stage — signed in or not. */
-function initSettings() {
-  if (!els.headerActions) return;
-  const btn = ui.h(
-    'button',
-    { class: 'btn-icon settings-btn', type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': t('settings.title'), title: t('settings.title') },
-    ui.icon('settings', { size: 20 }),
-  );
-  let open = null;
-  btn.addEventListener('click', () => {
-    if (open) return open.close();
-    btn.setAttribute('aria-expanded', 'true');
-    open = ui.menu({
-      anchor: btn,
-      items: [{ label: t('settings.timeReport'), icon: 'clock', onSelect: () => openTimeReport({ ui, store, i18n }) }],
-      onClose: () => {
-        open = null;
-        btn.setAttribute('aria-expanded', 'false');
-      },
-    });
+/** Clicking the logo opens the settings menu — Time report now, more options later. (There is no
+ *  separate gear button; the logo is the entry point.) */
+let settingsMenu = null;
+function openSettingsMenu(anchor) {
+  if (settingsMenu) return settingsMenu.close();
+  anchor.setAttribute('aria-expanded', 'true');
+  settingsMenu = ui.menu({
+    anchor,
+    items: [{ label: t('settings.timeReport'), icon: 'clock', onSelect: () => openTimeReport({ ui, store, i18n }) }],
+    onClose: () => {
+      settingsMenu = null;
+      anchor.setAttribute('aria-expanded', 'false');
+    },
   });
-  els.headerActions.prepend(btn);
 }
 
 // ---------- Boot ----------
@@ -350,17 +341,20 @@ async function boot() {
   restoreUiState();
   els.stepperNav.setAttribute('aria-label', t('stepper.label'));
   els.skipLink.textContent = t('app.skip');
-  // The logo goes home to the calendar (Stage 1) in-app, instead of reloading the page.
-  els.brand?.addEventListener('click', (event) => {
-    event.preventDefault();
-    goTo(1);
-  });
+  // The logo opens the settings menu (Time report, and more later) instead of navigating.
+  if (els.brand) {
+    els.brand.setAttribute('aria-haspopup', 'menu');
+    els.brand.setAttribute('aria-expanded', 'false');
+    els.brand.addEventListener('click', (event) => {
+      event.preventDefault();
+      openSettingsMenu(els.brand);
+    });
+  }
 
   renderStepper();
   renderBanner();
   mountStage(state.stage, null);
   bindKeyboard();
-  initSettings();
   initAuth();
 }
 

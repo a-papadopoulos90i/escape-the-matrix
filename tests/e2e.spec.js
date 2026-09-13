@@ -596,12 +596,15 @@ test('14. the free-mode banner shows when signed out, dismisses, and stays dismi
   await expect(banner).toBeHidden();
 });
 
-test('15. "Sign in with Google" is present; with firebaseConfig = null it opens the explanatory modal', async ({ page }) => {
+test('15. the account icon opens a sign-in chooser; Continue with Google shows the not-connected modal (firebaseConfig = null)', async ({ page }) => {
   await page.goto('/');
   const button = page.locator('#account button');
-  await expect(button).toHaveText('Sign in with Google');
+  await expect(button).toHaveAttribute('aria-label', 'Sign in');
   await expect(button.locator('svg')).toBeVisible();
   await button.click();
+  const chooser = page.locator('[role="dialog"].modal');
+  await expect(chooser.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
+  await chooser.getByRole('button', { name: 'Continue with Google' }).click();
   const dialog = page.locator('[role="dialog"].modal');
   await expect(dialog.locator('.modal__title')).toHaveText('Google sign-in is not connected yet');
   await expect(dialog).toContainText('Your tasks stay saved in this browser.');

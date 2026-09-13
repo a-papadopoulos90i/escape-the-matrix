@@ -179,3 +179,71 @@
     animation: none;
   }
 }
+
+/* ---------- Sign-in chooser (rough placeholder: Google works; Apple + email land later) ---------- */
+.signin {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 300px;
+  max-width: 100%;
+}
+
+.signin__subtitle {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.signin-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  font-weight: 600;
+}
+
+.signin-option:hover {
+  background: var(--hover);
+}
+
+.signin-option--apple {
+  background: #000;
+  color: #fff;
+  border-color: #000;
+}
+
+.signin-option--apple:hover {
+  background: #1a1a1a;
+}
+
+.signin__sep {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.signin__sep::before,
+.signin__sep::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.signin__email {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}

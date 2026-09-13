@@ -39,17 +39,14 @@ test('loads with the title, a 4-step stepper and no console errors', async ({ pa
   await expect(page.locator('#stepper .step').nth(0)).toHaveAttribute('aria-current', 'step');
   await expect(activeTitle(page)).toHaveText(TITLES[1]);
   await expect(page.locator('#banner')).toContainText("You're in free mode");
-  await expect(page.locator('#account button')).toHaveText('Sign in with Google');
+  await expect(page.locator('#account button')).toHaveAttribute('aria-label', 'Sign in');
   expect(errors).toEqual([]);
 });
 
-test('clicking the logo returns to the calendar (Stage 1)', async ({ page }) => {
+test('clicking the logo opens the settings menu (Time report)', async ({ page }) => {
   await page.goto('/');
-  await page.locator('#stepper .step').nth(2).click();
-  await expect(activePanel(page)).toHaveAttribute('data-stage', '3');
   await page.locator('.brand').click();
-  await expect(activePanel(page)).toHaveAttribute('data-stage', '1');
-  await expect(activeTitle(page)).toHaveText(TITLES[1]);
+  await expect(page.getByRole('menuitem', { name: 'Time report' })).toBeVisible();
 });
 
 test('clicking each stepper step shows the right stage title', async ({ page }) => {
@@ -142,9 +139,10 @@ test('per-device UI state (stage + selected day) is restored on reload', async (
   await expect(activePanel(page).locator('.task-card')).toContainText(['A']);
 });
 
-test('"Sign in with Google" opens the not-connected modal when firebaseConfig is null', async ({ page }) => {
+test('the sign-in chooser → Continue with Google opens the not-connected modal when firebaseConfig is null', async ({ page }) => {
   await page.goto('/');
   await page.locator('#account button').click();
+  await page.getByRole('button', { name: 'Continue with Google' }).click();
   const dialog = page.locator('[role="dialog"]');
   await expect(dialog).toContainText('Google sign-in is not connected yet');
   await expect(dialog.locator('a[href="https://github.com/a-papadopoulos90i/escape-the-matrix/blob/main/SETUP.md"]')).toBeVisible();

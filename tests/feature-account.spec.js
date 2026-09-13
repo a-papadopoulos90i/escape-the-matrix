@@ -39,6 +39,13 @@ const storedIds = (page) => page.evaluate((key) => JSON.parse(localStorage.getIt
 const storeIds = (page) => page.evaluate(() => window.__store.get().tasks.map((t) => t.id).sort());
 const fakeValue = (page, expression) => page.evaluate((expr) => new Function('fake', `return ${expr}`)(window.__fake), expression);
 
+/** The signed-out header shows a compact account icon; sign-in runs from the chooser it opens. */
+const signInBtn = (page) => page.locator('#account .account-signin');
+async function signInGoogle(page) {
+  await signInBtn(page).click();
+  await page.getByRole('button', { name: 'Continue with Google' }).click();
+}
+
 /**
  * Re-mounts the account slot with the real auth module and a fake Firebase SDK (window.__fake holds
  * the fake's state; window.__store the store the session syncs). Resolves once initAuth resolved.
@@ -46,7 +53,7 @@ const fakeValue = (page, expression) => page.evaluate((expr) => new Function('fa
 async function startFakeSession(page, { remote = REMOTE_ENVELOPE, signedIn = false, failLoads = 0, photoURL = null } = {}) {
   // The app's own initAuth() (free mode) renders the Google button asynchronously after boot; wait
   // for it so it cannot overwrite the slot after the fake session has taken it over.
-  await page.locator('#account .btn-google').waitFor();
+  await signInBtn(page).waitFor();
   return page.evaluate(
     async ({ remote, signedIn, failLoads, photoURL }) => {
       const [{ initAuth }, { createStore }, { createLocalAdapter }, ui, i18n] = await Promise.all([
@@ -139,25 +146,29 @@ async function startFakeSession(page, { remote = REMOTE_ENVELOPE, signedIn = fal
 }
 
 test.describe('free mode (firebaseConfig = null)', () => {
-  test('renders a real "Sign in with Google" button with the G glyph, and the free-mode banner', async ({ page }) => {
+  test('renders a compact account icon that opens a sign-in chooser (Google/Apple/email), and the free-mode banner', async ({ page }) => {
     const errors = collectErrors(page);
     await page.goto('/');
-    const button = page.locator('#account .btn-google');
+    const button = signInBtn(page);
     await expect(button).toBeVisible();
-    await expect(button).toHaveText('Sign in with Google');
-    await expect(button.locator('svg.icon--google')).toHaveCount(1);
+    await expect(button).toHaveAttribute('aria-label', 'Sign in');
+    await expect(button).toHaveText(''); // icon only, no wording
     expect(await button.evaluate((el) => el.tagName)).toBe('BUTTON');
-    await button.focus();
-    await expect(button).toBeFocused();
+    await button.click();
+    const dialog = page.locator('[role="dialog"]');
+    await expect(dialog.getByRole('button', { name: 'Continue with Google' }).locator('svg.icon--google')).toHaveCount(1);
+    await expect(dialog.getByRole('button', { name: 'Continue with Apple' })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Continue with email' })).toBeVisible();
+    await page.keyboard.press('Escape');
     await expect(page.locator('#banner')).toContainText("You're in free mode");
     expect(errors).toEqual([]);
   });
 
-  test('clicking the button opens the not-connected modal; OK, Escape and the backdrop close it', async ({ page }) => {
+  test('the chooser → Continue with Google opens the not-connected modal; OK, Escape and the backdrop close it', async ({ page }) => {
     await page.goto('/');
     const dialog = page.locator('[role="dialog"]');
     const open = async () => {
-      await page.locator('#account .btn-google').click();
+      await signInGoogle(page);
       await expect(dialog).toBeVisible();
       await expect(dialog.locator('.modal__title')).toHaveText('Google sign-in is not connected yet');
       await expect(dialog).toContainText('Your tasks stay saved in this browser');
@@ -170,7 +181,7 @@ test.describe('free mode (firebaseConfig = null)', () => {
     await page.screenshot({ path: path.join(OUT, 'account-not-connected-modal.png') });
     await dialog.getByRole('button', { name: 'OK' }).click();
     await expect(dialog).toHaveCount(0);
-    await expect(page.locator('#account .btn-google')).toBeFocused();
+    await expect(signInBtn(page)).toBeFocused();
 
     await open();
     await page.keyboard.press('Escape');
@@ -191,7 +202,7 @@ test.describe('free mode (firebaseConfig = null)', () => {
       .poll(() => page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? 'null')?.settings?.bannerDismissed ?? null, DOC_KEY))
       .toBe(true);
     await page.reload();
-    await expect(page.locator('#account .btn-google')).toBeVisible();
+    await expect(page.locator('#account .account-signin')).toBeVisible();
     await expect(banner).toBeHidden();
   });
 });
@@ -206,11 +217,11 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     const account = page.locator('#account');
     const accountBtn = account.locator('.account-btn');
     const status = accountBtn.locator('.sr-only');
-    await expect(account.locator('.btn-google')).toBeVisible();
+    await expect(account.locator('.account-signin')).toBeVisible();
     await expect(page.locator('#banner')).toBeVisible();
 
     // --- Sign in: local ∪ remote → store, localStorage and (reconciled) Firestore ---
-    await account.locator('.btn-google').click();
+    await signInGoogle(page);
     await expect(accountBtn).toBeVisible();
     await expect(accountBtn.locator('.account-name')).toHaveText('Andreas');
     await expect(accountBtn.locator('.account-avatar--initials')).toHaveText('A');
@@ -280,13 +291,13 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     // --- Sign out keeps the local copy ---
     await accountBtn.click();
     await menu.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
-    await expect(account.locator('.btn-google')).toBeVisible();
+    await expect(account.locator('.account-signin')).toBeVisible();
     await expect(page.locator('#banner')).toBeVisible();
     expect(await fakeValue(page, 'fake.signOuts')).toBe(1);
     expect((await storedIds(page)).length).toBe(4);
 
     // --- Sign out & clear this device (confirm first) ---
-    await account.locator('.btn-google').click();
+    await signInGoogle(page);
     await expect(accountBtn).toBeVisible();
     await accountBtn.click();
     await menu.getByRole('menuitem', { name: 'Sign out & clear this device' }).click();
@@ -299,7 +310,7 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await accountBtn.click();
     await menu.getByRole('menuitem', { name: 'Sign out & clear this device' }).click();
     await confirmDialog.getByRole('button', { name: 'Sign out & clear this device' }).click();
-    await expect(account.locator('.btn-google')).toBeVisible();
+    await expect(account.locator('.account-signin')).toBeVisible();
     expect(await fakeValue(page, 'fake.signOuts')).toBe(2);
     expect(await page.evaluate((key) => localStorage.getItem(key), DOC_KEY)).toBeNull();
     expect(await storeIds(page)).toEqual([]);
@@ -309,21 +320,21 @@ test.describe('Google mode (fake Firebase SDK)', () => {
   test('popup blocked falls back to redirect; a cancelled popup is silent; other errors toast', async ({ page }) => {
     await page.goto('/');
     await startFakeSession(page);
-    const button = page.locator('#account .btn-google');
+    const button = signInBtn(page);
 
     await page.evaluate(() => (window.__fake.popupError = 'auth/popup-blocked'));
-    await button.click();
+    await signInGoogle(page);
     await expect.poll(() => fakeValue(page, 'fake.redirects')).toBe(1);
     await expect(button).toBeEnabled();
     await expect(page.locator('.toast')).toHaveCount(0);
 
     await page.evaluate(() => (window.__fake.popupError = 'auth/popup-closed-by-user'));
-    await button.click();
+    await signInGoogle(page);
     await expect(button).toBeEnabled();
     await expect(page.locator('.toast')).toHaveCount(0);
 
     await page.evaluate(() => (window.__fake.popupError = 'auth/network-request-failed'));
-    await button.click();
+    await signInGoogle(page);
     await expect(page.locator('.toast')).toContainText('Sign-in failed');
     await expect(button).toBeVisible();
   });
@@ -331,10 +342,10 @@ test.describe('Google mode (fake Firebase SDK)', () => {
   test('when the SDK cannot load, free mode stays usable and the button retries on click', async ({ page }) => {
     await page.goto('/');
     await startFakeSession(page, { failLoads: 1 });
-    const button = page.locator('#account .btn-google');
+    const button = signInBtn(page);
     await expect(button).toBeVisible();
     await expect(page.locator('.toast')).toHaveCount(0);
-    await button.click();
+    await signInGoogle(page);
     await expect(page.locator('#account .account-btn')).toBeVisible();
   });
 
