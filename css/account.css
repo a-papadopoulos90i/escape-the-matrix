@@ -187,6 +187,16 @@
   gap: var(--space-3);
   width: 300px;
   max-width: 100%;
+  text-align: center;
+}
+
+/* The sign-in chooser is centred throughout — title, subtitle and Cancel. */
+.modal:has(.signin) .modal__title {
+  text-align: center;
+}
+
+.modal:has(.signin) .modal__actions {
+  justify-content: center;
 }
 
 .signin__subtitle {
