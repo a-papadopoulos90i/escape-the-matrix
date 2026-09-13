@@ -71,8 +71,8 @@ Cell design (rounded square, ~1:1, number centred, bold):
 - **Today:** blue border `#4da3ff` (2px) regardless of tasks; if it has tasks, show the fill too.
 - **Selected day** (the day currently open in stages 2–4): subtle blue glow/ring.
 - Hover/focus: tooltip/`title` "3 of 5 done" (or "No tasks yet").
-- Click/Enter on a cell → selects that date and goes to **Stage 2 if the day has no tasks**,
-  otherwise **Stage 4**.
+- Click/Enter on a cell → selects that date and always goes to **Stage 4 (Ready)**, whatever the
+  date and whether or not the day has tasks. Write down and Prioritize are one tab away.
 
 Legend under the grid (small): green = done tasks (one stripe each, up to 10), blue = today,
 gray = empty. Beside the legend, a subtle **"demo version"** link fills this browser with a
@@ -406,7 +406,7 @@ rising from the bottom (ten fill the cell). Buttons are pill-shaped; the primary
 
 1. Fresh load shows Stage 1 with the current month; today is outlined blue; the full week (Sun–Sat) is shown; no weekends toggle and no Back/Next on this stage.
 2. The calendar always shows all seven columns; a weekend day is on the grid and reachable.
-3. Clicking an empty day opens Stage 2 for that date.
+3. Clicking a day opens Stage 4 (Ready) for that date.
 4. Typing 3 tasks + Enter each creates 3 rows; `+` adds a row; `✕` deletes; reload keeps them.
 5. Stage 3 is a "Your tasks" list (no matrix); tapping a priority icon tags a task (icon ringed green, card stays), tapping it again untags; tagged tasks show in their Stage 4 quadrant.
 6. Stage 4 shows labels Do now / Schedule / Delegate / Drop (with icon tiles + count badges) and the tasks in their quadrants with checkbox + clock + red ✕.

@@ -160,11 +160,13 @@ test('walkthrough: pick a day, dump, sort, work the board, organize, back to a g
   await page.clock.setFixedTime(FIXED_NOW);
   await page.goto('/');
 
-  // Stage 1 → an empty day opens Stage 2.
+  // Stage 1 → picking a day opens Ready; the dump is one tab away.
   await expect(stageTitle(page)).toHaveText('Pick your day');
   await closeTip(page);
   await cell(page, '2026-03-12').click();
   await settled(page);
+  await expect(stageTitle(page)).toHaveText('Ready to start'); // a day always opens in Ready
+  await goToStage(page, 2);
   await expect(stageTitle(page)).toHaveText('Write it all down');
   await closeTip(page);
 
@@ -249,14 +251,14 @@ test('2. the calendar always shows the full week (Sun–Sat); a weekend day is r
   await expect(panel(page).locator('.calendar__day')).toHaveCount(42);
 });
 
-test('3. clicking an empty day opens Stage 2 for that date', async ({ page }) => {
+test('3. clicking a day opens Ready for that date', async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW);
   await page.goto('/');
   await expect(cell(page, '2026-03-19')).toHaveAttribute('title', 'No tasks yet');
   await cell(page, '2026-03-19').click();
   await settled(page);
-  await expect(step(page, 2)).toHaveAttribute('aria-current', 'step');
-  await expect(stageTitle(page)).toHaveText('Write it all down');
+  await expect(step(page, 4)).toHaveAttribute('aria-current', 'step');
+  await expect(stageTitle(page)).toHaveText('Ready to start');
   expect((await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), UI_KEY)).selectedDate).toBe('2026-03-19');
 });
 
@@ -267,6 +269,7 @@ test('4. adding tasks builds a numbered list; ✕ deletes with Undo; reload keep
   await page.goto('/');
   await cell(page, TODAY).click();
   await settled(page);
+  await goToStage(page, 2);
   const next = panel(page).locator('.stage-nav__next');
   await expect(next).toBeDisabled();
 
