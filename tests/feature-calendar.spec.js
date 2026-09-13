@@ -308,13 +308,11 @@ test('another tab clearing the saved document empties this one too (cross-tab "c
   await expect(panel(page).locator('.calendar__day--planned')).toHaveCount(0);
 });
 
-test('stage tip shows on first visit, anchored inside the panel', async ({ page }) => {
+test('no stage tip and no "?" button (tips were removed)', async ({ page }) => {
   await seed(page, { doc: makeDoc({ tipSeen: false }) });
   await page.goto('/');
-  const bubble = panel(page).locator('.bubble');
-  await expect(bubble).toContainText('Pick a day to plan');
-  await bubble.locator('.bubble__close').click();
-  await expect(bubble).toHaveCount(0);
+  await expect(panel(page).locator('.bubble')).toHaveCount(0);
+  await expect(page.locator('#tip-button')).toHaveCount(0);
 });
 
 test('mobile 375px: no horizontal scroll and cells stay ≥ 44px with the full week shown', async ({ page }) => {
@@ -332,12 +330,10 @@ test('mobile 375px: no horizontal scroll and cells stay ≥ 44px with the full w
   expect(errors).toEqual([]);
 });
 
-test('desktop screenshots for visual comparison with design/stage1.png', async ({ page }) => {
+test('desktop screenshot for visual comparison with design/stage1.png', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await seed(page, { doc: makeDoc({ tipSeen: false }) });
   await page.goto('/');
-  await expect(panel(page).locator('.bubble')).toBeVisible();
-  await page.screenshot({ path: path.join(OUT, 'calendar-desktop-tip.png'), fullPage: true });
-  await panel(page).locator('.bubble__close').click();
+  await expect(cells(page)).toHaveCount(42);
   await page.screenshot({ path: path.join(OUT, 'calendar-desktop.png'), fullPage: true });
 });

@@ -139,6 +139,7 @@
 
 .sort-card__grab:focus-visible {
   outline-offset: 0;
+  outline-color: var(--muted); /* neutral, not the green highlight */
 }
 
 .sort-card__menu {
@@ -171,9 +172,10 @@
   }
 }
 
-/* .sort-card's own shadow would otherwise win over the shared selected / dragging looks. */
+/* .sort-card's own shadow would otherwise win over the shared selected / dragging looks. A neutral
+   ring marks the selected card (no green highlight). */
 .sort-card.task-card--selected {
-  box-shadow: 0 0 0 3px var(--focus), var(--shadow-sm);
+  box-shadow: 0 0 0 2px var(--muted), var(--shadow-sm);
 }
 
 .sort-card.task-card--dragging {

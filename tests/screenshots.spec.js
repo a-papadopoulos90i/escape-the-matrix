@@ -25,7 +25,6 @@ for (const [label, viewport] of Object.entries({ desktop: { width: 1280, height:
     for (let stage = 1; stage <= 4; stage += 1) {
       if (stage > 1) await page.locator('#stepper .step').nth(stage - 1).click();
       await page.locator('#stage .panel--ghost').waitFor({ state: 'detached' });
-      await page.locator('.bubble').first().waitFor({ state: 'attached' });
       await page.screenshot({ path: path.join(OUT, `${label}-stage${stage}.png`), fullPage: true });
     }
   });

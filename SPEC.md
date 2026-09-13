@@ -18,8 +18,9 @@ careful product engineer would choose and note it in your report.
 
 The 4 stages are shown as **panels ("little windows") that alternate** with a slide/fade
 transition, driven by a 4-step stepper (the board's original stages 4 and 5 were identical, so the
-owner merged them). Every explanatory **speech bubble from the design board
-is reproduced verbatim** as a dismissible tip on its stage (re-openable with a "?" button).
+owner merged them). The design board's explanatory **speech-bubble tips were removed at the owner's
+request** — no stage shows one, and the header has no "?" button. (The board's texts are kept below
+for reference only; they are not rendered.)
 
 Persistence:
 - **Free mode (no login):** everything is saved in the browser (`localStorage`). If the user clears
@@ -99,7 +100,10 @@ only** (never sideways). While a card is dragged, its floating clone shrinks to 
 will have once dropped in a quadrant.
 
 Quadrant colours (fill / border):
-- Top-left **Urgent & Important** (`do`): fill `#ffc7c2`, border `#f24822`
+- Fills are the soft Lovable card colours (`--*-fill` in tokens.css): do `#fdede8`, plan `#fef2de`,
+  delegate `#e8f4fb`, delete `#f5f3ed`. On stage 4 each quadrant **label** is tinted with its accent
+  (do = red, plan = yellow, delegate = blue, drop = muted gray), in Outfit 600, matching Lovable.
+- Top-left **Urgent & Important** (`do`): fill `#fdede8`, border `#f24822`
 - Top-right **Important but Not Urgent** (`plan`): fill `#ffecbd`, border `#ffcd29`
 - Bottom-left **Urgent but Not Important** (`delegate`): fill `#c2e5ff`, border `#3dadff`
 - Bottom-right **Not Urgent & Not Important** (`delete`): fill `#d9d9d9`, border `#a5a5a5`
@@ -368,8 +372,8 @@ board's original saturated fills were softened to tints. Type: **Outfit** (displ
 and works under a sub-path — no external font requests). Full source in `css/tokens.css`.
 
 ```
---red-fill:#ffe6e1  --red:#d13e38      --yellow-fill:#ffefd1 --yellow:#e1901f
---blue-fill:#ddf2ff --blue:#2382ba     --gray-fill:#f0eee9   --gray:#877f73
+--red-fill:#fdede8  --red:#d13e38      --yellow-fill:#fef2de --yellow:#e1901f
+--blue-fill:#e8f4fb --blue:#2382ba     --gray-fill:#f5f3ed   --gray:#877f73
 --green-fill:#79d3a1 --green-stripe:#2ba162 --green:#1f8f57  --today:#3d8bff
 --tray:#eceae1 --border:#e2ded3 --ink:#241e16 --muted:#6f685c --card-border:#d9d4c8
 --bg:#f8f7f1 --surface:#fefdfa --surface-2:#f2f0e7 --primary:#005c44 --primary-fg:#fbfaf6
@@ -395,7 +399,7 @@ rising from the bottom (ten fill the cell). Buttons are pill-shaped; the primary
 9. 📅 moves the task to the chosen date (visible on that day, gone from this one) with Undo working.
 10. ⏩ moves the task to the next weekday, skipping weekends (Fri → Mon), Undo works.
 11. `…` menu actions work in each quadrant; "Delete all tasks here" only in gray quadrant.
-12. Every speech bubble text from §2 appears on its stage the first time, can be closed, and `?` re-opens it.
+12. No speech-bubble tips appear on any stage, and there is no "?" button (tips were removed).
 13. Stepper and ←/→ keys navigate; transitions animate; reduced-motion disables animation.
 14. Free-mode banner shows when signed out, dismisses and stays dismissed.
 15. "Sign in with Google" button present; with `firebaseConfig = null` it opens the explanatory modal.

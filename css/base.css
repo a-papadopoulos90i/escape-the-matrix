@@ -1112,8 +1112,7 @@ body.has-modal {
 }
 
 .task-card--done .task-card__title {
-  text-decoration: line-through;
-  color: var(--muted);
+  text-decoration: line-through; /* just crossed out — the title keeps its normal colour */
 }
 
 .task-card--selected {

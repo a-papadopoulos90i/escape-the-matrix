@@ -269,7 +269,6 @@ function bindKeyboard() {
     if (isTyping(event.target) || ui.hasOpenOverlay()) return;
     if (event.key === 'ArrowLeft' && state.stage > 1) goTo(state.stage - 1);
     else if (event.key === 'ArrowRight' && !nextBlocked()) goTo(state.stage < STAGE_COUNT ? state.stage + 1 : 1);
-    else if (event.key === '?') showTip(state.stage, { focus: true });
     else return;
     event.preventDefault();
   });
@@ -302,7 +301,6 @@ async function boot() {
     banner: document.getElementById('banner'),
     stage: document.getElementById('stage'),
     account: document.getElementById('account'),
-    tipButton: document.getElementById('tip-button'),
     announcer: document.getElementById('announcer'),
     skipLink: document.getElementById('skip-link'),
     brand: document.querySelector('.brand'),
@@ -318,9 +316,6 @@ async function boot() {
   restoreUiState();
   els.stepperNav.setAttribute('aria-label', t('stepper.label'));
   els.skipLink.textContent = t('app.skip');
-  els.tipButton.setAttribute('aria-label', t('app.tipButton'));
-  els.tipButton.replaceChildren(ui.icon('question'));
-  els.tipButton.addEventListener('click', () => showTip(state.stage, { focus: true }));
   // The logo goes home to the calendar (Stage 1) in-app, instead of reloading the page.
   els.brand?.addEventListener('click', (event) => {
     event.preventDefault();

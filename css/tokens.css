@@ -5,14 +5,15 @@
 :root {
   color-scheme: light;
 
-  /* Quadrant soft fills / strong borders (border = the icon/accent colour) */
-  --red-fill: #ffe6e1;
+  /* Quadrant soft fills / strong borders (border = the icon/accent colour).
+     Fills are the exact Lovable card backgrounds: Do now / Schedule / Delegate / Drop. */
+  --red-fill: #fdede8;
   --red: #d13e38;
-  --yellow-fill: #ffefd1;
+  --yellow-fill: #fef2de;
   --yellow: #e1901f;
-  --blue-fill: #ddf2ff;
+  --blue-fill: #e8f4fb;
   --blue: #2382ba;
-  --gray-fill: #f0eee9;
+  --gray-fill: #f5f3ed;
   --gray: #877f73;
 
   /* Calendar green (one stripe per done task) + today + trays */

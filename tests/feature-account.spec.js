@@ -155,7 +155,6 @@ test.describe('free mode (firebaseConfig = null)', () => {
 
   test('clicking the button opens the not-connected modal; OK, Escape and the backdrop close it', async ({ page }) => {
     await page.goto('/');
-    await page.locator('.bubble__close').click();
     const dialog = page.locator('[role="dialog"]');
     const open = async () => {
       await page.locator('#account .btn-google').click();

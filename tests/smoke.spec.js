@@ -85,9 +85,8 @@ test('Back / Next buttons walk the stages; stage 4 returns to the calendar', asy
   await expect(activeTitle(page)).toHaveText(TITLES[1]);
 });
 
-test('keyboard arrows and ? drive the shell', async ({ page }) => {
+test('keyboard arrows drive the shell', async ({ page }) => {
   await page.goto('/');
-  await page.locator('.bubble__close').click();
   await page.keyboard.press('ArrowRight');
   await expect(activeTitle(page)).toHaveText(TITLES[2]);
   // → mirrors "Next →", which Stage 2 disables until the day has a task (SPEC §2).
@@ -100,34 +99,16 @@ test('keyboard arrows and ? drive the shell', async ({ page }) => {
   await expect(activeTitle(page)).toHaveText(TITLES[3]);
   await page.keyboard.press('ArrowLeft');
   await expect(activeTitle(page)).toHaveText(TITLES[2]);
-  await expect(page.locator('.bubble')).toHaveCount(0);
-  await page.keyboard.press('?');
-  await expect(page.locator('.bubble')).toContainText('Write down everything you have for today — all of it!');
 });
 
-test('tips auto-show once per stage, close, and reopen with the ? button', async ({ page }) => {
+test('no speech-bubble tips and no "?" button (tips were removed)', async ({ page }) => {
   await page.goto('/');
-  const bubble = page.locator('.bubble');
-  await expect(bubble).toHaveCount(1);
-  await bubble.locator('.bubble__close').click();
-  await expect(bubble).toHaveCount(0);
-
-  await page.locator('#tip-button').click();
-  await expect(bubble).toHaveCount(1);
-
-  await page.locator('#stepper .step').nth(1).click();
-  await expect(bubble).toHaveText(/Write down everything you have for today — all of it!/);
-  await page.locator('#stepper .step').nth(2).click();
-  await expect(bubble).toContainText('Organize them by priority:');
-  await expect(bubble).toContainText('Not Urgent & Not Important');
-  await page.locator('#stepper .step').nth(3).click();
-  await expect(bubble).toHaveCount(2); // both board comments for the working board
-  await expect(bubble.filter({ hasText: 'Done mark ✅' })).toHaveCount(1);
-  await expect(bubble.filter({ hasText: "send it to the next day's list" })).toHaveCount(1);
-
-  await page.reload();
-  await expect(activeTitle(page)).toHaveText(TITLES[4]);
-  await expect(bubble).toHaveCount(0);
+  await expect(page.locator('.bubble')).toHaveCount(0);
+  await expect(page.locator('#tip-button')).toHaveCount(0);
+  for (const n of [2, 3, 4]) {
+    await page.locator('#stepper .step').nth(n - 1).click();
+    await expect(page.locator('.bubble')).toHaveCount(0);
+  }
 });
 
 test('free-mode banner dismissal is remembered', async ({ page }) => {

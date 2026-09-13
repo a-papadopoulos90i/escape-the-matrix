@@ -180,33 +180,9 @@ export const strings = {
   'common.delete': 'Delete',
 };
 
-/**
- * Speech bubbles per stage, in display order — verbatim from the design board for stages 2–4
- * (stage 4 carries the board's two comments: the done mark and the fast-organize actions); the
- * board has none for stage 1, so its entry is a short hint written for this app. `tone`/`tail`
- * are the default look; a stage may override them on its [data-tip-anchor] element.
- */
-export const tips = {
-  1: [{ text: 'Pick a day to plan. Each green stripe is one task done, blue is today.', tone: 'khaki', tail: 'bottom' }],
-  2: [{ html: 'Write down everything you have for today — <strong>all of it!</strong>', tone: 'khaki', tail: 'bottom' }],
-  3: [
-    {
-      title: 'Organize them by priority:',
-      items: ['Urgent & Important', 'Important but Not Urgent', 'Urgent but Not Important', 'Not Urgent & Not Important'],
-      tone: 'khaki',
-      tail: 'bottom',
-    },
-  ],
-  4: [
-    { text: 'Done mark ✅', tone: 'green', tail: 'right', anchored: true },
-    {
-      title: 'Organize them by priority:',
-      items: ['start the timer or the clock down', 'postpone for another day', "send it to the next day's list"],
-      tone: 'dark',
-      tail: 'bottom',
-    },
-  ],
-};
+/** Speech-bubble tips were removed at the owner's request — no stage shows one, and the header has
+ *  no "?" button. Kept as an empty map so the tip machinery stays inert rather than erroring. */
+export const tips = {};
 
 export function t(key, params) {
   const template = strings[key];

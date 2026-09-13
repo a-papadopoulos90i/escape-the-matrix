@@ -418,28 +418,12 @@ test('a stage change starts at the top of the page and moves focus to the new st
   await expect(panel(page).locator('.stage-title')).toHaveText('Ready to start');
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   await expect(panel(page).locator('.stage-title')).toBeFocused();
-  const tips = page.locator('.bubble');
-  await expect(tips).toHaveCount(2); // both board comments, in the flow under the title on a phone
-  const boxes = await tips.evaluateAll((els) => els.map((el) => el.getBoundingClientRect().toJSON()));
-  const [titleBox, firstCard] = await Promise.all([panel(page).locator('.stage-title').boundingBox(), card(page, 'Task 1').boundingBox()]);
-  expect(Math.min(...boxes.map((b) => b.y))).toBeGreaterThanOrEqual(titleBox.y + titleBox.height - 1);
-  expect(firstCard.y).toBeGreaterThanOrEqual(Math.max(...boxes.map((b) => b.bottom)) - 1);
+  await expect(page.locator('.bubble')).toHaveCount(0); // tips were removed
 });
 
-test('keyboard: ? focuses the tip, Escape closes it and returns focus; Tab stays inside the popover', async ({ page }) => {
+test('keyboard: Tab stays inside the task popover, Escape closes it', async ({ page }) => {
   await seed(page, { tasks: SORTED(), stage: 4 });
   await page.goto('/');
-  await page.locator('#tip-button').focus();
-  await page.keyboard.press('Enter');
-  const tips = page.locator('.bubble');
-  await expect(tips).toHaveCount(2); // the board carries both of its comments
-  await expect(tips.filter({ hasText: 'Done mark' })).toBeFocused();
-  await page.keyboard.press('Escape'); // closes the focused bubble and returns focus
-  await expect(tips).toHaveCount(1);
-  await expect(page.locator('#tip-button')).toBeFocused();
-  await tips.first().locator('.bubble__close').click();
-  await expect(tips).toHaveCount(0);
-
   await openSchedule(page, 'Marketing Order A5');
   await popover(page).locator('.schedule-picker button[type="submit"]').focus(); // the last control
   await page.keyboard.press('Tab');
@@ -462,24 +446,11 @@ test('desktop: one long quadrant does not stretch the other three', async ({ pag
   expect(heights.delete).toBeLessThan(400);
 });
 
-test('tips: stage 4 shows both board comments — "Done mark ✅" and the dark fast-organize list; ? re-opens both', async ({ page }) => {
-  await seed(page, { tasks: SORTED(), stage: 3, settings: { tipsSeen: { 1: true, 2: true, 3: true, 4: false } } });
+test('no speech-bubble tips and no "?" button on the board (tips were removed)', async ({ page }) => {
+  await seed(page, { tasks: SORTED(), stage: 4, settings: { tipsSeen: { 1: false, 2: false, 3: false, 4: false } } });
   await page.goto('/');
-  await page.locator('#stepper .step').nth(3).click();
-  const bubbles = page.locator('.bubble');
-  await expect(bubbles).toHaveCount(2);
-  const green = bubbles.filter({ hasText: 'Done mark ✅' });
-  const dark = bubbles.filter({ hasText: 'start the timer or the clock down' });
-  await expect(green).toHaveClass(/bubble--green/);
-  await expect(dark).toHaveClass(/bubble--dark/);
-  await expect(dark).toContainText('Organize them by priority:');
-  await expect(dark.locator('li')).toHaveText(['start the timer or the clock down', 'postpone for another day', "send it to the next day's list"]);
-  await green.locator('.bubble__close').click();
-  await expect(bubbles).toHaveCount(1);
-  await dark.locator('.bubble__close').click();
-  await expect(bubbles).toHaveCount(0);
-  await page.locator('#tip-button').click();
-  await expect(bubbles).toHaveCount(2);
+  await expect(page.locator('.bubble')).toHaveCount(0);
+  await expect(page.locator('#tip-button')).toHaveCount(0);
 });
 
 test('mobile: no horizontal scroll with the popover and the timer bar open', async ({ page }) => {
@@ -501,10 +472,9 @@ test('mobile: no horizontal scroll with the popover and the timer bar open', asy
 for (const [label, viewport] of Object.entries({ desktop: { width: 1280, height: 900 }, mobile: { width: 375, height: 760 } })) {
   test(`screenshots (${label})`, async ({ page }) => {
     await page.setViewportSize(viewport);
-    await seed(page, { tasks: SORTED(), stage: 4, settings: { tipsSeen: { 1: true, 2: true, 3: true, 4: false } } });
+    await seed(page, { tasks: SORTED(), stage: 4 });
     await page.goto('/');
-    await expect(page.locator('.bubble', { hasText: 'Done mark' })).toHaveCount(1);
-    await expect(page.locator('.bubble', { hasText: 'Organize them by priority:' })).toHaveCount(1);
+    await expect(panel(page).locator('.quadrant__label').first()).toBeVisible();
     await page.screenshot({ path: path.join(SHOTS, `${label}-stage4.png`), fullPage: true, animations: 'disabled' });
     await openPopover(page, 'Marketing Order A5');
     await page.screenshot({ path: path.join(SHOTS, `${label}-stage4-popover.png`), fullPage: true, animations: 'disabled' });

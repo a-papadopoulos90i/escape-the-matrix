@@ -324,24 +324,15 @@ test.describe('mobile', () => {
   });
 });
 
-test.describe('tips over the board (desktop)', () => {
+test.describe('placing on the board (desktop)', () => {
   test.use({ viewport: { width: 1280, height: 1100 } });
 
-  test('stage 3: the tip sits clear of the board and never blocks a drop or a tap', async ({ page }) => {
+  test('stage 3: a drag and tap-to-place both land a card; no tip bubble shows', async ({ page }) => {
     await seed(page, { stage: 3, tasks: TITLES.slice(0, 2), tipsSeen: false });
     await page.goto('/');
-    const tip = page.locator('.bubble');
-    await expect(tip).toBeVisible();
+    await expect(page.locator('.bubble')).toHaveCount(0); // tips were removed
 
-    // The tip sits above the board in the flow, so it covers neither the matrix nor the task list
-    // (matrix on top, list below) and cannot intercept a drop or a tap on either.
-    const tipBox = await tip.boundingBox();
-    const matrixBox = await panel(page).locator('.sort__stage .matrix').boundingBox();
-    const listBox = await panel(page).locator('.sort__list-panel').boundingBox();
-    expect(tipBox.y + tipBox.height).toBeLessThanOrEqual(matrixBox.y + 1);
-    expect(matrixBox.y + matrixBox.height).toBeLessThanOrEqual(listBox.y + 1);
-
-    // With the tip showing, a drag from the list still lands a card in a quadrant...
+    // A drag from the list lands a card in a quadrant...
     await mouseDrag(page, await centre(pileCards(page).first()), await centre(panel(page).locator('.quadrant--do')));
     await expect(panel(page).locator('.quadrant--do')).toHaveClass(/is-drop-target/);
     await page.mouse.up();
@@ -351,26 +342,22 @@ test.describe('tips over the board (desktop)', () => {
     await pileCards(page).first().locator('.sort-card__grab').click();
     await panel(page).locator('.quadrant--plan').click({ position: { x: 30, y: 30 } });
     await expect(quadrantCards(page, 'plan')).toHaveText([TITLES[1]]);
-    await expect(tip).toBeVisible();
-    await tip.locator('.bubble__close').click();
-    await expect(tip).toHaveCount(0);
   });
 });
 
-// ---------- Screenshots (with the tip bubbles, like the design board) ----------
+// ---------- Screenshots ----------
 
 for (const [label, viewport] of Object.entries({ desktop: { width: 1280, height: 900 }, mobile: { width: 375, height: 760 } })) {
   test(`screenshots (${label})`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await seed(page, { stage: 2, tasks: TITLES.slice(0, 3), tipsSeen: false });
     await page.goto('/');
-    await page.locator('.bubble').waitFor({ state: 'attached' });
+    await expect(panel(page).locator('.dump-row').first()).toBeVisible();
     await page.screenshot({ path: path.join(OUT, `${label}-stage2.png`), fullPage: true });
     await page.locator('#stepper .step').nth(2).click();
     await page.locator('#stage .panel--ghost').waitFor({ state: 'detached' });
-    await page.locator('.bubble').waitFor({ state: 'attached' });
+    await expect(pileCards(page).first()).toBeVisible();
     await page.screenshot({ path: path.join(OUT, `${label}-stage3.png`), fullPage: true });
-    await page.locator('.bubble__close').click();
     await mouseDrag(page, await centre(pileCards(page).first()), await centre(panel(page).locator('.quadrant--do')));
     await page.mouse.up();
     await mouseDrag(page, await centre(pileCards(page).first()), await centre(panel(page).locator('.quadrant--delegate')));

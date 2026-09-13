@@ -14,13 +14,13 @@ const ROOT = path.resolve(process.cwd(), '..');
 const TITLES = ['Marketing Order A5', 'Invoice Send', 'Make - Excel Report'];
 const RGB = {
   red: 'rgb(209, 62, 56)',
-  redFill: 'rgb(255, 230, 225)',
+  redFill: 'rgb(253, 237, 232)',
   yellow: 'rgb(225, 144, 31)',
-  yellowFill: 'rgb(255, 239, 209)',
+  yellowFill: 'rgb(254, 242, 222)',
   blue: 'rgb(35, 130, 186)',
-  blueFill: 'rgb(221, 242, 255)',
+  blueFill: 'rgb(232, 244, 251)',
   gray: 'rgb(135, 127, 115)',
-  grayFill: 'rgb(240, 238, 233)',
+  grayFill: 'rgb(245, 243, 237)',
   green: 'rgb(31, 143, 87)',
   today: 'rgb(61, 139, 255)',
 };
@@ -539,55 +539,16 @@ test('11. each quadrant has a "+" that adds a task inline; the red ✕ deletes (
   await waitForSaved(page, (doc) => taskById(doc, 't_7')?.deleted === true);
 });
 
-test('12. every speech bubble appears verbatim on its stage the first time, closes, and ? re-opens it', async ({ page }) => {
+test('12. no speech-bubble tips and no "?" button on any stage (tips were removed)', async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW);
-  await seed(page, { tasks: sortedTasks(), stage: 1, tipsSeen: false });
+  await seed(page, { tasks: sortedTasks(), stage: 1, tipsSeen: false }); // even "unseen", nothing pops up
   await page.goto('/');
-  await expect(bubble(page)).toHaveCount(1);
-  await closeTip(page);
-
-  const closeAll = async () => {
-    while (await bubble(page).count()) await bubble(page).first().locator('.bubble__close').click();
-  };
-  const expectTip = async (n, check, count = 1) => {
+  await expect(bubble(page)).toHaveCount(0);
+  await expect(page.locator('#tip-button')).toHaveCount(0);
+  for (const n of [2, 3, 4]) {
     await goToStage(page, n);
-    await expect(bubble(page)).toHaveCount(count);
-    await check();
-    await closeAll();
-    await page.locator('#tip-button').click();
-    await expect(bubble(page)).toHaveCount(count);
-    await check();
-    await closeAll();
-  };
-  await expectTip(2, async () => {
-    await expect(bubble(page)).toHaveClass(/bubble--khaki/);
-    await expect(bubble(page).locator('.bubble__body')).toHaveText('Write down everything you have for today — all of it!');
-    await expect(bubble(page).locator('strong')).toHaveText('all of it!');
-  });
-  await expectTip(3, async () => {
-    await expect(bubble(page)).toHaveClass(/bubble--khaki/);
-    await expect(bubble(page).locator('.bubble__title')).toHaveText('Organize them by priority:');
-    await expect(bubble(page).locator('li')).toHaveText(['Urgent & Important', 'Important but Not Urgent', 'Urgent but Not Important', 'Not Urgent & Not Important']);
-  });
-  await expectTip(4, async () => {
-    const green = bubble(page).filter({ hasText: 'Done mark ✅' });
-    const dark = bubble(page).filter({ hasText: 'start the timer or the clock down' });
-    await expect(green).toHaveClass(/bubble--green/);
-    await expect(green.locator('.bubble__body')).toHaveText('Done mark ✅');
-    await expect(green).toHaveCSS('background-color', 'rgb(205, 244, 211)');
-    await expect(dark).toHaveClass(/bubble--dark/);
-    await expect(dark.locator('.bubble__title')).toHaveText('Organize them by priority:');
-    await expect(dark.locator('li')).toHaveText(['start the timer or the clock down', 'postpone for another day', "send it to the next day's list"]);
-    await expect(dark).toHaveCSS('color', 'rgb(255, 255, 255)');
-  }, 2);
-
-  // Seen once: no auto-show after a reload, on any stage.
-  await waitForSaved(page, (doc) => Object.values(doc.settings.tipsSeen).every(Boolean));
-  await page.reload();
-  await expect(stageTitle(page)).toHaveText('Ready to start');
-  await expect(bubble(page)).toHaveCount(0);
-  await goToStage(page, 2);
-  await expect(bubble(page)).toHaveCount(0);
+    await expect(bubble(page)).toHaveCount(0);
+  }
 });
 
 /** Records every panel--enter/exit/ghost class seen under #stage from now on. */
@@ -629,8 +590,6 @@ test('13. stepper and ←/→ keys navigate with animated transitions; reduced m
   await page.keyboard.press('ArrowRight');
   await expect(stageTitle(page)).toHaveText('Place them by priority');
   await expect(page.locator('#announcer')).toHaveText('Stage 3 of 4: Prioritize');
-  await page.keyboard.press('?');
-  await expect(bubble(page)).toContainText('Organize them by priority:');
   await settled(page);
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -676,30 +635,20 @@ test('15. "Sign in with Google" is present; with firebaseConfig = null it opens 
 test.describe('mobile', () => {
   test.use({ viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true });
 
-  test('17. 375px: no horizontal scroll on any stage (tips open), the matrix stacks, touch drag places a task', async ({ page }) => {
+  test('17. 375px: no horizontal scroll on any stage, the matrix stacks, touch drag places a task', async ({ page }) => {
     const errors = collectErrors(page);
     await page.clock.setFixedTime(FIXED_NOW);
     await seed(page, { tasks: unsortedTasks(), stage: 1, tipsSeen: false, settings: { bannerDismissed: false } });
     await page.goto('/');
     for (const n of [1, 2, 3, 4]) {
       if (n > 1) await goToStage(page, n);
-      await expect(bubble(page)).toHaveCount(n === 4 ? 2 : 1); // the board carries both of its comments
+      await expect(bubble(page)).toHaveCount(0); // tips were removed
       expect(await overflow(page), `stage ${n}`).toBeLessThanOrEqual(0);
       if (n > 1) await expect(panel(page).locator('.stage-nav__next')).toBeVisible(); // Stage 1 has no nav
-      // On a phone the tips sit in the flow under the stage header: they hide neither the title
-      // (nor stage 3's bullet list) nor the cards they explain.
-      const boxes = await bubble(page).evaluateAll((els) => els.map((el) => el.getBoundingClientRect().toJSON()));
-      const tipTop = Math.min(...boxes.map((b) => b.y));
-      const tipBottom = Math.max(...boxes.map((b) => b.bottom));
-      const header = await panel(page).locator('.stage-header').boundingBox();
-      expect(tipTop, `stage ${n} tip below the header`).toBeGreaterThanOrEqual(header.y + header.height - 1);
-      const firstCard = panel(page).locator('.task-card, .dump-row').first();
-      if (await firstCard.count()) expect((await firstCard.boundingBox()).y, `stage ${n} tip above the content`).toBeGreaterThanOrEqual(tipBottom - 1);
     }
     const matrix = panel(page).locator('.matrix');
     expect((await matrix.evaluate((el) => getComputedStyle(el).gridTemplateColumns)).split(' ')).toHaveLength(1);
 
-    // Tips were seen on the first pass, so none re-open on the way back.
     await goToStage(page, 3);
     await expect(bubble(page)).toHaveCount(0);
     // The list is below the tall stacked matrix; scroll so the bottom quadrant ("Drop") and a list

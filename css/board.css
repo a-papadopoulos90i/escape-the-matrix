@@ -237,10 +237,27 @@
   text-align: left;
 }
 
+/* Label matches the Lovable board: Outfit 600, tight tracking, tinted with the quadrant's accent. */
 .board .quadrant__label {
+  font-family: var(--font-display);
   font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: -0.32px;
   text-align: left;
   margin-bottom: 0;
+}
+
+.board .quadrant--do .quadrant__label {
+  color: var(--red);
+}
+.board .quadrant--plan .quadrant__label {
+  color: var(--yellow);
+}
+.board .quadrant--delegate .quadrant__label {
+  color: var(--blue);
+}
+.board .quadrant--delete .quadrant__label {
+  color: var(--muted);
 }
 
 .quadrant__sub {
@@ -360,10 +377,9 @@
   }
 }
 
+/* A done card keeps its normal look (no fade); only the title gets a line through it. */
 .board .task-card--done {
-  border-color: var(--border);
-  background: var(--surface-2);
-  box-shadow: none;
+  border-color: var(--card-border);
 }
 
 .task-card__done {
@@ -502,6 +518,12 @@
 .board .task-card--new {
   padding: 0;
   border-style: dashed;
+}
+
+/* While typing a new task, keep the plain box — a neutral solid border, never the green ring. */
+.board .task-card--new:focus-within {
+  border-style: solid;
+  border-color: var(--muted);
 }
 
 .task-card__input {
