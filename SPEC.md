@@ -78,6 +78,12 @@ gray = empty. Beside the legend, a subtle **"demo version"** link fills this bro
 two-month sample (mostly-done past days → a green calendar, plus a few backlog items) after a
 confirm — local only, nothing uploaded; it replaces what's saved in this browser.
 
+Also in the footer, a **"Time report"** button opens a modal that sums each task's tracked timer
+time across every day it appeared and lists them most-time-first with a running total. Tasks carried
+forward under the same title are aggregated (each day's copy keeps its own elapsed seconds) and
+badged **×N** for the number of days tracked. Tasks with no timer, or zero tracked time, are omitted;
+when nothing has been tracked the modal explains where time comes from.
+
 **Manage mode (flip).** A **"Flip to edit"** toggle in the toolbar flips the calendar over (a flip
 animation): each cell then previews the day's task titles (trimmed, done ones struck) instead of the
 green fill, and tapping a day opens a **day popup** — add a task, rename, tick done, delete — plus an
