@@ -387,39 +387,35 @@ a {
   animation: panel-out-right var(--dur) var(--ease) both;
 }
 
+/* Stages are tabs, not wizard steps: they cross-fade in place. The old slide brought every panel in
+   from 32px to one side, which read as the whole page shifting sideways on every tab change. */
 @keyframes panel-in-right {
   from {
     opacity: 0;
-    transform: translateX(32px);
   }
   to {
     opacity: 1;
-    transform: none;
   }
 }
 
 @keyframes panel-in-left {
   from {
     opacity: 0;
-    transform: translateX(-32px);
   }
   to {
     opacity: 1;
-    transform: none;
   }
 }
 
 @keyframes panel-out-left {
   to {
     opacity: 0;
-    transform: translateX(-32px);
   }
 }
 
 @keyframes panel-out-right {
   to {
     opacity: 0;
-    transform: translateX(32px);
   }
 }
 
