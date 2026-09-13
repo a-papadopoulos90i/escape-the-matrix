@@ -164,82 +164,79 @@ a {
   align-items: center;
 }
 
-/* ---------- Stepper ---------- */
-.stepper {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.stepper__item {
-  position: relative;
-  flex: 0 1 128px;
+/* ---------- Stepper (stage tabs) ---------- */
+/* The four stages read as tabs: adjacent, rounded on top, sitting on a shared bar. Only the
+   current tab is filled. */
+.stepper-nav {
   display: flex;
   justify-content: center;
   min-width: 0;
 }
 
-/* No connector line between steps (removed at the owner's request). */
+.stepper {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-bottom: 2px solid var(--primary);
+}
+
+.stepper__item {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
 
 .step {
   position: relative;
   z-index: 1;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1) var(--space-2);
-  min-width: var(--touch);
-  border-radius: var(--radius-md);
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px var(--space-3);
+  border-radius: 10px 10px 0 0;
+  background: var(--surface-2);
   color: var(--muted);
-}
-
-.step__dot {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  border: 2px solid var(--line-strong);
-  background: var(--surface);
-  display: grid;
-  place-items: center;
-  font-size: var(--text-sm);
-  font-weight: 700;
-  line-height: 1;
+  white-space: nowrap;
   transition:
     background var(--dur-fast),
-    border-color var(--dur-fast),
     color var(--dur-fast);
 }
 
+.step__dot {
+  display: grid;
+  place-items: center;
+  line-height: 1;
+}
+
 .step__dot svg {
-  width: 16px;
-  height: 16px;
+  width: 17px;
+  height: 17px;
 }
 
 .step__label {
   font-size: var(--text-xs);
-  white-space: nowrap;
-}
-
-.step:hover .step__dot {
-  border-color: var(--ink);
-}
-
-/* Only the current step is filled with colour; completed steps look like upcoming ones (empty). */
-
-.step.is-current {
-  color: var(--ink);
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.step.is-current .step__dot {
+.step:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+.step.is-current,
+.step.is-current:hover {
   background: var(--primary);
-  border-color: var(--primary);
   color: var(--primary-fg);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 16%, transparent);
 }
 
 /* ---------- Day bar ---------- */
@@ -1204,8 +1201,8 @@ body.has-modal {
     grid-area: stepper;
   }
 
-  .stepper__item {
-    flex: 1 1 0;
+  .step {
+    padding: 6px var(--space-2);
   }
 }
 
