@@ -1,65 +1,10 @@
-/* sort.css — Stage 3 (place by priority): axis captions, coloured matrix, the task list below, drag ghost. */
+/* sort.css — Stage 3 (set priorities): the "Your tasks" list. Each card carries the four priority
+   icons (the chosen one ringed green) and a red ✕. No matrix here — the board (Stage 4) shows the
+   tagged tasks in their quadrants. */
 
-/* Board grid — column 1 is the y-axis caption, column 2 holds (top to bottom) the x-axis captions,
-   the matrix, and the task list. Keeping the list in column 2 lines it up under the quadrants. */
-.sort__board {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  grid-template-rows: auto auto auto;
-  gap: var(--space-2);
-  width: 100%;
-  max-width: 720px;
-  margin: 0 auto;
-}
-
-.sort__axis {
-  display: flex;
-  font-size: var(--text-xs);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-}
-
-.sort__axis--x {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-.sort__axis--y {
-  grid-column: 1;
-  grid-row: 2;
-  flex-direction: column;
-  width: 20px;
-}
-
-.sort__axis-cell {
-  flex: 1;
-  display: grid;
-  place-items: center;
-}
-
-.sort__axis--y .sort__axis-text {
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  white-space: nowrap;
-}
-
-/* The matrix and the pile share one cell, so a tall pile grows the matrix instead of spilling. */
-.sort__stage {
-  grid-column: 2;
-  grid-row: 2;
-}
-
-.sort__stage > .matrix {
-  max-width: none;
-}
-
-/* The unsorted tasks live in a panel below the matrix (grid column 2, so it matches the matrix
-   width and left edge exactly); drag one up into a quadrant. */
 .sort__list-panel {
-  grid-column: 2;
-  grid-row: 3;
-  margin-top: var(--space-3);
+  max-width: 640px;
+  margin: var(--space-5) auto 0;
   padding: var(--space-3) var(--space-4) var(--space-4);
   border: 1.5px dashed var(--border);
   border-radius: var(--radius-lg);
@@ -85,10 +30,10 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  max-height: 300px; /* scrolls instead of pushing the page down forever */
+  max-height: 62vh;
   overflow-y: auto;
-  overflow-x: hidden; /* only ever a vertical scrollbar, never a sideways one */
-  padding: 3px; /* room so the selected card's ring isn't clipped by the scroll box */
+  overflow-x: hidden; /* only ever a vertical scrollbar */
+  padding: 3px; /* room so an active icon's ring is not clipped by the scroll box */
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
@@ -106,162 +51,108 @@
   background: transparent;
 }
 
-.sort__done {
-  padding: 6px 14px;
-  border: 1.5px solid var(--bubble-green-border);
-  border-radius: var(--radius-pill);
-  background: var(--bubble-green);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  text-align: center;
-}
-
 /* ---------- Cards ---------- */
 .sort-card {
-  padding: 4px 4px 4px 10px;
-  box-shadow: var(--shadow-sm);
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
-  touch-action: pan-y; /* a swipe scrolls; a press-and-hold lifts the card (sort.js) */
-}
-
-.sort-card__grab {
-  flex: 1;
-  min-width: 0;
-  min-height: 28px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  cursor: grab;
-  text-align: center;
+  gap: var(--space-2);
+  padding: 6px 8px 6px 12px;
+  box-shadow: var(--shadow-sm);
 }
 
-.sort-card__grab:focus-visible {
-  outline-offset: 0;
-  outline-color: var(--muted); /* neutral, not the green highlight */
+.sort-card__title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.sort-card__menu {
-  position: relative;
+.sort-card .task-card__title {
+  min-width: 0;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+/* Four colour-coded priority icons; the active one is ringed green (the chosen tag). */
+.priority-icons {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+}
+
+.priority-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: var(--muted);
+  transition:
+    background var(--dur-fast),
+    color var(--dur-fast),
+    box-shadow var(--dur-fast);
+}
+
+.priority-icon--do {
+  color: var(--red);
+}
+.priority-icon--plan {
+  color: var(--yellow);
+}
+.priority-icon--delegate {
+  color: var(--blue);
+}
+.priority-icon--delete {
+  color: var(--gray);
+}
+
+.priority-icon:hover {
+  background: var(--surface-2);
+}
+
+.priority-icon.is-active {
+  box-shadow: 0 0 0 2px var(--focus); /* the selection ring, green */
+  background: color-mix(in srgb, var(--focus) 12%, transparent);
+}
+
+/* Red ✕ that deletes the task (with Undo). */
+.sort-card__delete {
+  flex-shrink: 0;
   width: 28px;
   height: 28px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--red);
+  opacity: 0.5;
+  transition:
+    opacity var(--dur-fast),
+    background var(--dur-fast);
 }
 
-.sort-card__menu::after {
-  content: "";
-  position: absolute;
-  inset: -8px; /* 44px hit area on a 28px control */
+.sort-card__delete:hover,
+.sort-card__delete:focus-visible {
+  opacity: 1;
+  background: var(--red-fill);
 }
 
-.sort-card__menu svg {
-  width: 16px;
-  height: 16px;
+.sort-card__delete svg {
+  width: 15px;
+  height: 15px;
 }
 
-@media (hover: hover) {
-  .sort-card__menu {
-    opacity: 0;
-    transition: opacity var(--dur-fast);
-  }
-
-  .sort-card:hover .sort-card__menu,
-  .sort-card:focus-within .sort-card__menu,
-  .task-card--selected .sort-card__menu {
-    opacity: 1;
-  }
-}
-
-/* .sort-card's own shadow would otherwise win over the shared selected / dragging looks. A neutral
-   ring marks the selected card (no green highlight). */
-.sort-card.task-card--selected {
-  box-shadow: 0 0 0 2px var(--muted), var(--shadow-sm);
-}
-
-.sort-card.task-card--dragging {
-  box-shadow: var(--shadow-lg);
-}
-
-.sort-card--lifted {
-  opacity: 0.35;
-}
-
-.sort--dragging,
-.sort--dragging .sort-card__grab {
-  cursor: grabbing;
-}
-
-/* Fixed clone that follows the pointer during a drag. */
-.sort-ghost {
-  position: fixed;
-  top: 0;
-  left: 0;
-  margin: 0;
-  z-index: var(--z-modal);
-  pointer-events: none;
-  will-change: transform;
-}
-
-/* Tap-to-place: quadrants advertise themselves as targets while a card is selected. */
-.sort--selecting .quadrant {
-  cursor: pointer;
-  outline: 2px dashed rgba(77, 163, 255, 0.55);
-  outline-offset: -6px;
-}
-
-.sort--selecting .quadrant:hover {
-  box-shadow: 0 0 0 3px var(--focus);
-}
-
-.sort .quadrant__caption {
-  display: none;
+.sort__done {
+  padding: 10px 14px;
   font-size: var(--text-sm);
-  font-weight: 700;
-  text-align: center;
-  color: var(--ink); /* the muted gray fails AA contrast on the red, blue and gray fills */
-}
-
-.sort__hint {
-  margin-top: var(--space-3);
-  font-size: var(--text-xs);
+  color: var(--muted);
   text-align: center;
 }
 
 @media (pointer: coarse) {
-  .sort-card__grab {
-    min-height: var(--touch);
-  }
-
-  .sort-card__menu {
-    width: 36px;
+  .priority-icon,
+  .sort-card__delete {
+    width: var(--touch);
     height: var(--touch);
-  }
-}
-
-/* Narrow screens: the matrix stacks (base.css) and each quadrant names itself since the axis
-   captions no longer line up. The task list stays below. */
-@media (max-width: 639px) {
-  .sort__axis {
-    display: none;
-  }
-
-  .sort__board {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto;
-  }
-
-  .sort__stage {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .sort__list-panel {
-    grid-column: 1;
-    grid-row: 2;
-  }
-
-  .sort .quadrant__caption {
-    display: block;
   }
 }

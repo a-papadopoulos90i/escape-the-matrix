@@ -174,22 +174,15 @@ test('walkthrough: pick a day, dump, sort, work the board, organize, back to a g
   await panel(page).locator('.stage-nav__next').click();
   await settled(page);
 
-  // Stage 3 → place each task a different way.
+  // Stage 3 → tag each task with a priority (the card stays in the list).
   await expect(stageTitle(page)).toHaveText('Place them by priority');
   await closeTip(page);
   await expect(pileCards(page)).toHaveCount(3);
   await expect(panel(page).locator('.stage-nav__next')).toHaveText('Next (3 waiting) →');
-  await mouseDrag(page, await centre(pileCards(page).first()), await centre(quadrant(page, 'do')));
-  await expect(quadrant(page, 'do')).toHaveClass(/is-drop-target/);
-  await page.mouse.up();
-  await expect(quadrant(page, 'do').locator('.sort-card')).toHaveText([TITLES[0]]);
-  await pileCards(page).first().locator('.sort-card__grab').click();
-  await tapQuadrant(page, 'delegate');
-  await expect(quadrant(page, 'delegate').locator('.sort-card')).toHaveText([TITLES[1]]);
-  await pileCards(page).first().locator('.sort-card__grab').focus();
-  await page.keyboard.press('2');
-  await expect(quadrant(page, 'plan').locator('.sort-card')).toHaveText([TITLES[2]]);
-  await expect(panel(page).locator('.sort__done')).toHaveText('All placed ✓');
+  const tag = (title, q) => panel(page).locator('.sort-card', { hasText: title }).locator(`.priority-icon--${q}`);
+  await tag(TITLES[0], 'do').click();
+  await tag(TITLES[1], 'delegate').click();
+  await tag(TITLES[2], 'plan').click();
   await expect(panel(page).locator('.stage-nav__next')).toHaveText('Next →');
   await panel(page).locator('.stage-nav__next').click();
   await settled(page);
@@ -297,49 +290,37 @@ test('4. adding tasks builds a numbered list; ✕ deletes with Undo; reload keep
 
 // ---------- 5: sorting ----------
 
-test('5. Stage 3: coloured matrix, tasks listed below; mouse drag, tap-to-place and keys 1–4 work', async ({ page }) => {
+test('5. Stage 3: tag each task with a priority; tags persist and fill the Stage 4 quadrants', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 1100 });
   await page.clock.setFixedTime(FIXED_NOW);
   await seed(page, { tasks: unsortedTasks(), stage: 3 });
   await page.goto('/');
 
   await expect(stageTitle(page)).toHaveText('Place them by priority');
-  await expect(panel(page).locator('.sort__axis-text')).toHaveText(['URGENT', 'NOT URGENT', 'IMPORTANT', 'NOT IMPORTANT']);
-  await expect(panel(page).locator('.quadrant__label')).toHaveCount(0);
-  for (const [q, fill, border] of [['do', RGB.redFill, RGB.red], ['plan', RGB.yellowFill, RGB.yellow], ['delegate', RGB.blueFill, RGB.blue], ['delete', RGB.grayFill, RGB.gray]]) {
-    await expect(quadrant(page, q)).toHaveCSS('background-color', fill);
-    await expect(quadrant(page, q)).toHaveCSS('border-top-color', border);
-  }
+  await expect(panel(page).locator('.matrix')).toHaveCount(0); // no matrix on stage 3 anymore
   await expect(pileCards(page)).toHaveText(TITLES);
-  const matrix = await panel(page).locator('.matrix').boundingBox();
-  const list = await panel(page).locator('.sort__list-panel').boundingBox();
-  expect(list.y).toBeGreaterThan(matrix.y + matrix.height - 1); // the task list sits below the matrix
 
-  // Mouse drag into the red quadrant.
-  await mouseDrag(page, await centre(pileCards(page).first()), await centre(quadrant(page, 'do')));
-  await expect(page.locator('.sort-ghost')).toHaveCount(1);
-  await expect(quadrant(page, 'do')).toHaveClass(/is-drop-target/);
-  await page.mouse.up();
-  await expect(quadrant(page, 'do').locator('.sort-card')).toHaveText([TITLES[0]]);
-  await expect(page.locator('.sort-ghost')).toHaveCount(0);
+  const iconFor = (title, q) => panel(page).locator('.sort-card', { hasText: title }).locator(`.priority-icon--${q}`);
+  // Tag each task; the card stays in the list with its chosen icon ringed.
+  await iconFor(TITLES[0], 'do').click();
+  await iconFor(TITLES[1], 'delete').click();
+  await iconFor(TITLES[2], 'delegate').click();
+  await expect(iconFor(TITLES[0], 'do')).toHaveClass(/is-active/);
+  await expect(pileCards(page)).toHaveCount(3); // all still listed
 
-  // Tap-to-place: select a card, then tap a quadrant.
-  const second = pileCards(page).first();
-  await second.locator('.sort-card__grab').click();
-  await expect(second).toHaveClass(/task-card--selected/);
-  await expect(second.locator('.sort-card__grab')).toHaveAttribute('aria-pressed', 'true');
-  await tapQuadrant(page, 'delete');
-  await expect(quadrant(page, 'delete').locator('.sort-card')).toHaveText([TITLES[1]]);
-
-  // Keyboard: 1–4 from a focused card (also re-sorts an already placed card).
-  await pileCards(page).first().locator('.sort-card__grab').focus();
-  await page.keyboard.press('3');
-  await expect(quadrant(page, 'delegate').locator('.sort-card')).toHaveText([TITLES[2]]);
-  await expect(panel(page).locator('.sort__done')).toHaveText('All placed ✓');
-  await quadrant(page, 'delete').locator('.sort-card__grab').focus();
-  await page.keyboard.press('2');
-  await expect(quadrant(page, 'plan').locator('.sort-card')).toHaveText([TITLES[1]]);
+  // Re-tag: tapping a different icon changes the priority.
+  await iconFor(TITLES[1], 'plan').click();
+  await expect(iconFor(TITLES[1], 'plan')).toHaveClass(/is-active/);
   await waitForSaved(page, (doc) => taskById(doc, 't_1').quadrant === 'do' && taskById(doc, 't_2').quadrant === 'plan' && taskById(doc, 't_3').quadrant === 'delegate');
+
+  // Stage 4 shows them in their coloured quadrants.
+  await goToStage(page, 4);
+  for (const [q, fill] of [['do', RGB.redFill], ['plan', RGB.yellowFill], ['delegate', RGB.blueFill], ['delete', RGB.grayFill]]) {
+    await expect(quadrant(page, q)).toHaveCSS('background-color', fill);
+  }
+  await expect(quadrant(page, 'do').locator('.task-card')).toHaveText([TITLES[0]]);
+  await expect(quadrant(page, 'plan').locator('.task-card')).toHaveText([TITLES[1]]);
+  await expect(quadrant(page, 'delegate').locator('.task-card')).toHaveText([TITLES[2]]);
 });
 
 // ---------- 6–7: the board ----------
@@ -651,16 +632,10 @@ test.describe('mobile', () => {
 
     await goToStage(page, 3);
     await expect(bubble(page)).toHaveCount(0);
-    // The list is below the tall stacked matrix; scroll so the bottom quadrant ("Drop") and a list
-    // card share the screen, then drag the card up into it.
-    const target = quadrant(page, 'delete');
-    const geo = await page.evaluate(() => {
-      const dr = document.querySelector('.quadrant--delete').getBoundingClientRect();
-      return { delMid: dr.top + window.scrollY + dr.height / 2, vh: window.innerHeight };
-    });
-    await page.evaluate((y) => window.scrollTo(0, Math.max(0, y)), geo.delMid - geo.vh * 0.35);
-    await touchDrag(page, await centre(pileCards(page).first()), await centre(target));
-    await expect(target.locator('.sort-card')).toHaveText([TITLES[0]]);
+    // Tag the first task by tapping its "Do now" priority icon; it stays in the list.
+    const firstCard = panel(page).locator('.sort-card').first();
+    await firstCard.locator('.priority-icon--do').click();
+    await expect(firstCard.locator('.priority-icon--do')).toHaveClass(/is-active/);
     expect(await overflow(page)).toBeLessThanOrEqual(0);
 
     await goToStage(page, 4);
@@ -691,9 +666,8 @@ test('18. no console errors on any stage and no network needed after the first l
   await goToStage(page, 2);
   await typeTasks(page, ['Offline task']);
   await goToStage(page, 3);
-  await pileCards(page).first().locator('.sort-card__grab').focus();
-  await page.keyboard.press('1');
-  await expect(quadrant(page, 'do').locator('.sort-card')).toHaveText([TITLES[0], 'Offline task']);
+  await panel(page).locator('.sort-card', { hasText: 'Offline task' }).locator('.priority-icon--do').click();
+  await expect(panel(page).locator('.sort-card', { hasText: 'Offline task' }).locator('.priority-icon--do')).toHaveClass(/is-active/);
   await goToStage(page, 4);
   await card(page, 'Offline task').locator('.task-card__check').check();
   await goToStage(page, 1);

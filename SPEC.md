@@ -95,51 +95,27 @@ Speech bubble (tip), verbatim: **"Write down everything you have for today — a
 (bubble style: rounded, khaki-gray `#b9b098` background, dark text, small tail pointing at the
 task rows).
 
-### Stage 3 — "Place them by priority:"
+### Stage 3 — "Place them by priority"
 
-Title: `Place them by priority` (plain — the old colon and the big `URGENT / NOT URGENT / IMPORTANT /
-NOT IMPORTANT` bullet list under it were removed at the owner's request; the axis captions and the
-tip already carry that meaning).
+Title: `Place them by priority` (plain).
 
-Layout: the 2×2 matrix, now coloured, **no quadrant labels inside** (as in the design) but with
-small axis captions around it: `URGENT` / `NOT URGENT` above the two columns, `IMPORTANT` /
-`NOT IMPORTANT` beside the two rows (rotated or stacked). The task list below sits in the same grid
-column as the matrix, so it matches the matrix's width and left edge, and it scrolls **vertically
-only** (never sideways). While a card is dragged, its floating clone shrinks to about the width it
-will have once dropped in a quadrant.
+**No matrix here** (removed at the owner's request). Stage 3 is a single **"Your tasks" list** — the
+global backlog plus the tasks already placed on the open day — in a dashed card headed `Your tasks`
+with a short hint. The list scrolls **vertically only**.
 
-Quadrant colours (fill / border):
-- Fills are the soft Lovable card colours (`--*-fill` in tokens.css): do `#fdede8`, plan `#fef2de`,
-  delegate `#e8f4fb`, delete `#f5f3ed`. On stage 4 each quadrant **label** is tinted with its accent
-  (do = red, plan = yellow, delegate = blue, drop = muted gray), in Outfit 600, matching Lovable.
-- Top-left **Urgent & Important** (`do`): fill `#fdede8`, border `#f24822`
-- Top-right **Important but Not Urgent** (`plan`): fill `#ffecbd`, border `#ffcd29`
-- Bottom-left **Urgent but Not Important** (`delegate`): fill `#c2e5ff`, border `#3dadff`
-- Bottom-right **Not Urgent & Not Important** (`delete`): fill `#d9d9d9`, border `#a5a5a5`
+Each card shows the task title (with its `×n` attempt badge when carried), then a row of the **four
+colour-coded priority icons** (Do now flame / Schedule star / Delegate users / Drop trash) and a
+**red ✕** (delete, with Undo). There is no drag, no matrix and no `▾` menu.
 
-The **global backlog** (`quadrant === null`, see Stage 4) sits in a **"Your tasks" list panel below
-the matrix** (a dashed card headed `Your tasks` with a short hint, like the design) — the same list
-on every day — from which each card is dragged **up** into a quadrant (placing it on the open day).
-The list scrolls inside itself (max-height) so a long backlog never pushes the page down forever.
-Interaction, all must work:
-- **Drag & drop** a card up into a quadrant (Pointer Events; works with mouse *and* touch; the card
-  follows the pointer, the hovered quadrant highlights). On a narrow phone the matrix stacks above
-  the list, so a drag toward the top edge **auto-scrolls** the page to reveal the quadrants.
-- **Tap-to-place:** tap/click a card to select it (highlight), then tap a quadrant (the selection
-  survives scrolling, so on a phone you select in the list, scroll up, and tap a quadrant).
-- **Keyboard:** focus a card, press `1` `2` `3` `4` (do/plan/delegate/delete), or use a small
-  "Place in ▾" menu on the card.
-- Sorted tasks appear inside their quadrant as small white cards and can be dragged again to
-  another quadrant. Cards in quadrants are simple (title only) at this stage.
-- The list is the day's **waiting list**: whatever the user leaves there stays on hold for the day
-  — with forty things to do they pick the ten that matter. When the list is empty, show a small
-  "All placed ✓" state. `Next →` is always enabled; with tasks still waiting it says
-  `Next (2 waiting) →`.
+- **Tap a priority icon to tag** the task with that priority — it sets the task's quadrant and
+  assigns it to the open day. The card **stays in the list**; the chosen icon is **ringed green**.
+- **Tap the active icon again to untag** it (back to the backlog). Enter on a focused icon does the
+  same, so it works by keyboard and touch.
+- The tag decides which quadrant the task lands in on the Stage 4 board.
+- `Next →` is always enabled; while some tasks are still untagged it says `Next (N waiting) →`.
 
-Speech bubble, verbatim (khaki `#b9b098`, dark text):
-**"Organize them by priority:"** then bullets
-`Urgent & Important` · `Important but Not Urgent` · `Urgent but Not Important` ·
-`Not Urgent & Not Important`.
+Quadrant fill / accent colours (the icons here, and the board on Stage 4): do `#fdede8` / red, plan
+`#fef2de` / yellow, delegate `#e8f4fb` / blue, drop `#f5f3ed` / muted gray.
 
 ### Stage 4 — "Ready to start"
 
@@ -412,7 +388,7 @@ rising from the bottom (ten fill the cell). Buttons are pill-shaped; the primary
 2. The calendar always shows all seven columns; a weekend day is on the grid and reachable.
 3. Clicking an empty day opens Stage 2 for that date.
 4. Typing 3 tasks + Enter each creates 3 rows; `+` adds a row; `✕` deletes; reload keeps them.
-5. Stage 3 shows the coloured matrix with the 3 tasks in a "Your tasks" list below it; drag up (mouse) and tap-to-place both work; keyboard 1–4 works.
+5. Stage 3 is a "Your tasks" list (no matrix); tapping a priority icon tags a task (icon ringed green, card stays), tapping it again untags; tagged tasks show in their Stage 4 quadrant.
 6. Stage 4 shows labels Do now / Schedule / Delegate / Drop (with icon tiles + count badges) and the tasks in their quadrants with checkbox + clock + red ✕.
 7. Ticking a task strikes it through and Stage 1 shows one green stripe per done task (ten fill the cell).
 8. Stage 4 popover: ▶️ starts a countdown (timer bar visible, clock icon live); reload → timer still running; countdown end beeps.
