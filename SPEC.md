@@ -12,12 +12,14 @@ careful product engineer would choose and note it in your report.
 
 1. picks a day in a month calendar (Stage 1),
 2. brain-dumps everything they have for that day (Stage 2),
-3. drags each task into one of the 4 quadrants (Stage 3),
-4. works the board: DO / PLAN / DELEGATE / DELETE, ticking tasks done, and fast-organizes each
-   task with a timer, a postpone, or a "send to next day" action (Stage 4).
+3. works the board — Prioritize: files tasks into DO / PLAN / DELEGATE / DELETE, ticks them done,
+   and fast-organizes each with a timer, a postpone, or a "send to next day" action (Stage 3).
 
-The 4 stages are shown as **panels ("little windows") that alternate** with a slide/fade
-transition, driven by a 4-step stepper (the board's original stages 4 and 5 were identical, so the
+A task can also carry a **tag** — a priority label set from the card's own tag button. It is only a
+label: it never files the task into a quadrant and never changes its date.
+
+The 3 stages are shown as **panels ("little windows") that alternate** with a slide/fade
+transition, driven by a 3-tab stepper (the board's original stages 4 and 5 were identical, so the
 owner merged them). The design board's explanatory **speech-bubble tips were removed at the owner's
 request** — no stage shows one, and the header has no "?" button. (The board's texts are kept below
 for reference only; they are not rendered.)
@@ -39,7 +41,7 @@ Product name is always written **Escape the Matrix**.
 
 Common: each stage panel shows just its title (large) — the small "Stage N" kicker was removed at
 the owner's request; the tabs at the top are the only stage indicator.
-Bottom of each panel: `← Back` and `Next →` buttons (Stage 1 has no nav; Stage 4 has "Back to
+Bottom of each panel: `← Back` and `Next →` buttons (Stage 1 has no nav; Stage 3 has "Back to
 calendar" instead of Next), and **between them, centred, a day switcher** — the open day (e.g.
 "Wed 11 Mar") with discreet `‹` `›` arrows that step to the previous / next day in place (the shell
 re-mounts the stage for the new day). It shows on Stages 2, 3 and 4. The stepper at the top also
@@ -70,9 +72,9 @@ Cell design (rounded square, ~1:1, number centred, bold):
   at least one task on it is completed. A day with tasks but nothing done yet shows the plain gray
   tray (like an empty day); the tooltip still reports "0 of N done".
 - **Today:** blue border `#4da3ff` (2px) regardless of tasks; if it has tasks, show the fill too.
-- **Selected day** (the day currently open in stages 2–4): subtle blue glow/ring.
+- **Selected day** (the day currently open in stages 2–3): subtle blue glow/ring.
 - Hover/focus: tooltip/`title` "3 of 5 done" (or "No tasks yet").
-- Click/Enter on a cell → selects that date and always goes to **Stage 4 (Ready)**, whatever the
+- Click/Enter on a cell → selects that date and always goes to **Stage 3 (Prioritize)**, whatever the
   date and whether or not the day has tasks. Write down and Prioritize are one tab away.
 
 The colour key (green = done tasks, one stripe each up to 10 · blue = today · gray = empty) is not
@@ -106,8 +108,8 @@ the (inline-editable) title and a red **✕** (delete, with Undo). At the bottom
 hold unfinished **placed** tasks, a **"Pull them here"** button and a **scrollable list** of those
 tasks — pulling carries them into the backlog. `Next →` needs ≥ 1 backlog item.
 
-**The waiting list is one global backlog** (see Stage 4). Writing a task adds it there
-(`quadrant: null`); the same list shows on Stage 2, Stage 3 and Stage 4, on **every** day, and each
+**The waiting list is one global backlog** (see Stage 3). Writing a task adds it there
+(`quadrant: null`); the same list shows on Stage 2 and Stage 3, on **every** day, and each
 item stays until it is placed in a quadrant, ticked done, or deleted.
 
 Speech bubble (tip), verbatim: **"Write down everything you have for today — all of it!"**
@@ -116,34 +118,8 @@ task rows).
 
 ### Stage 3 — "Place them by priority"
 
-Title: `Place them by priority` (plain).
-
-Stage 3 has **the four quadrant boxes on top** — the same look as the board, showing what the day
-being viewed already holds (read-only here) and updating as you step the date with the day switcher. Under them sits the
-**fixed "Your tasks" list**: every open task, whatever its day, all gathered in one place
-(`store.allTasks()`), in a dashed card headed `Your tasks` with a short hint. Changing the day
-changes the boxes, never the list. The list scrolls **vertically only**.
-
-Each card shows the task title (with its `×n` attempt badge when carried), then a row of the **four
-colour-coded priority icons** (Do now flame / Schedule star / Delegate users / Drop trash) and a
-**red ✕** (delete, with Undo). There is no drag, no matrix and no `▾` menu.
-
-- **Tap a priority icon to tag** the task. A tag is a **label only** (`task.tag`): it never puts the
-  task in a day's box and never changes its date. The card **stays in the list** and the chosen icon
-  **fills with its own colour** (no ring). Because it is a property of the task, it shows on every
-  day.
-- **Tap the active icon again to clear the label.** Enter on a focused icon does the same, so it
-  works by keyboard and touch.
-- Putting a task on a day's board is a separate act, done on **Stage 4** (the waiting list's place
-  glyphs, drag between quadrants, or a quadrant's `+`).
-- `Next →` is always enabled and reads the same as on every other stage.
-
-Quadrant fill / accent colours (the icons here, and the board on Stage 4): do `#fdede8` / red, plan
-`#fef2de` / yellow, delegate `#e8f4fb` / blue, drop `#f5f3ed` / muted gray.
-
-### Stage 4 — "Ready to start"
-
-Title: `Ready to start`. The coloured quadrant cards, each with an **icon tile** (the exact Lovable
+Title: `Place them by priority`. (The old separate "Prioritize" tag-list stage was removed at the
+owner's request: this board *is* Prioritize, and there are three stages in all.) The coloured quadrant cards, each with an **icon tile** (the exact Lovable
 Lucide glyphs: flame / star / users / trash), a bold **label** and a small **subtitle**, plus a
 live **count badge** (owner adopted the Lovable names):
 - `Do now` — *Urgent & Important* (red, flame)
@@ -167,10 +143,10 @@ Any unsorted tasks (still `quadrant: null`) are listed in a slim strip above the
 Speech bubble, verbatim: **"Done mark ✅"** — light-green pill `#cdf4d3` with green border
 `#4cd964`, with a curved arrow/tail pointing at the first task's checkbox.
 
-### Stage 4, continued — fast organize, the waiting list and pulling tasks forward
+### Stage 3, continued — fast organize, the waiting list and pulling tasks forward
 
-(The board's stage 5 "fast organaze" was identical to stage 4, so the owner merged them; its
-actions live on stage 4.) Every action is its own card control, each opening a small popover panel:
+(The board's last two design-board stages were identical, so the owner merged them; their actions
+live on this stage.) Every action is its own card control, each opening a small popover panel:
 
 - **Clock → timer picker:** `Count up` (a stopwatch) or `Countdown` with presets `5 · 15 · 25 · 45 ·
   60 min` + a custom-minutes field. If the task already has time on the clock (paused or stopped), a
@@ -377,7 +353,6 @@ css/account.css                  auth/account UI
 js/app.js js/store.js js/dates.js js/ui.js js/i18n.js js/storage/local.js js/firebase-config.js   core
 js/stages/calendar.js            stage 1
 js/stages/dump.js                stage 2
-js/stages/sort.js                stage 3
 js/stages/board.js js/timer.js   stages 4–5
 js/storage/cloud.js js/auth.js   cloud + account
 firestore.rules  SETUP.md  README.md
@@ -405,7 +380,7 @@ and works under a sub-path — no external font requests). Full source in `css/t
 --font: "Figtree" (body)   --font-display: "Outfit" (headings)
 ```
 
-Quadrant cards (stage 4) carry an icon tile (flame / star / people / trash), the quadrant name as
+Quadrant cards (stage 3) carry an icon tile (flame / star / people / trash), the quadrant name as
 a subtitle and a live count badge. Calendar cells: number top-left, one green stripe per done task
 rising from the bottom (ten fill the cell). Buttons are pill-shaped; the primary is deep green.
 
@@ -413,12 +388,12 @@ rising from the bottom (ten fill the cell). Buttons are pill-shaped; the primary
 
 1. Fresh load shows Stage 1 with the current month; today is outlined blue; the full week (Sun–Sat) is shown; no weekends toggle and no Back/Next on this stage.
 2. The calendar always shows all seven columns; a weekend day is on the grid and reachable.
-3. Clicking a day opens Stage 4 (Ready) for that date.
+3. Clicking a day opens Stage 3 (Prioritize) for that date.
 4. Typing 3 tasks + Enter each creates 3 rows; `+` adds a row; `✕` deletes; reload keeps them.
-5. Stage 3 is a "Your tasks" list (no matrix); tapping a priority icon tags a task (icon ringed green, card stays), tapping it again untags; tagged tasks show in their Stage 4 quadrant.
-6. Stage 4 shows labels Do now / Schedule / Delegate / Drop (with icon tiles + count badges) and the tasks in their quadrants with checkbox + clock + red ✕.
+5. A card's tag button labels the task (the glyph fills with the quadrant colour); the label never moves the card or changes its date.
+6. Stage 3 shows labels Do now / Schedule / Delegate / Drop (with icon tiles + count badges) and the tasks in their quadrants with checkbox + clock + red ✕.
 7. Ticking a task strikes it through and Stage 1 shows one green stripe per done task (ten fill the cell).
-8. Stage 4 popover: ▶️ starts a countdown (timer bar visible, clock icon live); reload → timer still running; countdown end beeps.
+8. Stage 3 popover: ▶️ starts a countdown (timer bar visible, clock icon live); reload → timer still running; countdown end beeps.
 9. 📅 moves the task to the chosen date (visible on that day, gone from this one) with Undo working.
 10. ⏩ moves the task to the next weekday, skipping weekends (Fri → Mon), Undo works.
 11. `…` menu actions work in each quadrant; "Delete all tasks here" only in gray quadrant.

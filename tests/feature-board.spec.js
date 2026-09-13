@@ -28,7 +28,7 @@ const SORTED = () => [
   task('t_3', 'Make - Excel Report', 'plan'),
 ];
 
-function seed(page, { tasks, stage = 4, date = DAY, settings = {} }) {
+function seed(page, { tasks, stage = 3, date = DAY, settings = {} }) {
   const doc = {
     version: 1,
     updatedAt: '2026-03-11T08:00:00.000Z',
@@ -84,7 +84,7 @@ test('stage 4 shows the labelled quadrants, cards with checkbox + clock, and the
   const errors = collectErrors(page);
   await seed(page, { tasks: [...SORTED(), task('t_4', 'Loose end', null)] });
   await page.goto('/');
-  await expect(panel(page).locator('.stage-title')).toHaveText('Ready to start');
+  await expect(panel(page).locator('.stage-title')).toHaveText('Place them by priority');
   await expect(panel(page).locator('.quadrant__label')).toHaveText(['Do now', 'Schedule', 'Delegate', 'Drop']);
   await expect(quadrant(page, 'do').locator('.task-card')).toHaveText(['Marketing Order A5']);
   await expect(quadrant(page, 'plan').locator('.task-card')).toHaveText(['Make - Excel Report']);
@@ -165,9 +165,9 @@ const centre = async (loc) => {
 
 test('the card title opens rename in place; the ⏩ opens the schedule picker', async ({ page }) => {
   const errors = collectErrors(page);
-  await seed(page, { tasks: SORTED(), stage: 4 });
+  await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
-  await expect(panel(page).locator('.stage-title')).toHaveText('Ready to start');
+  await expect(panel(page).locator('.stage-title')).toHaveText('Place them by priority');
 
   // Title → rename input directly (no action row).
   await card(page, 'Marketing Order A5').locator('.task-card__title').click();
@@ -190,7 +190,7 @@ test('the card title opens rename in place; the ⏩ opens the schedule picker', 
 test('a card drags into another quadrant; the red ✕ deletes it with undo', async ({ page }) => {
   const errors = collectErrors(page);
   await page.setViewportSize({ width: 1280, height: 1000 });
-  await seed(page, { tasks: SORTED(), stage: 4 });
+  await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
 
   // Drag "Marketing Order A5" from DO into PLAN (press on the title, move past the threshold, drop).
@@ -220,7 +220,7 @@ test('a card drags into another quadrant; the red ✕ deletes it with undo', asy
 
 test('▶ starts a countdown: clock live, bar visible, survives reload, pause/resume/stop', async ({ page }) => {
   const errors = collectErrors(page);
-  await seed(page, { tasks: SORTED(), stage: 4 });
+  await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
   await expect(bar(page)).toBeHidden();
 
@@ -250,7 +250,7 @@ test('▶ starts a countdown: clock live, bar visible, survives reload, pause/re
   await expect(card(page, 'Marketing Order A5').locator('.task-card__clock')).toHaveClass(/task-card__clock--running/);
   await page.locator('#stepper .step').nth(0).click();
   await expect(bar(page)).toBeVisible();
-  await page.locator('#stepper .step').nth(3).click();
+  await page.locator('#stepper .step').nth(2).click();
 
   await bar(page).locator('.timer-bar__pause').click();
   await expect(bar(page).locator('.timer-bar__pause')).toHaveAttribute('aria-label', 'Resume');
@@ -269,7 +269,7 @@ test('▶ starts a countdown: clock live, bar visible, survives reload, pause/re
 });
 
 test('starting a second timer asks to stop the first; Done ticks the task', async ({ page }) => {
-  await seed(page, { tasks: SORTED(), stage: 4 });
+  await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
   await openTimer(page, 'Marketing Order A5');
   await popover(page).locator('.timer-picker__stopwatch').click();
@@ -291,7 +291,7 @@ test('starting a second timer asks to stop the first; Done ticks the task', asyn
 test('a countdown reaching 0 flashes the bar and shows "Time\'s up!"', async ({ page }) => {
   const errors = collectErrors(page);
   const timer = { mode: 'countdown', durationSec: 3, startedAt: new Date(Date.now() - 1000).toISOString(), elapsedSec: 0, running: true, stoppedAt: null };
-  await seed(page, { tasks: [task('t_1', 'Marketing Order A5', 'do', { timer })], stage: 4 });
+  await seed(page, { tasks: [task('t_1', 'Marketing Order A5', 'do', { timer })], stage: 3 });
   await page.goto('/');
   await expect(bar(page)).toBeVisible();
   await expect(bar(page)).toHaveClass(/timer-bar--finished/, { timeout: 6000 });
@@ -306,7 +306,7 @@ test('a countdown reaching 0 flashes the bar and shows "Time\'s up!"', async ({ 
 });
 
 test('📅 postpones to the chosen date (min today) with Undo', async ({ page }) => {
-  await seed(page, { tasks: SORTED(), stage: 4 });
+  await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
   const target = shiftDays(new Date(), 3);
   await openSchedule(page, 'Make - Excel Report');
@@ -330,7 +330,7 @@ const fridayTasks = (friday) => [
 test('⏩ sends a Friday task to Monday (skips the weekend) with Undo', async ({ page }) => {
   const friday = nextWeekday(new Date(), 5);
   const monday = shiftDays(friday, 3);
-  await seed(page, { tasks: fridayTasks(friday), stage: 4, date: toKey(friday) });
+  await seed(page, { tasks: fridayTasks(friday), stage: 3, date: toKey(friday) });
   await page.goto('/');
   await openSchedule(page, 'Marketing Order A5');
   await popover(page).locator('.schedule-picker__nextday').click();
@@ -343,7 +343,7 @@ test('⏩ sends a Friday task to Monday (skips the weekend) with Undo', async ({
 });
 
 test('two "Undo" toasts each revert their own delete, in any order', async ({ page }) => {
-  await seed(page, { tasks: [...SORTED(), task('t_5', 'Call supplier', 'do')], stage: 4 });
+  await seed(page, { tasks: [...SORTED(), task('t_5', 'Call supplier', 'do')], stage: 3 });
   await page.goto('/');
   const del = async (title) => {
     await card(page, title).locator('.task-card__delete').click(); // the red ✕ deletes at once
@@ -362,7 +362,7 @@ test('two "Undo" toasts each revert their own delete, in any order', async ({ pa
 
 test('📅 postpones a task to any day, a weekend included, and it shows on the calendar', async ({ page }) => {
   const saturday = nextWeekday(new Date(), 6);
-  await seed(page, { tasks: SORTED(), stage: 4 });
+  await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
   await openSchedule(page, 'Invoice Send');
   await popover(page).locator('.schedule-picker__date').fill(toKey(saturday));
@@ -381,7 +381,7 @@ test('📅 postpones a task to any day, a weekend included, and it shows on the 
 });
 
 test('the clock icon opens the timer picker directly; presets carry the "min" unit', async ({ page }) => {
-  await seed(page, { tasks: SORTED(), stage: 4 });
+  await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
   const clock = card(page, 'Invoice Send').locator('.task-card__clock');
   expect(await clock.evaluate((el) => el.tagName)).toBe('BUTTON');
@@ -398,7 +398,7 @@ test('the clock icon opens the timer picker directly; presets carry the "min" un
 test('a countdown that ran out while the page was closed alarms once after the reload', async ({ page }) => {
   const errors = collectErrors(page);
   const timer = { mode: 'countdown', durationSec: 60, startedAt: new Date(Date.now() - 120_000).toISOString(), elapsedSec: 0, running: true, stoppedAt: null };
-  await seed(page, { tasks: [task('t_1', 'Marketing Order A5', 'do', { timer })], stage: 4 });
+  await seed(page, { tasks: [task('t_1', 'Marketing Order A5', 'do', { timer })], stage: 3 });
   await page.goto('/');
   await expect(bar(page)).toHaveClass(/timer-bar--finished/);
   await expect(bar(page)).toHaveClass(/timer-bar--flash/);
@@ -413,22 +413,23 @@ test('a countdown that ran out while the page was closed alarms once after the r
 
 test('a stage change starts at the top of the page and moves focus to the new stage title', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 700 });
-  const many = Array.from({ length: 8 }, (_, i) => task(`t_${i + 1}`, `Task ${i + 1}`, 'do'));
-  await seed(page, { tasks: many, stage: 3, settings: { tipsSeen: { 1: true, 2: true, 3: true, 4: false } } });
+  // A long backlog on Write down, so the page scrolls and Next is enabled.
+  const many = Array.from({ length: 8 }, (_, i) => task(`t_${i + 1}`, `Task ${i + 1}`, null));
+  await seed(page, { tasks: many, stage: 2, settings: { tipsSeen: { 1: true, 2: true, 3: true, 4: false } } });
   await page.goto('/');
-  // Scroll well down the long list first (Back / Next now sit at the top, beside the date).
+  // Scroll well down the list first (Back / Next now sit at the top, beside the date).
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(100);
   const next = panel(page).locator('.stage-nav__next');
   await next.click();
-  await expect(panel(page).locator('.stage-title')).toHaveText('Ready to start');
+  await expect(panel(page).locator('.stage-title')).toHaveText('Place them by priority');
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   await expect(panel(page).locator('.stage-title')).toBeFocused();
   await expect(page.locator('.bubble')).toHaveCount(0); // tips were removed
 });
 
 test('keyboard: Tab stays inside the task popover, Escape closes it', async ({ page }) => {
-  await seed(page, { tasks: SORTED(), stage: 4 });
+  await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
   await openSchedule(page, 'Marketing Order A5');
   await popover(page).locator('.schedule-picker button[type="submit"]').focus(); // the last control
@@ -442,7 +443,7 @@ test('keyboard: Tab stays inside the task popover, Escape closes it', async ({ p
 test('desktop: one long quadrant does not stretch the other three', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   const many = Array.from({ length: 25 }, (_, i) => task(`t_${i + 10}`, `Task ${i + 1}`, 'do'));
-  await seed(page, { tasks: [...many, task('t_2', 'Invoice Send', 'delegate'), task('t_3', 'Make - Excel Report', 'plan')], stage: 4 });
+  await seed(page, { tasks: [...many, task('t_2', 'Invoice Send', 'delegate'), task('t_3', 'Make - Excel Report', 'plan')], stage: 3 });
   await page.goto('/');
   const heights = {};
   for (const q of ['do', 'plan', 'delegate', 'delete']) heights[q] = (await quadrant(page, q).boundingBox()).height;
@@ -453,7 +454,7 @@ test('desktop: one long quadrant does not stretch the other three', async ({ pag
 });
 
 test('no speech-bubble tips and no "?" button on the board (tips were removed)', async ({ page }) => {
-  await seed(page, { tasks: SORTED(), stage: 4, settings: { tipsSeen: { 1: false, 2: false, 3: false, 4: false } } });
+  await seed(page, { tasks: SORTED(), stage: 3, settings: { tipsSeen: { 1: false, 2: false, 3: false, 4: false } } });
   await page.goto('/');
   await expect(page.locator('.bubble')).toHaveCount(0);
   await expect(page.locator('#tip-button')).toHaveCount(0);
@@ -461,7 +462,7 @@ test('no speech-bubble tips and no "?" button on the board (tips were removed)',
 
 test('mobile: no horizontal scroll with the popover and the timer bar open', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 740 });
-  await seed(page, { tasks: SORTED(), stage: 4 });
+  await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
   await openTimer(page, 'Marketing Order A5');
   await popover(page).locator('.timer-picker__preset', { hasText: '25' }).click();
@@ -478,7 +479,7 @@ test('mobile: no horizontal scroll with the popover and the timer bar open', asy
 for (const [label, viewport] of Object.entries({ desktop: { width: 1280, height: 900 }, mobile: { width: 375, height: 760 } })) {
   test(`screenshots (${label})`, async ({ page }) => {
     await page.setViewportSize(viewport);
-    await seed(page, { tasks: SORTED(), stage: 4 });
+    await seed(page, { tasks: SORTED(), stage: 3 });
     await page.goto('/');
     await expect(panel(page).locator('.quadrant__label').first()).toBeVisible();
     await page.screenshot({ path: path.join(SHOTS, `${label}-stage4.png`), fullPage: true, animations: 'disabled' });

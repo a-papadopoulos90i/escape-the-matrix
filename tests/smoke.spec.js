@@ -7,7 +7,6 @@ const TITLES = {
   1: 'Pick your day',
   2: 'Write it all down',
   3: 'Place them by priority',
-  4: 'Ready to start',
 };
 
 const activePanel = (page) => page.locator('#stage .panel:not(.panel--ghost)');
@@ -31,11 +30,11 @@ function seed(page, { ui, doc } = {}) {
   );
 }
 
-test('loads with the title, a 4-step stepper and no console errors', async ({ page }) => {
+test('loads with the title, a 3-step stepper and no console errors', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/');
   await expect(page).toHaveTitle('Escape the Matrix');
-  await expect(page.locator('#stepper .step')).toHaveCount(4);
+  await expect(page.locator('#stepper .step')).toHaveCount(3);
   await expect(page.locator('#stepper .step').nth(0)).toHaveAttribute('aria-current', 'step');
   await expect(activeTitle(page)).toHaveText(TITLES[1]);
   await expect(page.locator('#banner')).toContainText("You're in free mode");
@@ -53,7 +52,7 @@ test('clicking each stepper step shows the right stage title', async ({ page }) 
   const errors = collectErrors(page);
   await page.goto('/');
   const steps = page.locator('#stepper .step');
-  for (const n of [2, 3, 4, 1]) {
+  for (const n of [2, 3, 1]) {
     await steps.nth(n - 1).click();
     await expect(activeTitle(page)).toHaveText(TITLES[n]);
     await expect(steps.nth(n - 1)).toHaveAttribute('aria-current', 'step');
@@ -70,17 +69,15 @@ test('Back / Next buttons walk the stages; stage 4 returns to the calendar', asy
   await expect(activePanel(page).locator('.stage-nav')).toHaveCount(0);
   // Picking a day opens Ready; the dump is one tab away.
   await activePanel(page).locator('.calendar__day[data-key="2026-03-19"]').click();
-  await expect(activeTitle(page)).toHaveText(TITLES[4]);
+  await expect(activeTitle(page)).toHaveText(TITLES[3]);
   await page.locator('#stepper .step').nth(1).click();
   await expect(activeTitle(page)).toHaveText(TITLES[2]);
 
   // Stage 2 only lets Next through once the day has a task (SPEC §2).
   await activePanel(page).locator('.dump__input').fill('Smoke task');
   await page.keyboard.press('Enter');
-  for (const n of [3, 4]) {
-    await activePanel(page).locator('.stage-nav__next').click();
-    await expect(activeTitle(page)).toHaveText(TITLES[n]);
-  }
+  await activePanel(page).locator('.stage-nav__next').click();
+  await expect(activeTitle(page)).toHaveText(TITLES[3]);
   await expect(activePanel(page).locator('.stage-nav__next')).toHaveText('Back to calendar');
   await activePanel(page).locator('.stage-nav__next').click();
   await expect(activeTitle(page)).toHaveText(TITLES[1]);
@@ -106,7 +103,7 @@ test('no speech-bubble tips and no "?" button (tips were removed)', async ({ pag
   await page.goto('/');
   await expect(page.locator('.bubble')).toHaveCount(0);
   await expect(page.locator('#tip-button')).toHaveCount(0);
-  for (const n of [2, 3, 4]) {
+  for (const n of [2, 3]) {
     await page.locator('#stepper .step').nth(n - 1).click();
     await expect(page.locator('.bubble')).toHaveCount(0);
   }
@@ -139,7 +136,7 @@ test('per-device UI state (stage + selected day) is restored on reload', async (
   await expect(activeTitle(page)).toHaveText(TITLES[3]);
   await expect(activePanel(page)).toHaveAttribute('data-stage', '3');
   // The day it restored is the one whose tasks show on the board.
-  await page.locator('#stepper .step').nth(3).click();
+  await page.locator('#stepper .step').nth(2).click();
   await expect(activePanel(page).locator('.task-card')).toContainText(['A']);
 });
 
@@ -159,8 +156,8 @@ test('mobile viewport: no horizontal scroll and the shell stays usable', async (
   await page.goto('/');
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
-  await page.locator('#stepper .step').nth(3).click();
-  await expect(activeTitle(page)).toHaveText(TITLES[4]);
+  await page.locator('#stepper .step').nth(2).click();
+  await expect(activeTitle(page)).toHaveText(TITLES[3]);
   await page.locator('#stage .panel--ghost').waitFor({ state: 'detached' });
   const overflowAfter = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflowAfter).toBeLessThanOrEqual(0);

@@ -60,10 +60,15 @@ function normalizeTask(raw) {
     title: typeof raw.title === 'string' ? raw.title : '',
     date: raw.date,
     quadrant: QUADRANTS.includes(raw.quadrant) ? raw.quadrant : null,
-    // The priority label the user puts on a task in Stage 3. It travels with the task and is
-    // independent of where (or whether) the task sits on a day's board. Documents written before
-    // tags existed inherit the task's quadrant so nothing looks unlabelled.
-    tag: QUADRANTS.includes(raw.tag) ? raw.tag : QUADRANTS.includes(raw.quadrant) ? raw.quadrant : null,
+    // The priority label the user puts on a task. It travels with the task and is independent of
+    // where (or whether) the task sits on a day's board. A doc written before tags existed has no
+    // `tag` key at all: those inherit the quadrant once, so nothing looks unlabelled after the
+    // upgrade. An explicit null stays null — clearing a label must survive a reload.
+    tag: QUADRANTS.includes(raw.tag)
+      ? raw.tag
+      : raw.tag === undefined && QUADRANTS.includes(raw.quadrant)
+        ? raw.quadrant
+        : null,
     order: Number.isFinite(raw.order) ? raw.order : 0,
     done: raw.done === true,
     doneAt: typeof raw.doneAt === 'string' ? raw.doneAt : null,

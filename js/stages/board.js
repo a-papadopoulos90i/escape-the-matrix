@@ -1,4 +1,4 @@
-// Stage 4 — the working board (SPEC §2): labelled coloured quadrants holding task cards
+// Stage 3 — "Place them by priority": the working board (SPEC §2): labelled coloured quadrants holding task cards
 // (checkbox · title · clock), a "…" menu per quadrant, the day's waiting list under the matrix,
 // the strip that pulls unfinished tasks in from earlier days, and the fast-organize popover
 // (timer / postpone / next day) opened from a task title or its clock.
@@ -36,7 +36,7 @@ let suppressClick = false; // swallow the click that follows a completed drag
 export function mount(container, nextCtx) {
   ctx = nextCtx;
   const { ui, i18n } = ctx;
-  const nav = ui.stageNav({ onBack: () => ctx.goTo(3), onNext: () => ctx.goTo(1), nextLabel: i18n.t('nav.backToCalendar'), day: dayNav(ctx) });
+  const nav = ui.stageNav({ onBack: () => ctx.goTo(2), onNext: () => ctx.goTo(1), nextLabel: i18n.t('nav.backToCalendar'), day: dayNav(ctx) });
   boardEl = ui.h('div', {
     class: 'board',
     onPointerdown: onPointerDown,
@@ -47,7 +47,7 @@ export function mount(container, nextCtx) {
   });
   boardEl.addEventListener('touchmove', onTouchMove, { passive: false }); // must be cancelable
   boardEl.addEventListener('click', onClickCapture, true); // swallow the post-drag click
-  root = ui.h('div', { class: 'stage-body' }, nav, ui.stageHeader({ stage: 4, title: i18n.t('stage.4.title') }), boardEl);
+  root = ui.h('div', { class: 'stage-body' }, nav, ui.stageHeader({ stage: 3, title: i18n.t('stage.3.title') }), boardEl);
   container.append(root);
   render();
   unsubscribe = ctx.store.subscribe(onStoreChange);
@@ -189,11 +189,14 @@ function taskCard(task) {
  *  the box the card sits in — click it to change the label. Untagged tasks show no icon. */
 function priorityButton(task) {
   const { ui, i18n } = ctx;
-  if (!task.tag) return null;
+  // Untagged cards still show the button (a muted tag glyph) — it is the only way to add a label.
+  const glyph = task.tag
+    ? `<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">${QUAD_ICON[task.tag]}</svg>`
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M3.5 11.6V4.6a1 1 0 0 1 1-1h7l8.4 8.4-8 8z"/><circle cx="7.6" cy="7.6" r="1.3"/></svg>';
   return ui.h(
     'button',
     {
-      class: `task-card__priority priority-icon--${task.tag}`,
+      class: `task-card__priority ${task.tag ? `priority-icon--${task.tag}` : 'task-card__priority--none'}`,
       type: 'button',
       'aria-haspopup': 'menu',
       'aria-label': i18n.t('board.changePriority'),
@@ -201,10 +204,7 @@ function priorityButton(task) {
       dataset: { focusKey: `priority:${task.id}` },
       onClick: (event) => openPriorityMenu(task, event.currentTarget),
     },
-    ui.h('span', {
-      'aria-hidden': 'true',
-      html: `<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">${QUAD_ICON[task.tag]}</svg>`,
-    }),
+    ui.h('span', { 'aria-hidden': 'true', html: glyph }),
   );
 }
 

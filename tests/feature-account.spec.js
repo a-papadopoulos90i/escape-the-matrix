@@ -16,7 +16,7 @@ const SETTINGS = { showWeekends: false, bannerDismissed: false, tipsSeen: { 1: t
 const LOCAL_DOC = { version: 1, updatedAt: '2026-03-05T00:00:00.000Z', settings: SETTINGS, tasks: [task('t_local', 'Local task')] };
 const REMOTE_DOC = { version: 1, updatedAt: '2026-03-10T00:00:00.000Z', settings: SETTINGS, tasks: [task('t_remote', 'Remote task', { quadrant: 'plan' })] };
 const REMOTE_ENVELOPE = { doc: REMOTE_DOC, updatedAt: '2026-03-10T00:00:00.000Z', email: 'andreas@example.com' };
-const UI_STATE = { selectedDate: '2026-03-11', stage: 4, calendarMonth: '2026-03' };
+const UI_STATE = { selectedDate: '2026-03-11', stage: 3, calendarMonth: '2026-03' };
 
 function seed(page, { ui, doc } = {}) {
   return page.addInitScript(

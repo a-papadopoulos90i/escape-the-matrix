@@ -957,3 +957,15 @@ body.has-timer-bar .toast-root {
     font-size: var(--text-md);
   }
 }
+
+/* An untagged card's tag button: muted until a label is picked. */
+.task-card__priority--none {
+  color: var(--muted);
+  opacity: 0.5;
+}
+
+.task-card__priority--none:hover,
+.task-card__priority--none:focus-visible {
+  opacity: 1;
+  color: var(--ink);
+}

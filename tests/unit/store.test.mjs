@@ -125,6 +125,12 @@ test('a doc written before tags existed inherits each task\'s quadrant as its ta
   assert.equal(byId.t_free.tag, null);
 });
 
+test('a label cleared on a placed task stays cleared through a reload', () => {
+  const { store } = makeStore({ tasks: [{ id: 't_p', title: 'placed', date: DAY, quadrant: 'do', tag: null }] });
+  assert.equal(store.get().tasks[0].tag, null); // an explicit null is never re-inferred from the quadrant
+  assert.equal(store.get().tasks[0].quadrant, 'do');
+});
+
 test('removeTask leaves a hidden tombstone; undo restores the task with its fields', () => {
   const { store } = makeStore();
   const task = store.addTask({ title: 'keep me', date: DAY, quadrant: 'delegate' });

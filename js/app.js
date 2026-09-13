@@ -9,15 +9,14 @@ import * as i18n from './i18n.js';
 import { openTimeReport } from './report.js';
 import * as calendar from './stages/calendar.js';
 import * as dump from './stages/dump.js';
-import * as sort from './stages/sort.js';
 import * as board from './stages/board.js';
 import { init as initTimer } from './timer.js';
 
 const { t } = i18n;
-const STAGE_COUNT = 4;
-// One themed icon per stage: calendar → note-keeping → organizing (the 2×2 matrix) → executing.
-const STEP_ICONS = ['calendar', 'pencil', 'grid', 'play'];
-const STAGE_MODULES = { 1: calendar, 2: dump, 3: sort, 4: board };
+const STAGE_COUNT = 3;
+// One themed icon per stage: calendar → note-keeping → organizing (the 2×2 matrix).
+const STEP_ICONS = ['calendar', 'pencil', 'grid'];
+const STAGE_MODULES = { 1: calendar, 2: dump, 3: board };
 // Each stage's bubbles come from i18n.tips with their default tone/tail; a stage may override
 // those via data-tip-tone / data-tip-tail on its [data-tip-anchor] element. A bubble that is
 // not anchored sits under the stage header — which is also where every tip goes on narrow
@@ -44,7 +43,7 @@ const state = {
 function restoreUiState() {
   const saved = local.loadUi();
   const stage = Number(saved.stage);
-  if (Number.isInteger(stage) && stage >= 1) state.stage = Math.min(stage, STAGE_COUNT); // the former stage 5 is now 4
+  if (Number.isInteger(stage) && stage >= 1) state.stage = Math.min(stage, STAGE_COUNT); // older saves may point at a stage that no longer exists
   if (dates.isValidKey(saved.selectedDate)) state.selectedDate = saved.selectedDate;
   state.calendarMonth = dates.isValidMonthKey(saved.calendarMonth) ? saved.calendarMonth : dates.monthOfKey(state.selectedDate);
 }

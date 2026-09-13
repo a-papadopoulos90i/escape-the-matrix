@@ -42,7 +42,7 @@ const bubble = (page) => page.locator('.bubble');
 const bar = (page) => page.locator('.timer-bar');
 
 const task = (id, title, date, quadrant = null, extra = {}) => ({
-  id, title, date, quadrant, order: Number(id.slice(2)), done: false, doneAt: null, createdAt: 'x', updatedAt: 'x', timer: null, ...extra,
+  id, title, date, quadrant, tag: null, order: Number(id.slice(2)), done: false, doneAt: null, createdAt: 'x', updatedAt: 'x', timer: null, ...extra,
 });
 const sortedTasks = (date = TODAY) => [
   task('t_1', TITLES[0], date, 'do'),
@@ -165,7 +165,7 @@ test('walkthrough: pick a day, dump, sort, work the board, organize, back to a g
   await closeTip(page);
   await cell(page, '2026-03-12').click();
   await settled(page);
-  await expect(stageTitle(page)).toHaveText('Ready to start'); // a day always opens in Ready
+  await expect(stageTitle(page)).toHaveText('Place them by priority'); // a day always opens in Ready
   await goToStage(page, 2);
   await expect(stageTitle(page)).toHaveText('Write it all down');
   await closeTip(page);
@@ -176,21 +176,8 @@ test('walkthrough: pick a day, dump, sort, work the board, organize, back to a g
   await panel(page).locator('.stage-nav__next').click();
   await settled(page);
 
-  // Stage 3 → tag each task with a priority (the card stays in the list).
+  // Stage 3 (Prioritize) → place each task on today's board from the waiting list.
   await expect(stageTitle(page)).toHaveText('Place them by priority');
-  await closeTip(page);
-  await expect(pileCards(page)).toHaveCount(3);
-  await expect(panel(page).locator('.stage-nav__next')).toHaveText('Next →');
-  const tag = (title, q) => panel(page).locator('.sort-card', { hasText: title }).locator(`.priority-icon--${q}`);
-  await tag(TITLES[0], 'do').click();
-  await tag(TITLES[1], 'delegate').click();
-  await tag(TITLES[2], 'plan').click();
-  await expect(panel(page).locator('.stage-nav__next')).toHaveText('Next →');
-  await panel(page).locator('.stage-nav__next').click();
-  await settled(page);
-
-  // Stage 4 → tags are only labels, so place each task on today's board from the waiting list.
-  await expect(stageTitle(page)).toHaveText('Ready to start');
   await closeTip(page);
   const place = (title, q) => panel(page).locator('.waiting-card', { hasText: title }).locator(`.waiting-place--${q}`);
   await place(TITLES[0], 'do').click();
@@ -264,8 +251,8 @@ test('3. clicking a day opens Ready for that date', async ({ page }) => {
   await expect(cell(page, '2026-03-19')).toHaveAttribute('title', 'No tasks yet');
   await cell(page, '2026-03-19').click();
   await settled(page);
-  await expect(step(page, 4)).toHaveAttribute('aria-current', 'step');
-  await expect(stageTitle(page)).toHaveText('Ready to start');
+  await expect(step(page, 3)).toHaveAttribute('aria-current', 'step');
+  await expect(stageTitle(page)).toHaveText('Place them by priority');
   expect((await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), UI_KEY)).selectedDate).toBe('2026-03-19');
 });
 
@@ -300,47 +287,38 @@ test('4. adding tasks builds a numbered list; ✕ deletes with Undo; reload keep
 
 // ---------- 5: sorting ----------
 
-test('5. Stage 3: tagging labels a task without placing it; the label persists', async ({ page }) => {
+test('5. a card\'s tag button labels the task without moving it', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 1100 });
   await page.clock.setFixedTime(FIXED_NOW);
-  await seed(page, { tasks: unsortedTasks(), stage: 3 });
+  await seed(page, { tasks: sortedTasks(), stage: 3 });
   await page.goto('/');
 
   await expect(stageTitle(page)).toHaveText('Place them by priority');
-  await expect(panel(page).locator('.sort__matrix .quadrant')).toHaveCount(4); // the four boxes preview the day
-  await expect(pileCards(page)).toHaveText(TITLES);
-
-  const iconFor = (title, q) => panel(page).locator('.sort-card', { hasText: title }).locator(`.priority-icon--${q}`);
-  // Tag each task; the card stays in the list with its chosen icon ringed.
-  await iconFor(TITLES[0], 'do').click();
-  await iconFor(TITLES[1], 'delete').click();
-  await iconFor(TITLES[2], 'delegate').click();
-  await expect(iconFor(TITLES[0], 'do')).toHaveClass(/is-active/);
-  await expect(pileCards(page)).toHaveCount(3); // all still listed
-
-  // Re-tag: tapping a different icon changes the priority.
-  await iconFor(TITLES[1], 'plan').click();
-  await expect(iconFor(TITLES[1], 'plan')).toHaveClass(/is-active/);
-  await waitForSaved(page, (doc) => taskById(doc, 't_1').tag === 'do' && taskById(doc, 't_2').tag === 'plan' && taskById(doc, 't_3').tag === 'delegate');
-  // The label never moves a task onto a day.
-  await waitForSaved(page, (doc) => ['t_1', 't_2', 't_3'].every((id) => taskById(doc, id).quadrant === null));
-
-  // Stage 4 keeps its coloured boxes empty; the tasks wait to be placed there.
-  await goToStage(page, 4);
   for (const [q, fill] of [['do', RGB.redFill], ['plan', RGB.yellowFill], ['delegate', RGB.blueFill], ['delete', RGB.grayFill]]) {
     await expect(quadrant(page, q)).toHaveCSS('background-color', fill);
-    await expect(quadrant(page, q).locator('.task-card')).toHaveCount(0);
   }
-  await expect(panel(page).locator('.waiting-card')).toHaveCount(3);
+
+  // Every card carries a tag button; untagged it is the muted placeholder.
+  const tagBtn = (title) => card(page, title).locator('.task-card__priority');
+  await expect(tagBtn(TITLES[0])).toHaveClass(/task-card__priority--none/);
+
+  await tagBtn(TITLES[0]).click();
+  await page.getByRole('menuitem', { name: 'Schedule' }).click();
+  await expect(tagBtn(TITLES[0])).toHaveClass(/priority-icon--plan/);
+  await waitForSaved(page, (doc) => taskById(doc, 't_1').tag === 'plan');
+
+  // Labelling never moves the card: it stays in the quadrant it was placed in.
+  await expect(quadrant(page, 'do').locator('.task-card')).toHaveText([TITLES[0]]);
+  await waitForSaved(page, (doc) => taskById(doc, 't_1').quadrant === 'do');
 });
 
 // ---------- 6–7: the board ----------
 
 test('6. Stage 4 shows the four labels and the tasks in their quadrants with checkbox + clock', async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW);
-  await seed(page, { tasks: sortedTasks(), stage: 4 });
+  await seed(page, { tasks: sortedTasks(), stage: 3 });
   await page.goto('/');
-  await expect(stageTitle(page)).toHaveText('Ready to start');
+  await expect(stageTitle(page)).toHaveText('Place them by priority');
   await expect(panel(page).locator('.quadrant__label')).toHaveText(['Do now', 'Schedule', 'Delegate', 'Drop']);
   await expect(quadrant(page, 'do').locator('.task-card')).toHaveText([TITLES[0]]);
   await expect(quadrant(page, 'plan').locator('.task-card')).toHaveText([TITLES[2]]);
@@ -355,7 +333,7 @@ test('6. Stage 4 shows the four labels and the tasks in their quadrants with che
 
 test('7. ticking a task strikes it through and Stage 1 shows one green stripe per done task', async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW);
-  await seed(page, { tasks: sortedTasks('2026-03-12'), stage: 4, date: '2026-03-12' });
+  await seed(page, { tasks: sortedTasks('2026-03-12'), stage: 3, date: '2026-03-12' });
   await page.goto('/');
   await card(page, TITLES[0]).locator('.task-card__check').check();
   const done = card(page, TITLES[0]);
@@ -375,7 +353,7 @@ test('7. ticking a task strikes it through and Stage 1 shows one green stripe pe
 
   await day.click();
   await settled(page);
-  await expect(stageTitle(page)).toHaveText('Ready to start');
+  await expect(stageTitle(page)).toHaveText('Place them by priority');
   await done.locator('.task-card__check').uncheck();
   await expect(done).not.toHaveClass(/task-card--done/);
 });
@@ -401,9 +379,9 @@ test('8. ▶ starts a countdown: timer bar + live clock icon, still running afte
   const errors = collectErrors(page);
   const today = toKey(new Date()); // real time: the countdown has to tick
   await fakeAudio(page);
-  await seed(page, { tasks: sortedTasks(today), stage: 4, date: today });
+  await seed(page, { tasks: sortedTasks(today), stage: 3, date: today });
   await page.goto('/');
-  await expect(stageTitle(page)).toHaveText('Ready to start');
+  await expect(stageTitle(page)).toHaveText('Place them by priority');
 
   await card(page, TITLES[0]).locator('.task-card__clock').click(); // the clock opens the timer picker
   await expect(popover(page).locator('.task-popover__title')).toHaveText(TITLES[0]);
@@ -439,7 +417,7 @@ test('8b. a countdown reaching 0 beeps (WebAudio), flashes the bar and says "Tim
   const today = toKey(new Date());
   const timer = { mode: 'countdown', durationSec: 2, startedAt: new Date().toISOString(), elapsedSec: 0, running: true, stoppedAt: null };
   await fakeAudio(page);
-  await seed(page, { tasks: [task('t_1', TITLES[0], today, 'do', { timer })], stage: 4, date: today });
+  await seed(page, { tasks: [task('t_1', TITLES[0], today, 'do', { timer })], stage: 3, date: today });
   await page.goto('/');
   await expect(bar(page)).toBeVisible();
   await expect(bar(page)).toHaveClass(/timer-bar--finished/, { timeout: 8000 });
@@ -456,7 +434,7 @@ test('8b. a countdown reaching 0 beeps (WebAudio), flashes the bar and says "Tim
 
 test('9. 📅 moves the task to the chosen date (gone here, visible there) and Undo brings it back', async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW);
-  await seed(page, { tasks: sortedTasks(), stage: 4 });
+  await seed(page, { tasks: sortedTasks(), stage: 3 });
   await page.goto('/');
 
   const postpone = async () => {
@@ -481,7 +459,7 @@ test('9. 📅 moves the task to the chosen date (gone here, visible there) and U
   await expect(cell(page, '2026-03-20')).toHaveAttribute('title', '0 of 1 done');
   await cell(page, '2026-03-20').click();
   await settled(page);
-  await expect(stageTitle(page)).toHaveText('Ready to start');
+  await expect(stageTitle(page)).toHaveText('Place them by priority');
   expect((await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), UI_KEY)).selectedDate).toBe('2026-03-20');
   await expect(quadrant(page, 'plan').locator('.task-card')).toHaveText([TITLES[2]]);
 });
@@ -489,7 +467,7 @@ test('9. 📅 moves the task to the chosen date (gone here, visible there) and U
 test('10. ⏩ sends a Friday task to Monday (skips the weekend); Undo works', async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW);
   const friday = '2026-03-13';
-  await seed(page, { tasks: sortedTasks(friday), stage: 4, date: friday });
+  await seed(page, { tasks: sortedTasks(friday), stage: 3, date: friday });
   await page.goto('/');
 
   await openSchedule(page, TITLES[0]);
@@ -508,7 +486,7 @@ test('10. ⏩ sends a Friday task to Monday (skips the weekend); Undo works', as
 test('11. each quadrant has a "+" that adds a task inline; the red ✕ deletes (no "…" menu)', async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW);
   const tasks = ['do', 'plan', 'delegate', 'delete'].flatMap((q, i) => [task(`t_${i * 2 + 1}`, `${q} one`, TODAY, q), task(`t_${i * 2 + 2}`, `${q} two`, TODAY, q)]);
-  await seed(page, { tasks, stage: 4 });
+  await seed(page, { tasks, stage: 3 });
   await page.goto('/');
 
   await expect(panel(page).locator('.quadrant__add')).toHaveCount(4);
@@ -537,7 +515,7 @@ test('12. no speech-bubble tips and no "?" button on any stage (tips were remove
   await page.goto('/');
   await expect(bubble(page)).toHaveCount(0);
   await expect(page.locator('#tip-button')).toHaveCount(0);
-  for (const n of [2, 3, 4]) {
+  for (const n of [2, 3]) {
     await goToStage(page, n);
     await expect(bubble(page)).toHaveCount(0);
   }
@@ -581,13 +559,13 @@ test('13. stepper and ←/→ keys navigate with animated transitions; reduced m
   await page.locator('body').click({ position: { x: 5, y: 400 } });
   await page.keyboard.press('ArrowRight');
   await expect(stageTitle(page)).toHaveText('Place them by priority');
-  await expect(page.locator('#announcer')).toHaveText('Stage 3 of 4: Prioritize');
+  await expect(page.locator('#announcer')).toHaveText('Stage 3 of 3: Prioritize');
   await settled(page);
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await watchTransitions(page);
-  await step(page, 4).click();
-  await expect(panel(page)).toHaveAttribute('data-stage', '4');
+  await step(page, 3).click();
+  await expect(panel(page)).toHaveAttribute('data-stage', '3');
   await expect(page.locator('#stage .panel')).toHaveCount(1);
   expect(await transitions(page)).toEqual([]);
 });
@@ -635,7 +613,7 @@ test.describe('mobile', () => {
     await page.clock.setFixedTime(FIXED_NOW);
     await seed(page, { tasks: unsortedTasks(), stage: 1, tipsSeen: false, settings: { bannerDismissed: false } });
     await page.goto('/');
-    for (const n of [1, 2, 3, 4]) {
+    for (const n of [1, 2, 3]) {
       if (n > 1) await goToStage(page, n);
       await expect(bubble(page)).toHaveCount(0); // tips were removed
       expect(await overflow(page), `stage ${n}`).toBeLessThanOrEqual(0);
@@ -644,15 +622,9 @@ test.describe('mobile', () => {
     const matrix = panel(page).locator('.matrix');
     expect((await matrix.evaluate((el) => getComputedStyle(el).gridTemplateColumns)).split(' ')).toHaveLength(1);
 
-    await goToStage(page, 3);
     await expect(bubble(page)).toHaveCount(0);
-    // Tag the first task by tapping its "Do now" priority icon; it stays in the list.
-    const firstCard = panel(page).locator('.sort-card').first();
-    await firstCard.locator('.priority-icon--do').click();
-    await expect(firstCard.locator('.priority-icon--do')).toHaveClass(/is-active/);
     expect(await overflow(page)).toBeLessThanOrEqual(0);
 
-    await goToStage(page, 4);
     await openPopover(page, TITLES[0]);
     expect(await overflow(page)).toBeLessThanOrEqual(0);
     const box = await popover(page).boundingBox();
@@ -671,7 +643,7 @@ test('18. no console errors on any stage and no network needed after the first l
   await page.clock.setFixedTime(FIXED_NOW);
   await seed(page, { tasks: sortedTasks(), stage: 1, tipsSeen: false });
   await page.goto('/');
-  for (const n of [2, 3, 4]) await goToStage(page, n);
+  for (const n of [2, 3]) await goToStage(page, n);
   await openPopover(page, TITLES[0]);
   await page.keyboard.press('Escape');
   const loaded = requests.length;
@@ -680,9 +652,6 @@ test('18. no console errors on any stage and no network needed after the first l
   await goToStage(page, 2);
   await typeTasks(page, ['Offline task']);
   await goToStage(page, 3);
-  await panel(page).locator('.sort-card', { hasText: 'Offline task' }).locator('.priority-icon--do').click();
-  await expect(panel(page).locator('.sort-card', { hasText: 'Offline task' }).locator('.priority-icon--do')).toHaveClass(/is-active/);
-  await goToStage(page, 4);
   await panel(page).locator('.waiting-card', { hasText: 'Offline task' }).locator('.waiting-place--do').click();
   await card(page, 'Offline task').locator('.task-card__check').check();
   await goToStage(page, 1);
@@ -709,8 +678,8 @@ test('19. every asset URL is relative: the app boots unchanged under a /escape-t
   await page.goto('/escape-the-matrix/');
   await expect(page).toHaveTitle('Escape the Matrix');
   await expect(stageTitle(page)).toHaveText('Pick your day');
-  await expect(page.locator('#stepper .step')).toHaveCount(4);
-  await goToStage(page, 4);
+  await expect(page.locator('#stepper .step')).toHaveCount(3);
+  await goToStage(page, 3);
   await expect(panel(page).locator('.quadrant__label')).toHaveCount(4);
   expect(requests.length).toBeGreaterThan(15);
   expect(requests.every((url) => url.startsWith('http://localhost:4173/escape-the-matrix/'))).toBe(true);

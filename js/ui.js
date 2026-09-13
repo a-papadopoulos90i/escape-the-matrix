@@ -71,6 +71,7 @@ const STROKE_ICONS = {
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.2 3.6-7 8-7s8 2.8 8 7"/>',
   mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5 12 13l8.5-6.5"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.7h.01"/>',
+  tag: '<path d="M3.5 11.6V4.6a1 1 0 0 1 1-1h7l8.4 8.4-8 8z"/><circle cx="7.6" cy="7.6" r="1.3"/>',
 };
 
 const BRAND_ICONS = {

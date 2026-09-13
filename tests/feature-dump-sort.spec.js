@@ -11,10 +11,6 @@ const OUT = process.env.SCREENSHOT_DIR ?? path.join(process.cwd(), 'test-results
 const TITLES = ['Marketing Order A5', 'Invoice Send', 'Make - Excel Report', 'Call the bank'];
 
 const panel = (page) => page.locator('#stage .panel:not(.panel--ghost)');
-const pileCards = (page) => panel(page).locator('.sort__list .sort-card');
-const quadrantCards = (page, q) => panel(page).locator(`.quadrant--${q} .task-card`); // stage-4 board cards
-const cardByTitle = (page, title) => panel(page).locator('.sort-card', { hasText: title });
-const priorityIcon = (page, title, q) => cardByTitle(page, title).locator(`.priority-icon--${q}`);
 
 function doc(tasks, { tipsSeen = true } = {}) {
   return {
@@ -42,11 +38,6 @@ function collectErrors(page) {
   page.on('console', (message) => message.type() === 'error' && errors.push(message.text()));
   page.on('pageerror', (error) => errors.push(error.message));
   return errors;
-}
-
-async function centre(locator) {
-  const box = await locator.boundingBox();
-  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
 async function mouseDrag(page, from, to) {
@@ -125,123 +116,19 @@ test('stage 2: the list renumbers after a delete', async ({ page }) => {
   await expect.poll(() => inputValues(rows.locator('input'))).toEqual(['Two', 'Three']);
 });
 
-// ---------- Stage 3 ----------
-
-test.describe('stage 3 (desktop)', () => {
-  test.use({ viewport: { width: 1280, height: 1100 } });
-
-  test('stage 3: tag each task with a priority, re-tag, untag, and the Next label', async ({ page }) => {
-    const errors = collectErrors(page);
-    await seed(page, { stage: 3, tasks: TITLES });
-    await page.goto('/');
-
-    await expect(panel(page).locator('.sort__matrix .quadrant')).toHaveCount(4); // the four boxes preview the day
-    await expect(pileCards(page)).toHaveCount(4);
-    const next = panel(page).locator('.stage-nav__next');
-    await expect(next).toHaveText('Next →');
-
-    // Each priority icon tags the task; it stays in the list with the chosen icon ringed.
-    const quadrants = ['do', 'plan', 'delegate', 'delete'];
-    for (const [i, q] of quadrants.entries()) {
-      await priorityIcon(page, TITLES[i], q).click();
-      await expect(priorityIcon(page, TITLES[i], q)).toHaveClass(/is-active/);
-      await expect(pileCards(page)).toHaveCount(4); // tagged tasks stay in the list
-    }
-    await expect(next).toHaveText('Next →'); // nothing left untagged
-
-    // Re-tag: tapping a different icon moves the tag.
-    await priorityIcon(page, TITLES[0], 'delete').click();
-    await expect(priorityIcon(page, TITLES[0], 'do')).not.toHaveClass(/is-active/);
-    await expect(priorityIcon(page, TITLES[0], 'delete')).toHaveClass(/is-active/);
-
-    // Untag: tapping the active icon again returns the task to the backlog.
-    await priorityIcon(page, TITLES[1], 'plan').click();
-    await expect(priorityIcon(page, TITLES[1], 'plan')).not.toHaveClass(/is-active/);
-    await expect(next).toHaveText('Next →');
-
-    await expect
-      .poll(async () => Object.fromEntries((await storedTasks(page)).map((task) => [task.title, task.tag])))
-      .toEqual({ [TITLES[0]]: 'delete', [TITLES[1]]: null, [TITLES[2]]: 'delegate', [TITLES[3]]: 'delete' });
-    // Tagging is a label only: nothing was placed on a day.
-    await expect
-      .poll(async () => (await storedTasks(page)).every((task) => task.quadrant === null))
-      .toBe(true);
-
-    // So Stage 4's boxes stay empty and the tasks are still on the waiting list.
-    await page.locator('#stepper .step').nth(3).click();
-    await page.locator('#stage .panel--ghost').waitFor({ state: 'detached' });
-    await expect(quadrantCards(page, 'delete')).toHaveCount(0);
-    await expect(quadrantCards(page, 'delegate')).toHaveCount(0);
-    await expect(panel(page).locator('.waiting-card')).toHaveCount(4);
-    expect(errors).toEqual([]);
-  });
-
-  test('stage 3: keyboard (Enter on an icon tags it) and delete with undo', async ({ page }) => {
-    await seed(page, { stage: 3, tasks: TITLES.slice(0, 2) });
-    await page.goto('/');
-
-    await priorityIcon(page, TITLES[0], 'do').focus();
-    await page.keyboard.press('Enter');
-    await expect(priorityIcon(page, TITLES[0], 'do')).toHaveClass(/is-active/);
-    await expect(panel(page).locator('[aria-live="polite"]').last()).toHaveText('Tagged Urgent & Important');
-
-    // The red ✕ deletes the task, with Undo.
-    await cardByTitle(page, TITLES[1]).locator('.sort-card__delete').click();
-    await expect(pileCards(page)).toHaveCount(1);
-    await page.locator('.toast__action', { hasText: 'Undo' }).click();
-    await expect(pileCards(page)).toHaveCount(2);
-  });
-});
-
-test.describe('touch', () => {
-  test.use({ hasTouch: true, viewport: { width: 820, height: 1100 } });
-
-  test('stage 3: tapping a priority icon tags the task (touch)', async ({ page }) => {
-    await seed(page, { stage: 3, tasks: TITLES.slice(0, 1) });
-    await page.goto('/');
-    const icon = priorityIcon(page, TITLES[0], 'delegate');
-    const { x, y } = await centre(icon);
-    await page.touchscreen.tap(x, y);
-    await expect(icon).toHaveClass(/is-active/);
-    await expect.poll(async () => (await storedTasks(page))[0].tag).toBe('delegate');
-  });
-});
-
 test.describe('mobile', () => {
   test.use({ hasTouch: true, isMobile: true, viewport: { width: 375, height: 740 } });
 
-  test('375px: stages 2 and 3 have no horizontal scroll; tapping an icon tags a task', async ({ page }) => {
+  test('375px: the dump and the board both fit without horizontal scroll', async ({ page }) => {
     await seed(page, { stage: 2, tasks: TITLES.slice(0, 3) });
     await page.goto('/');
     expect(await noOverflow(page)).toBeLessThanOrEqual(0);
     await expect(panel(page).locator('.dump-row')).toHaveCount(3);
 
-    await page.locator('#stepper .step').nth(2).click();
+    await page.locator('#stepper .step').nth(2).click(); // Prioritize (the board)
     await page.locator('#stage .panel--ghost').waitFor({ state: 'detached' });
+    await expect(panel(page).locator('.quadrant')).toHaveCount(4);
     expect(await noOverflow(page)).toBeLessThanOrEqual(0);
-
-    await priorityIcon(page, TITLES[0], 'do').click();
-    await expect(priorityIcon(page, TITLES[0], 'do')).toHaveClass(/is-active/);
-    expect(await noOverflow(page)).toBeLessThanOrEqual(0);
-  });
-
-  test('375px: a full list scrolls inside itself', async ({ page }) => {
-    const many = Array.from({ length: 25 }, (_, i) => `Task number ${i + 1}`);
-    await seed(page, { stage: 3, tasks: many });
-    await page.goto('/');
-    await expect(pileCards(page)).toHaveCount(25);
-    const list = panel(page).locator('.sort__list');
-    await list.scrollIntoViewIfNeeded();
-    const before = await list.evaluate((el) => el.scrollTop);
-    const from = await centre(pileCards(page).nth(3));
-    const cdp = await page.context().newCDPSession(page);
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [from] });
-    for (let step = 1; step <= 8; step += 1) {
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: from.x, y: from.y - step * 30 }] });
-    }
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-    await expect.poll(() => list.evaluate((el) => el.scrollTop)).toBeGreaterThan(before);
-    await expect(pileCards(page)).toHaveCount(25);
   });
 });
 
@@ -256,10 +143,7 @@ for (const [label, viewport] of Object.entries({ desktop: { width: 1280, height:
     await page.screenshot({ path: path.join(OUT, `${label}-stage2.png`), fullPage: true });
     await page.locator('#stepper .step').nth(2).click();
     await page.locator('#stage .panel--ghost').waitFor({ state: 'detached' });
-    await expect(pileCards(page).first()).toBeVisible();
+    await expect(panel(page).locator('.quadrant').first()).toBeVisible();
     await page.screenshot({ path: path.join(OUT, `${label}-stage3.png`), fullPage: true });
-    await priorityIcon(page, TITLES[0], 'do').click();
-    await priorityIcon(page, TITLES[1], 'delegate').click();
-    await page.screenshot({ path: path.join(OUT, `${label}-stage3-placed.png`), fullPage: true });
   });
 }

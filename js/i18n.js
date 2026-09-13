@@ -5,21 +5,19 @@ export const strings = {
   'app.name': 'Escape the Matrix',
   'app.skip': 'Skip to content',
   'app.tipButton': 'Show the tip for this stage',
-  'app.stageAnnounce': 'Stage {n} of 4: {label}',
+  'app.stageAnnounce': 'Stage {n} of 3: {label}',
   'app.stageLabel': 'Stage {n}: {label}',
 
   'stepper.label': 'Stages',
   'stepper.1': 'Calendar',
   'stepper.2': 'Write down',
   'stepper.3': 'Prioritize',
-  'stepper.4': 'Ready',
 
   'stage.1.title': 'Pick your day',
   'stage.2.title': 'Write it all down',
   'stage.2.subtitle': "Don't judge, don't sort. Just get everything out of your head.",
   'stage.2.titleAccent': 'all of it!',
   'stage.3.title': 'Place them by priority',
-  'stage.4.title': 'Ready to start',
 
   'nav.label': 'Stage navigation',
   'nav.back': '← Back',

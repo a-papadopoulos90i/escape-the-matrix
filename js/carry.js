@@ -1,7 +1,6 @@
 // Carry-over of unfinished tasks from earlier days (SPEC §2 Stage 4). A task pulled forward gets
 // a fresh copy on the open day (attempt + 1, in the waiting list) while the original stays on its
 // day as a faded red record that no longer counts. Shared by stages 2 and 4.
-import { QUADRANTS } from './store.js';
 
 const MAX_DAYS_LISTED = 3;
 
@@ -12,35 +11,6 @@ export const QUAD_ICON = {
   delegate: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/>',
   delete: '<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
 };
-
-/** A row of the four colour-coded priority icons for a task; the tagged one fills with its colour.
- *  Pass `activeQuadrant` to decide the tag from something other than task.quadrant (Stage 3 only
- *  lights it up when the task is placed on the day being viewed). */
-export function priorityIcons(ctx, task, activeQuadrant = task.quadrant) {
-  const { ui, i18n } = ctx;
-  return ui.h(
-    'div',
-    { class: 'priority-icons' },
-    QUADRANTS.map((quadrant) => {
-      const active = activeQuadrant === quadrant;
-      return ui.h(
-        'button',
-        {
-          class: `priority-icon priority-icon--${quadrant} ${active ? 'is-active' : ''}`.trim(),
-          type: 'button',
-          'aria-pressed': String(active),
-          'aria-label': i18n.quadrantLabel(quadrant),
-          title: i18n.quadrantLabel(quadrant),
-          dataset: { quadrant },
-        },
-        ui.h('span', {
-          'aria-hidden': 'true',
-          html: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">${QUAD_ICON[quadrant]}</svg>`,
-        }),
-      );
-    }),
-  );
-}
 
 /** The "N unfinished tasks left on … — Pull them here" strip, or null when there is nothing to pull. */
 export function carryStrip(ctx, date) {
