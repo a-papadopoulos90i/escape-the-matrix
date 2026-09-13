@@ -1,6 +1,7 @@
-// Stage 2 — "Write it all down". A single "What's on your mind?" field with an Add button, then a
-// numbered list of the day's tasks (each editable, with a ✕). At the bottom, when earlier days
-// still hold unfinished tasks, a "Pull them here" button and a scrollable list of those tasks.
+// Stage 2 — "Write it all down". A single "What's on your mind?" field with an Add button, then the
+// global backlog: a numbered list of every unplaced task (the same list on every day; each editable,
+// with a ✕), kept until an item is placed in a quadrant, ticked done, or deleted. At the bottom,
+// when earlier days still hold unfinished placed tasks, a "Pull them here" button and their list.
 import { attemptBadge } from '../carry.js';
 
 const PENCIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
@@ -78,8 +79,8 @@ function onAdd(event) {
 // ---------- Rendering ----------
 
 function sync() {
-  const { ctx, date, hintEl, nextButton } = state;
-  const tasks = ctx.store.tasksForDate(date).filter((task) => task.carriedTo === null); // records live on stage 4
+  const { ctx, hintEl, nextButton } = state;
+  const tasks = ctx.store.waitingTasks(); // the global backlog — the same list on every day
   reconcileRows(tasks);
   hintEl.hidden = tasks.length > 0;
   nextButton.disabled = tasks.length === 0;

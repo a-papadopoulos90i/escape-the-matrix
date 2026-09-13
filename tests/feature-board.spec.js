@@ -106,13 +106,13 @@ test('stage 4 shows the labelled quadrants, cards with checkbox + clock, and the
   expect(errors).toEqual([]);
 });
 
-test('a waiting task has its own checkbox: it completes in place and counts as done', async ({ page }) => {
+test('a waiting task has its own checkbox: ticking it done removes it from the global backlog', async ({ page }) => {
   await seed(page, { tasks: [...SORTED(), task('t_9', 'Water the plants', null)] });
   await page.goto('/');
   const wcard = panel(page).locator('.waiting-card', { hasText: 'Water the plants' });
   await expect(wcard.locator('.task-card__check')).toHaveCount(1);
-  await wcard.locator('.task-card__check').check();
-  await expect(wcard).toHaveClass(/task-card--done/);
+  await wcard.locator('.task-card__check').click(); // done → it leaves the backlog (kept until placed, done or deleted)
+  await expect(panel(page).locator('.waiting-card', { hasText: 'Water the plants' })).toHaveCount(0);
   await waitForSaved(page, (doc) => taskById(doc, 't_9').done === true && taskById(doc, 't_9').quadrant === null);
 });
 

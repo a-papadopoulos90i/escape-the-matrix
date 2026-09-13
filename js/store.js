@@ -426,9 +426,12 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
       });
     },
 
-    setQuadrant(id, quadrant) {
+    // Placing a task in a quadrant also stamps it with the day it was placed on (the waiting list is
+    // a global backlog, so an item can be placed from any day). Sending it back to the list
+    // (quadrant null) leaves its date untouched.
+    setQuadrant(id, quadrant, date = null) {
       const next = QUADRANTS.includes(quadrant) ? quadrant : null;
-      return undoable(() => patchTask(id, () => ({ quadrant: next }), 'setQuadrant'));
+      return undoable(() => patchTask(id, () => (next !== null && isDateKey(date) ? { quadrant: next, date } : { quadrant: next }), 'setQuadrant'));
     },
 
     /** Marking done also stops a live timer on that task. */
@@ -463,13 +466,24 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
       return doc.tasks.filter((task) => task.date === date && live(task)).sort(compareTasks);
     },
 
-    /** Counts for a day; records (tasks carried to a later day) are left out entirely. */
+    /**
+     * The waiting list is a single global backlog: every unplaced task (quadrant === null), from any
+     * day, shown on every day and on "Write it all down". An item stays until it is placed in a
+     * quadrant, ticked done, or deleted. Records (carried-forward originals) are history.
+     */
+    waitingTasks() {
+      return doc.tasks
+        .filter((task) => live(task) && !isRecord(task) && task.quadrant === null && !task.done)
+        .sort(compareTasks);
+    },
+
+    /** Counts for a day — only tasks actually placed in a quadrant count; the global waiting-list
+     *  backlog belongs to no single day, and records (carried to a later day) are left out. */
     statsForDate(date) {
-      const tasks = doc.tasks.filter((task) => task.date === date && live(task) && !isRecord(task));
+      const tasks = doc.tasks.filter((task) => task.date === date && live(task) && !isRecord(task) && task.quadrant !== null);
       return {
         total: tasks.length,
         done: tasks.filter((task) => task.done).length,
-        waiting: tasks.filter((task) => task.quadrant === null && !task.done).length,
       };
     },
 

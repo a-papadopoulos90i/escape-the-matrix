@@ -94,7 +94,7 @@ function render() {
   endDrag(); // a remote change mid-drag would detach the dragged card
   const focusKey = focusedKey();
   const tasks = currentTasks();
-  const waiting = tasks.filter((task) => task.quadrant === null);
+  const waiting = ctx.store.waitingTasks(); // the global backlog, shared by every day
   boardEl.replaceChildren(
     ...[carryStrip(ctx, ctx.getDate()), matrix(tasks.filter((task) => task.quadrant !== null)), waiting.length ? waitingPanel(waiting) : null].filter(Boolean),
   );
@@ -472,7 +472,7 @@ function moveToQuadrant(task, quadrant) {
   const { store } = ctx;
   const last = currentTasks().reduce((max, item) => Math.max(max, item.order + 1), Date.now());
   store.undoable(() => {
-    store.setQuadrant(task.id, quadrant);
+    store.setQuadrant(task.id, quadrant, ctx.getDate()); // placing a backlog task assigns it to this day
     store.reorderTask(task.id, last);
   });
 }

@@ -288,13 +288,15 @@ test('a weekend day sits on the grid, outlined as today and reachable', async ({
   await panel(page).locator('.calendar__today').click();
   await expect(today).toBeFocused();
 
-  // Tasks written for Saturday register on its cell (a count in the tooltip; green only once done).
+  // A written task goes to the global backlog (not tied to a day), so the weekend cell still reads
+  // "No tasks yet" until something is actually placed on it.
   await cell(page, '2026-03-14').click();
   await expect(panel(page)).toHaveAttribute('data-stage', '2');
   await panel(page).locator('.dump__input').fill('Weekend chore');
   await page.keyboard.press('Enter');
+  await expect(panel(page).locator('.dump-row__input').first()).toHaveValue('Weekend chore');
   await page.locator('#stepper .step').nth(0).click();
-  await expect(cell(page, '2026-03-14')).toHaveAttribute('title', '0 of 1 done');
+  await expect(cell(page, '2026-03-14')).toHaveAttribute('title', 'No tasks yet');
 });
 
 test('another tab clearing the saved document empties this one too (cross-tab "clear this device")', async ({ page }) => {

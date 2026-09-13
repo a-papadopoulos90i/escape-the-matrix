@@ -77,11 +77,15 @@ gray = empty.
 Title: `Write it all down`. Subtitle: "Don't judge, don't sort. Just get everything out of your head."
 
 Layout (Lovable-style): a single rounded **"What's on your mind?"** field with a pencil glyph and a
-green **Add** button; Enter or Add commits, the field clears and keeps focus. Below, a **numbered
-list** of the day's tasks — each row a rounded card with a number circle, the (inline-editable)
-title and a red **✕** (delete, with Undo). At the bottom, when earlier days hold unfinished tasks, a
-**"Pull them here"** button and a **scrollable list** of those tasks (title + day) — pulling carries
-them forward. Tasks created here have `quadrant: null` and `date = selectedDate`; `Next →` needs ≥ 1.
+green **Add** button; Enter or Add commits, the field clears and keeps focus. Below, the **global
+backlog** — a **numbered list** of every unplaced task, each row a rounded card with a number circle,
+the (inline-editable) title and a red **✕** (delete, with Undo). At the bottom, when earlier days
+hold unfinished **placed** tasks, a **"Pull them here"** button and a **scrollable list** of those
+tasks — pulling carries them into the backlog. `Next →` needs ≥ 1 backlog item.
+
+**The waiting list is one global backlog** (see Stage 4). Writing a task adds it there
+(`quadrant: null`); the same list shows on Stage 2, Stage 3 and Stage 4, on **every** day, and each
+item stays until it is placed in a quadrant, ticked done, or deleted.
 
 Speech bubble (tip), verbatim: **"Write down everything you have for today — all of it!"**
 (bubble style: rounded, khaki-gray `#b9b098` background, dark text, small tail pointing at the
@@ -109,10 +113,11 @@ Quadrant colours (fill / border):
 - Bottom-left **Urgent but Not Important** (`delegate`): fill `#c2e5ff`, border `#3dadff`
 - Bottom-right **Not Urgent & Not Important** (`delete`): fill `#d9d9d9`, border `#a5a5a5`
 
-Unsorted tasks (`quadrant === null`) sit in a **"Your tasks" list panel below the matrix** (a
-dashed card headed `Your tasks` with a short hint, like the design), from which each card is
-dragged **up** into a quadrant. The list scrolls inside itself (max-height) so a long day never
-pushes the page down forever. Interaction, all must work:
+The **global backlog** (`quadrant === null`, see Stage 4) sits in a **"Your tasks" list panel below
+the matrix** (a dashed card headed `Your tasks` with a short hint, like the design) — the same list
+on every day — from which each card is dragged **up** into a quadrant (placing it on the open day).
+The list scrolls inside itself (max-height) so a long backlog never pushes the page down forever.
+Interaction, all must work:
 - **Drag & drop** a card up into a quadrant (Pointer Events; works with mouse *and* touch; the card
   follows the pointer, the hovered quadrant highlights). On a narrow phone the matrix stacks above
   the list, so a drag toward the top edge **auto-scrolls** the page to reveal the quadrants.
@@ -188,12 +193,15 @@ unplaces it).
   Monday). Weekends still show on the calendar; this only affects where the one-tap action lands.
   Toast with **Undo**.
 
-**Waiting list (the 5th category).** Tasks left unplaced on stage 3 (`quadrant: null`) are listed
-under the matrix in a "Waiting list (N)" panel, the **same width as the matrix** above it. Each
-waiting card has its own **checkbox** (so it can be completed in place — a done waiting task stays
-here, struck through, and still counts in the day total), the title (rename), a row of **four small
-colour-coded glyphs** (Do now / Schedule / Delegate / Drop) that file it straight into that quadrant,
-and the **red ✕**. On a device with a pointer the glyph row and the ✕ stay hidden until the card is
+**Waiting list — one global backlog.** Every unplaced task (`quadrant: null`) lives in a single
+backlog shared across **all** days and shown on Stages 2, 3 and 4 (under the matrix in a
+"Waiting list (N)" panel, the **same width as the matrix**). An item stays in the backlog until it is
+**placed** in a quadrant (which assigns it to the day you place it on), **ticked done**, or
+**deleted** — done or deleted removes it from the list. Because the backlog belongs to no single day,
+the **calendar counts only placed tasks**. Each waiting card has its own **checkbox** (tick it to
+complete and drop it from the backlog), the title (rename), a row of **four small colour-coded
+glyphs** (Do now / Schedule / Delegate / Drop) that place it into that quadrant on the open day, and
+the **red ✕**. On a device with a pointer the glyph row and the ✕ stay hidden until the card is
 hovered or focused (touch devices always show them). They are on hold: the `Next →` button on Stage 3
 carries the "· N waiting" count.
 

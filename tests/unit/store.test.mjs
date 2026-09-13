@@ -74,8 +74,10 @@ test('tasksForDate sorts by quadrant, done last, then order', () => {
 
   const titles = store.tasksForDate(DAY).map((task) => task.title);
   assert.deepEqual(titles, ['do-todo', 'do-done', 'plan', 'delete', 'unsorted']);
-  assert.deepEqual(store.statsForDate(DAY), { total: 5, done: 1, waiting: 1 });
-  assert.deepEqual(store.statsForDate('2026-01-01'), { total: 0, done: 0, waiting: 0 });
+  // The calendar counts only placed tasks; the unsorted one lives in the global backlog instead.
+  assert.deepEqual(store.statsForDate(DAY), { total: 4, done: 1 });
+  assert.deepEqual(store.statsForDate('2026-01-01'), { total: 0, done: 0 });
+  assert.deepEqual(store.waitingTasks().map((task) => task.title), ['unsorted']);
   assert.ok([unsorted, del, doTodo, plan].every(Boolean));
 });
 
@@ -100,7 +102,7 @@ test('removeTask leaves a hidden tombstone; undo restores the task with its fiel
   store.startTimer(task.id, { mode: 'stopwatch' });
   store.removeTask(task.id);
   assert.equal(store.tasksForDate(DAY).length, 0);
-  assert.deepEqual(store.statsForDate(DAY), { total: 0, done: 0, waiting: 0 });
+  assert.deepEqual(store.statsForDate(DAY), { total: 0, done: 0 });
   assert.equal(store.findTask(task.id), null);
   assert.equal(store.activeTimer(), null, 'a deleted task cannot keep the only timer slot');
   const tombstone = store.get().tasks[0];

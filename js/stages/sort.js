@@ -121,8 +121,8 @@ function render(focusId) {
   const { ui, i18n } = ctx;
   endDrag(); // a remote change mid-drag would detach the dragged card
   const focused = focusId ?? document.activeElement?.closest?.('.sort-card')?.dataset.id;
-  const tasks = ctx.store.tasksForDate(state.date).filter((task) => !isRecord(task)); // records are history, shown on stage 4
-  const waiting = tasks.filter((task) => task.quadrant === null);
+  const tasks = ctx.store.tasksForDate(state.date).filter((task) => !isRecord(task)); // the day's placed cards
+  const waiting = ctx.store.waitingTasks(); // the global backlog, shared by every day
 
   for (const quadrant of QUADRANTS) bodies[quadrant].replaceChildren(...tasks.filter((task) => task.quadrant === quadrant).map(cardEl));
   pile.replaceChildren(
@@ -170,7 +170,7 @@ function place(id, quadrant, { focusNext = false } = {}) {
   if (!task || task.quadrant === quadrant) return;
   const nextFocus = focusNext ? (nextPileId(id) ?? id) : null;
   select(null);
-  store.setQuadrant(id, quadrant);
+  store.setQuadrant(id, quadrant, state.date); // placing assigns the task to this day
   if (nextFocus) focusCard(nextFocus);
   state.live.textContent = quadrant ? i18n.t('sort.placed', { quadrant: i18n.quadrantName(quadrant) }) : i18n.t('quadrant.unsorted');
 }
