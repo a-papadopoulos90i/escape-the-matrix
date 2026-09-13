@@ -228,15 +228,7 @@ a {
   border-color: var(--ink);
 }
 
-.step.is-done {
-  color: var(--ink);
-}
-
-.step.is-done .step__dot {
-  background: color-mix(in srgb, var(--primary) 70%, var(--surface));
-  border-color: var(--primary);
-  color: #fff;
-}
+/* Only the current step is filled with colour; completed steps look like upcoming ones (empty). */
 
 .step.is-current {
   color: var(--ink);
@@ -413,6 +405,13 @@ a {
     opacity: 0;
     transform: translateX(32px);
   }
+}
+
+/* The current-day switcher sits at the top of stages 2–4, above the title. */
+.stage-daybar {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-3);
 }
 
 .stage-header {

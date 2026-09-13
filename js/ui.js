@@ -490,6 +490,11 @@ export function stageNav({ onBack, onNext, backLabel = t('nav.back'), nextLabel 
   );
 }
 
+/** Top day bar: the current-day switcher placed above the stage title (stages 2–4). */
+export function stageDayBar(day) {
+  return h('div', { class: 'stage-daybar' }, daySwitcher(day));
+}
+
 /** Centred current-day display with discreet ‹ › arrows to step the day, shown on every stage. */
 function daySwitcher({ label, onPrev, onNext }) {
   return h(

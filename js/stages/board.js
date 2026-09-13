@@ -36,7 +36,7 @@ let suppressClick = false; // swallow the click that follows a completed drag
 export function mount(container, nextCtx) {
   ctx = nextCtx;
   const { ui, i18n } = ctx;
-  const nav = ui.stageNav({ onBack: () => ctx.goTo(3), onNext: () => ctx.goTo(1), nextLabel: i18n.t('nav.backToCalendar'), day: dayNav(ctx) });
+  const nav = ui.stageNav({ onBack: () => ctx.goTo(3), onNext: () => ctx.goTo(1), nextLabel: i18n.t('nav.backToCalendar') });
   boardEl = ui.h('div', {
     class: 'board',
     onPointerdown: onPointerDown,
@@ -47,7 +47,7 @@ export function mount(container, nextCtx) {
   });
   boardEl.addEventListener('touchmove', onTouchMove, { passive: false }); // must be cancelable
   boardEl.addEventListener('click', onClickCapture, true); // swallow the post-drag click
-  root = ui.h('div', { class: 'stage-body' }, ui.stageHeader({ stage: 4, title: i18n.t('stage.4.title') }), boardEl, nav);
+  root = ui.h('div', { class: 'stage-body' }, ui.stageDayBar(dayNav(ctx)), ui.stageHeader({ stage: 4, title: i18n.t('stage.4.title') }), boardEl, nav);
   container.append(root);
   render();
   unsubscribe = ctx.store.subscribe(onStoreChange);
