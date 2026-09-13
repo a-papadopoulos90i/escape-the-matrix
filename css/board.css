@@ -554,8 +554,9 @@
   text-align: center;
 }
 
+/* No green ring inside the box — the new-task card's own neutral border shows focus. */
 .task-card__input:focus-visible {
-  outline-offset: -2px;
+  outline: none;
 }
 
 /* ---------- Task popover ---------- */
