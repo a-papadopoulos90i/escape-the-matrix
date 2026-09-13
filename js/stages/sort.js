@@ -14,7 +14,7 @@ export function mount(container, ctx) {
   const { ui, i18n } = ctx;
   const { t } = i18n;
 
-  const header = ui.stageHeader({ stage: 3, title: t('stage.3.title'), kicker: false });
+  const header = ui.stageHeader({ stage: 3, title: t('stage.3.title') });
   const matrixEl = ui.h('div', { class: 'matrix sort__matrix' });
   const listEl = ui.h('div', { class: 'sort__list', role: 'list', 'aria-label': t('sort.pile') });
   const live = ui.h('div', { class: 'sr-only', 'aria-live': 'polite' });
@@ -38,7 +38,6 @@ export function mount(container, ctx) {
       listEl,
     ),
     live,
-    ui.stageKicker(3),
   );
 
   state = {

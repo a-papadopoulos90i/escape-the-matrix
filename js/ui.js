@@ -469,20 +469,13 @@ export function menu({ anchor, items, onClose } = {}) {
 // ---------- Stage chrome ----------
 
 /** "Stage N" kicker + large title (focusable: the shell moves focus there on a stage change). */
-export function stageHeader({ stage, title, subtitle, kicker = true }) {
+export function stageHeader({ stage, title, subtitle }) {
   return h(
     'header',
     { class: 'stage-header' },
-    kicker ? h('p', { class: 'stage-kicker' }, t('stage.heading', { n: stage })) : null,
     h('h1', { class: 'stage-title', id: `stage-title-${stage}`, tabindex: -1 }, title),
     subtitle && h('p', { class: 'stage-subtitle' }, subtitle),
   );
-}
-
-/** The "STAGE N" label. `footer` sits centred at the bottom of stages 2–4; `inline` sits inside a
- *  toolbar row (Stage 1, between the month and All Tasks). */
-export function stageKicker(stage, variant = 'footer') {
-  return h('p', { class: `stage-kicker stage-kicker--${variant}` }, t('stage.heading', { n: stage }));
 }
 
 /** Navigation row: Back and Next flank the centred day switcher (pass `day`). Omit onBack / onNext to

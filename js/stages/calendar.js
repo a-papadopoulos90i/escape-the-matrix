@@ -32,7 +32,7 @@ export function mount(container, context) {
   root = ui.h(
     'div',
     { class: 'stage-body calendar' },
-    ui.stageHeader({ stage: 1, title: '', kicker: false }),
+    ui.stageHeader({ stage: 1, title: '' }),
     toolbar(),
     els.months,
     els.more,
@@ -78,7 +78,6 @@ function toolbar() {
       els.month,
       ui.h('button', { class: 'btn-icon', type: 'button', 'aria-label': t('calendar.nextMonth'), onClick: () => shiftMonth(1) }, ui.icon('chevron-right')),
     ),
-    ui.stageKicker(1, 'inline'),
     ui.h(
       'div',
       { class: 'calendar__tools' },

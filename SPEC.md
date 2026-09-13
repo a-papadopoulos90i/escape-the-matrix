@@ -37,7 +37,8 @@ Product name is always written **Escape the Matrix**.
 
 ## 2. The four stages (from the design board — reproduce faithfully)
 
-Common: each stage panel has a heading "Stage N" (small, gray) and the stage title (large).
+Common: each stage panel shows just its title (large) — the small "Stage N" kicker was removed at
+the owner's request; the tabs at the top are the only stage indicator.
 Bottom of each panel: `← Back` and `Next →` buttons (Stage 1 has no nav; Stage 4 has "Back to
 calendar" instead of Next), and **between them, centred, a day switcher** — the open day (e.g.
 "Wed 11 Mar") with discreet `‹` `›` arrows that step to the previous / next day in place (the shell

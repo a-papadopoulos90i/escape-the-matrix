@@ -14,7 +14,6 @@ export const strings = {
   'stepper.3': 'Prioritize',
   'stepper.4': 'Ready',
 
-  'stage.heading': 'Stage {n}',
   'stage.1.title': 'Pick your day',
   'stage.2.title': 'Write it all down',
   'stage.2.subtitle': "Don't judge, don't sort. Just get everything out of your head.",

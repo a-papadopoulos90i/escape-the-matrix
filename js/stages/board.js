@@ -47,7 +47,7 @@ export function mount(container, nextCtx) {
   });
   boardEl.addEventListener('touchmove', onTouchMove, { passive: false }); // must be cancelable
   boardEl.addEventListener('click', onClickCapture, true); // swallow the post-drag click
-  root = ui.h('div', { class: 'stage-body' }, nav, ui.stageHeader({ stage: 4, title: i18n.t('stage.4.title'), kicker: false }), boardEl, ui.stageKicker(4));
+  root = ui.h('div', { class: 'stage-body' }, nav, ui.stageHeader({ stage: 4, title: i18n.t('stage.4.title') }), boardEl);
   container.append(root);
   render();
   unsubscribe = ctx.store.subscribe(onStoreChange);

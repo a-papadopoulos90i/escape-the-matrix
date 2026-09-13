@@ -38,12 +38,11 @@ export function mount(container, ctx) {
     'div',
     { class: 'stage-body dump' },
     nav,
-    ui.stageHeader({ stage: 2, title: t('stage.2.title'), subtitle: t('stage.2.subtitle'), kicker: false }),
+    ui.stageHeader({ stage: 2, title: t('stage.2.title'), subtitle: t('stage.2.subtitle') }),
     addForm,
     listEl,
     hintEl,
     carryEl,
-    ui.stageKicker(2),
   );
 
   // The mounted date is fixed for this panel's lifetime (the shell re-mounts on a day change).
