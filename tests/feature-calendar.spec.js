@@ -324,6 +324,24 @@ test('the "demo version" link loads a local two-month demo', async ({ page }) =>
   await expect(panel(page).locator('.calendar__day--planned').first()).toBeVisible();
 });
 
+test('the time report sums tracked time per task, most first', async ({ page }) => {
+  const stopwatch = (elapsedSec, stoppedAt) => ({ mode: 'stopwatch', durationSec: 0, startedAt: null, elapsedSec, running: false, stoppedAt });
+  const doc = makeDoc();
+  doc.tasks = [
+    { ...doc.tasks[0], id: 't_a', title: 'Deep work', timer: stopwatch(3600, '2026-03-02T10:00:00.000Z') },
+    { ...doc.tasks[0], id: 't_b', title: 'Deep work', date: '2026-03-03', timer: stopwatch(1800, '2026-03-03T10:00:00.000Z') },
+    { ...doc.tasks[0], id: 't_c', title: 'Email', timer: stopwatch(600, '2026-03-02T11:00:00.000Z') },
+  ];
+  await seed(page, { doc });
+  await page.goto('/');
+  await panel(page).locator('.calendar__analysis').click();
+  const dialog = page.locator('[role="dialog"]');
+  await expect(dialog.locator('.analysis__row')).toHaveCount(2); // "Deep work" aggregated across two days, "Email"
+  await expect(dialog.locator('.analysis__row').first()).toContainText('Deep work');
+  await expect(dialog.locator('.analysis__row').first()).toContainText('1:30:00'); // 3600 + 1800 s
+  await expect(dialog.locator('.analysis__total')).toContainText('1:40:00'); // + 600 s
+});
+
 test('Manage mode: flip the calendar, then a day popup adds and deletes tasks', async ({ page }) => {
   await onAWeekday(page);
   await seed(page); // DAYS puts 5 tasks on 2026-03-02

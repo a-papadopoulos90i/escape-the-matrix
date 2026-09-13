@@ -492,3 +492,68 @@
   text-align: center;
   font-size: var(--text-sm);
 }
+
+/* ---------- Time report ---------- */
+.calendar__analysis {
+  gap: 6px;
+}
+
+.analysis {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 340px;
+  max-width: 100%;
+}
+
+.analysis__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+.analysis__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.analysis__row:nth-child(odd) {
+  background: var(--surface-2);
+}
+
+.analysis__task {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.analysis__count {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.analysis__time {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.analysis__total {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-1);
+  padding: var(--space-2) 8px 0;
+  border-top: 1.5px solid var(--border);
+  font-weight: 700;
+}
+
+.analysis__empty {
+  padding: var(--space-3);
+  text-align: center;
+}
