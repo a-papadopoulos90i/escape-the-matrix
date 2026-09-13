@@ -74,8 +74,9 @@ Cell design (rounded square, ~1:1, number centred, bold):
 - **Today:** blue border `#4da3ff` (2px) regardless of tasks; if it has tasks, show the fill too.
 - **Selected day** (the day currently open in stages 2–3): subtle blue glow/ring.
 - Hover/focus: tooltip/`title` "3 of 5 done" (or "No tasks yet").
-- Click/Enter on a cell → selects that date and always goes to **Stage 3 (Prioritize)**, whatever the
-  date and whether or not the day has tasks. Write down and Prioritize are one tab away.
+- Click/Enter on a cell → selects that date, then: **today opens Stage 2 (Write down)** — you
+  brain-dump the day first — and **every other day (past or future) opens Stage 3 (Prioritize)**
+  straight away, whether or not it has tasks. The tabs reach any stage from there.
 
 The colour key (green = done tasks, one stripe each up to 10 · blue = today · gray = empty) is not
 printed under the grid: a discreet **ⓘ** in the toolbar opens it in a small popover. Beside the legend, a subtle **"demo version"** link fills this browser with a
@@ -388,7 +389,7 @@ rising from the bottom (ten fill the cell). Buttons are pill-shaped; the primary
 
 1. Fresh load shows Stage 1 with the current month; today is outlined blue; the full week (Sun–Sat) is shown; no weekends toggle and no Back/Next on this stage.
 2. The calendar always shows all seven columns; a weekend day is on the grid and reachable.
-3. Clicking a day opens Stage 3 (Prioritize) for that date.
+3. Clicking today opens Stage 2; clicking any other day opens Stage 3 for that date.
 4. Typing 3 tasks + Enter each creates 3 rows; `+` adds a row; `✕` deletes; reload keeps them.
 5. A card's tag button labels the task (the glyph fills with the quadrant colour); the label never moves the card or changes its date.
 6. Stage 3 shows labels Do now / Schedule / Delegate / Drop (with icon tiles + count badges) and the tasks in their quadrants with checkbox + clock + red ✕.

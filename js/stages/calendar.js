@@ -2,7 +2,7 @@
 // "Show next month" appends the following month below so the user simply scrolls down (no popup, no
 // resizing). Each day cell is a gray tray when empty, a green striped fill (one stripe per done
 // task) when planned, a blue border for today and a soft ring on the selected day. Clicking a day
-// always opens Stage 3 (the board).
+// opens Stage 2 for today, Stage 3 (the board) for any other day.
 //
 // A "Manage" toggle flips the calendar over: each cell then previews the day's task titles, and
 // tapping a day opens a popup to add / edit / tick / delete that day's tasks without leaving.
@@ -265,7 +265,9 @@ function dayCell(key, tabbable) {
 
 function openDay(key) {
   ctx.setDate(key);
-  ctx.goTo(3); // picking a day always lands in Prioritize (the board) — whatever the date
+  // Today starts at Write down — you brain-dump it first, then move on to Prioritize. Every other
+  // day (past or future) opens straight in Prioritize.
+  ctx.goTo(key === ctx.dates.todayKey() ? 2 : 3);
 }
 
 /** Manage-mode popup: view / add / rename / tick / delete a single day's tasks, without leaving the

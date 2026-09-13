@@ -223,7 +223,7 @@ test('‹ › change the displayed month, update the title and persist the month
   await expect(panel(page).locator('.calendar__month')).toHaveText('February 2026');
 });
 
-test('routing: picking any day opens Ready — future, today, past, empty or not', async ({ page }) => {
+test('routing: today opens Write down; every other day opens Prioritize', async ({ page }) => {
   await onAWeekday(page); // today = 2026-03-11
   await seed(page);
   await page.goto('/');
@@ -242,12 +242,15 @@ test('routing: picking any day opens Ready — future, today, past, empty or not
   expect((await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), UI_KEY)).selectedDate).toBe('2026-03-02');
   await expect(panel(page).locator('.task-card').first()).toBeVisible();
 
-  // Today, and a past empty day.
-  for (const key of ['2026-03-11', '2026-03-08']) {
-    await page.locator('#stepper .step').nth(0).click();
-    await cell(page, key).click();
-    await expect(panel(page)).toHaveAttribute('data-stage', '3');
-  }
+  // A past empty day → Prioritize too.
+  await page.locator('#stepper .step').nth(0).click();
+  await cell(page, '2026-03-08').click();
+  await expect(panel(page)).toHaveAttribute('data-stage', '3');
+
+  // Today is the exception: it starts at Write down.
+  await page.locator('#stepper .step').nth(0).click();
+  await cell(page, '2026-03-11').click();
+  await expect(panel(page)).toHaveAttribute('data-stage', '2');
 });
 
 test('keyboard: arrows move between cells without leaving the stage; Enter opens the day', async ({ page }) => {
@@ -306,9 +309,7 @@ test('a weekend day sits on the grid, outlined as today and reachable', async ({
 
   // A written task goes to the global backlog (not tied to a day), so the weekend cell still reads
   // "No tasks yet" until something is actually placed on it.
-  await cell(page, '2026-03-14').click();
-  await expect(panel(page)).toHaveAttribute('data-stage', '3');
-  await page.locator('#stepper .step').nth(1).click(); // Write down
+  await cell(page, '2026-03-14').click(); // this weekend day is today, so it opens Write down
   await expect(panel(page)).toHaveAttribute('data-stage', '2');
   await panel(page).locator('.dump__input').fill('Weekend chore');
   await page.keyboard.press('Enter');
