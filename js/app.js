@@ -105,6 +105,9 @@ function setDate(key) {
   state.selectedDate = key;
   state.calendarMonth = dates.monthOfKey(key);
   persistUiState();
+  // On the day-specific stages (write-down / prioritize / ready) the in-nav day switcher changes
+  // the day in place, so re-mount the open stage for the new day. Stage 1 (calendar) manages itself.
+  if (state.stage !== 1) mountStage(state.stage, null);
 }
 
 function setCalendarMonth(monthKey) {

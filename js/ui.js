@@ -472,11 +472,23 @@ export function stageHeader({ stage, title, subtitle }) {
 }
 
 /** Bottom navigation: omit onBack / onNext to hide that button. Query .stage-nav__next to update it. */
-export function stageNav({ onBack, onNext, backLabel = t('nav.back'), nextLabel = t('nav.next'), nextDisabled = false } = {}) {
+export function stageNav({ onBack, onNext, backLabel = t('nav.back'), nextLabel = t('nav.next'), nextDisabled = false, day = null } = {}) {
   return h(
     'nav',
     { class: 'stage-nav', 'aria-label': t('nav.label') },
-    onBack && h('button', { class: 'btn stage-nav__back', type: 'button', onClick: onBack }, backLabel),
-    onNext && h('button', { class: 'btn btn-primary stage-nav__next', type: 'button', disabled: nextDisabled, onClick: onNext }, nextLabel),
+    h('span', { class: 'stage-nav__side stage-nav__side--start' }, onBack ? h('button', { class: 'btn stage-nav__back', type: 'button', onClick: onBack }, backLabel) : null),
+    day ? daySwitcher(day) : h('span'),
+    h('span', { class: 'stage-nav__side stage-nav__side--end' }, onNext ? h('button', { class: 'btn btn-primary stage-nav__next', type: 'button', disabled: nextDisabled, onClick: onNext }, nextLabel) : null),
+  );
+}
+
+/** Centred current-day display with discreet ‹ › arrows to step the day, shown on every stage. */
+function daySwitcher({ label, onPrev, onNext }) {
+  return h(
+    'div',
+    { class: 'stage-nav__day' },
+    h('button', { class: 'btn-icon stage-nav__day-arrow', type: 'button', 'aria-label': t('day.prev'), onClick: onPrev }, icon('chevron-left', { size: 18 })),
+    h('span', { class: 'stage-nav__day-label' }, label),
+    h('button', { class: 'btn-icon stage-nav__day-arrow', type: 'button', 'aria-label': t('day.next'), onClick: onNext }, icon('chevron-right', { size: 18 })),
   );
 }

@@ -27,6 +27,16 @@ export function carryStrip(ctx, date) {
   );
 }
 
+/** The centred day switcher for the stage nav: the open day plus ‹ › to step to the previous / next
+ *  day. Shared by stages 2, 3 and 4 so you can change day without going back to the calendar. */
+export function dayNav(ctx) {
+  return {
+    label: ctx.dates.formatShort(ctx.getDate()),
+    onPrev: () => ctx.setDate(ctx.dates.addDays(ctx.getDate(), -1)),
+    onNext: () => ctx.setDate(ctx.dates.addDays(ctx.getDate(), 1)),
+  };
+}
+
 /** "×3" badge for a task that is on the plan for the 3rd time; null for a first attempt. */
 export function attemptBadge(ctx, task) {
   if (task.attempt < 2) return null;

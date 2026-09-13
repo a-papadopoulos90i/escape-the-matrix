@@ -38,8 +38,12 @@ Product name is always written **Escape the Matrix**.
 ## 2. The four stages (from the design board — reproduce faithfully)
 
 Common: each stage panel has a heading "Stage N" (small, gray) and the stage title (large).
-Bottom of each panel: `← Back` and `Next →` buttons (Stage 1 has no Back; Stage 4 has "Back to
-calendar" instead of Next). The stepper at the top also allows direct jumps.
+Bottom of each panel: `← Back` and `Next →` buttons (Stage 1 has no nav; Stage 4 has "Back to
+calendar" instead of Next), and **between them, centred, a day switcher** — the open day (e.g.
+"Wed 11 Mar") with discreet `‹` `›` arrows that step to the previous / next day in place (the shell
+re-mounts the stage for the new day). It shows on Stages 2, 3 and 4. The stepper at the top also
+allows direct jumps. On a narrow screen the day switcher sits on its own centred row above
+Back / Next.
 
 ### Stage 1 — "Pick your day"
 

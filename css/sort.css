@@ -88,6 +88,7 @@
   max-height: 300px; /* scrolls instead of pushing the page down forever */
   overflow-y: auto;
   overflow-x: hidden; /* only ever a vertical scrollbar, never a sideways one */
+  padding: 3px; /* room so the selected card's ring isn't clipped by the scroll box */
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }

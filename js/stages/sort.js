@@ -8,7 +8,7 @@
 // still scrolls the page. Cards allow vertical panning (touch-action: pan-y in sort.css); once a
 // card is lifted the touchmove events are cancelled so the page stays put under the finger.
 import { QUADRANTS, isRecord } from '../store.js';
-import { attemptBadge } from '../carry.js';
+import { attemptBadge, dayNav } from '../carry.js';
 
 const DRAG_THRESHOLD = 6; // px of movement before a press becomes a drag
 const LONG_PRESS_MS = 250; // touch: hold this long (without moving) to lift a card
@@ -38,7 +38,7 @@ export function mount(container, ctx) {
   // then a quadrant, or press 1–4). Sorted cards sit inside their quadrant and can be dragged again.
   const pile = ui.h('div', { class: 'sort__list', role: 'group', 'aria-label': t('sort.pile') });
   const live = ui.h('div', { class: 'sr-only', 'aria-live': 'polite' });
-  const nav = ui.stageNav({ onBack: () => ctx.goTo(2), onNext: () => ctx.goTo(4) });
+  const nav = ui.stageNav({ onBack: () => ctx.goTo(2), onNext: () => ctx.goTo(4), day: dayNav(ctx) });
 
   const root = ui.h(
     'div',

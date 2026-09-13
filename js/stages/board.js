@@ -4,7 +4,7 @@
 // (timer / postpone / next day) opened from a task title or its clock.
 import * as timer from '../timer.js';
 import { QUADRANTS, isRecord } from '../store.js';
-import { carryStrip, attemptBadge, recordLabel } from '../carry.js';
+import { carryStrip, attemptBadge, recordLabel, dayNav } from '../carry.js';
 
 const PRESET_MINUTES = [5, 15, 25, 45, 60];
 const TIP_ROOM = 150; // px free beside the matrix needed to put the "Done mark" bubble on the left
@@ -45,7 +45,7 @@ let suppressClick = false; // swallow the click that follows a completed drag
 export function mount(container, nextCtx) {
   ctx = nextCtx;
   const { ui, i18n } = ctx;
-  const nav = ui.stageNav({ onBack: () => ctx.goTo(3), onNext: () => ctx.goTo(1), nextLabel: i18n.t('nav.backToCalendar') });
+  const nav = ui.stageNav({ onBack: () => ctx.goTo(3), onNext: () => ctx.goTo(1), nextLabel: i18n.t('nav.backToCalendar'), day: dayNav(ctx) });
   boardEl = ui.h('div', {
     class: 'board',
     onPointerdown: onPointerDown,

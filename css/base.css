@@ -472,12 +472,68 @@ a {
 }
 
 .stage-nav {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-3);
+  display: grid;
+  grid-template-columns: 1fr auto 1fr; /* Back · centred day switcher · Next */
+  align-items: center;
+  gap: var(--space-2);
   width: 100%;
   max-width: 720px; /* align Back / Next with the content (matrix) width, not the screen edges */
   margin: var(--space-6) auto 0;
+}
+
+.stage-nav__side {
+  display: flex;
+  min-width: 0;
+}
+
+.stage-nav__side--end {
+  justify-content: flex-end;
+}
+
+/* Centred current-day display with discreet arrows to step the day. */
+.stage-nav__day {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.stage-nav__day-label {
+  min-width: 96px;
+  text-align: center;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.stage-nav__day-arrow {
+  color: var(--muted);
+}
+
+.stage-nav__day-arrow:hover {
+  color: var(--ink);
+}
+
+/* Narrow screens: the day switcher gets its own centred row above Back / Next so nothing overflows. */
+@media (max-width: 560px) {
+  .stage-nav {
+    grid-template-columns: 1fr 1fr;
+    row-gap: var(--space-2);
+  }
+  .stage-nav__day {
+    grid-row: 1;
+    grid-column: 1 / -1;
+    justify-self: center;
+  }
+  .stage-nav__side--start {
+    grid-row: 2;
+    grid-column: 1;
+  }
+  .stage-nav__side--end {
+    grid-row: 2;
+    grid-column: 2;
+  }
 }
 
 .stage-nav__next {
