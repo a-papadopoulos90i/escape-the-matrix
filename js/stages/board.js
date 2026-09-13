@@ -646,6 +646,10 @@ async function beginTimer(task, options) {
   if (await timer.start(task, options)) closePopover();
 }
 
+async function resumeFromPicker(task) {
+  if (await timer.resume(task)) closePopover();
+}
+
 function showTimerPicker(task, body) {
   const { ui, i18n } = ctx;
   const custom = ui.h('input', {
@@ -670,10 +674,23 @@ function showTimerPicker(task, body) {
     ui.icon('play', { size: 16 }),
     i18n.t('timer.stopwatch'),
   );
+  // If this task already has time on the clock (paused or stopped), offer to CONTINUE it from where
+  // it left off — so the time is never lost — before the options that start a fresh timer.
+  const status = timer.clockState(task);
+  const continueBtn =
+    status.state === 'paused' || status.state === 'done'
+      ? ui.h(
+          'button',
+          { class: 'btn btn-primary timer-picker__continue', type: 'button', onClick: () => resumeFromPicker(task) },
+          ui.icon('play', { size: 16 }),
+          i18n.t('timer.continue', { time: status.text }),
+        )
+      : null;
   showView(
     body,
     [
       editableTitle(task, body, () => showTimerPicker(task, body)),
+      continueBtn,
       stopwatch,
       ui.h(
         'fieldset',
@@ -698,8 +715,8 @@ function showTimerPicker(task, body) {
           ui.h('button', { class: 'btn btn-sm btn-primary', type: 'submit' }, i18n.t('timer.start')),
         ),
       ),
-    ],
-    stopwatch,
+    ].filter(Boolean),
+    continueBtn ?? stopwatch,
   );
 }
 

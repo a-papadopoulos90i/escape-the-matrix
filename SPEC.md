@@ -171,8 +171,10 @@ Speech bubble, verbatim: **"Done mark ✅"** — light-green pill `#cdf4d3` with
 (The board's stage 5 "fast organaze" was identical to stage 4, so the owner merged them; its
 actions live on stage 4.) Every action is its own card control, each opening a small popover panel:
 
-- **Clock → timer picker:** `Stopwatch` (count up) or `Countdown` with presets `5 · 15 · 25 · 45 ·
-  60 min` + a custom-minutes field.
+- **Clock → timer picker:** `Count up` (a stopwatch) or `Countdown` with presets `5 · 15 · 25 · 45 ·
+  60 min` + a custom-minutes field. If the task already has time on the clock (paused or stopped), a
+  green **`Continue mm:ss`** button appears on top and resumes from the accumulated time, so a
+  stopped timer's time is never lost (only one timer runs at a time; continuing another asks first).
 - **⏩ → schedule picker:** a **`Next day`** button on top (sends to the next visible day) and a
   **`Postpone`** section below with a calendar (`<input type="date">`, min = today) + `Set` — laid
   out like the timer picker.

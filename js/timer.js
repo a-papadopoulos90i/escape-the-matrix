@@ -104,6 +104,16 @@ export async function start(task, { mode, durationSec = 0 }) {
   return true;
 }
 
+/** Continues a paused or stopped timer from its accumulated time (never resets it). Like `start`,
+ *  it asks before displacing another live timer. Resolves to true when it resumed. */
+export async function resume(task) {
+  unlockAudio();
+  const active = store.activeTimer();
+  if (active && active.id !== task.id && !(await confirm(t('timer.replace')))) return false;
+  store.resumeTimer(task.id);
+  return true;
+}
+
 /** Asks once (per account) for notification permission, from inside the gesture that starts a countdown. */
 function requestNotificationPermission() {
   if (typeof Notification === 'undefined' || Notification.permission !== 'default') return;

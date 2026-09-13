@@ -275,7 +275,15 @@ test('timers: stopwatch start / pause / resume / stop', () => {
   assert.equal(typeof stopped.timer.stoppedAt, 'string');
   assert.equal(store.activeTimer(), null);
   assert.equal(store.stopTimer(task.id), null, 'stopping twice is a no-op');
-  assert.equal(store.resumeTimer(task.id), null, 'a stopped timer cannot resume');
+
+  // "Continue": a stopped timer resumes from its accumulated time (the time is never lost).
+  const resumed = store.resumeTimer(task.id);
+  assert.equal(resumed.timer.running, true);
+  assert.equal(resumed.timer.stoppedAt, null);
+  assert.equal(resumed.timer.elapsedSec, 15);
+  assert.equal(store.activeTimer().id, task.id);
+  clock.tick(5);
+  assert.equal(timerElapsed(store.get().tasks[0].timer, clock.now()), 20);
 });
 
 test('timers: countdown remaining and only one live timer at a time', () => {

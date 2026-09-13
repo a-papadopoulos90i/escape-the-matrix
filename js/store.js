@@ -531,11 +531,13 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
       );
     },
 
+    // Resumes a paused OR a stopped timer, keeping its accumulated time (a stopped timer's
+    // stoppedAt is cleared so "Continue" picks up where it left off). Only one timer runs at a time.
     resumeTimer(id) {
       const task = find(id);
-      if (!task?.timer || task.timer.running || task.timer.stoppedAt) return null;
+      if (!task?.timer || task.timer.running) return null;
       const at = stamp();
-      const next = { ...task, timer: { ...task.timer, startedAt: at, running: true }, updatedAt: at };
+      const next = { ...task, timer: { ...task.timer, startedAt: at, running: true, stoppedAt: null }, updatedAt: at };
       commit(
         stopOtherTimers(doc.tasks, id).map((item) => (item.id === id ? next : item)),
         { reason: 'resumeTimer', id },

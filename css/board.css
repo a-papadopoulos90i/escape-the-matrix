@@ -671,8 +671,13 @@
 }
 
 /* ▶ picker */
-.timer-picker__stopwatch {
+.timer-picker__stopwatch,
+.timer-picker__continue {
   width: 100%;
+}
+
+.timer-picker__continue {
+  gap: var(--space-1);
 }
 
 /* A plain block fieldset (NOT display:flex — that would demote the <legend> to a normal child) so

@@ -148,6 +148,7 @@ export const strings = {
   'popover.move': 'Move',
 
   'timer.stopwatch': 'Count up',
+  'timer.continue': 'Continue {time}',
   'timer.countdown': 'Countdown',
   'timer.presets': 'Minutes',
   'timer.unit': 'min',
