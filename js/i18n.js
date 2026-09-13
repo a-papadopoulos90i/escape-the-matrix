@@ -147,7 +147,7 @@ export const strings = {
   'popover.delete': 'Delete',
   'popover.move': 'Move',
 
-  'timer.stopwatch': 'Stopwatch',
+  'timer.stopwatch': 'Count up',
   'timer.countdown': 'Countdown',
   'timer.presets': 'Minutes',
   'timer.unit': 'min',
@@ -156,7 +156,7 @@ export const strings = {
   'timer.pause': 'Pause',
   'timer.resume': 'Resume',
   'timer.stop': 'Stop',
-  'timer.done': 'Done ✓',
+  'timer.done': 'Done',
   'timer.finished': "Time's up!",
   'timer.replace': 'Stop the current timer and start a new one?',
   'timer.notification': "Time's up: {title}",

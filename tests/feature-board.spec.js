@@ -225,7 +225,7 @@ test('▶ starts a countdown: clock live, bar visible, survives reload, pause/re
   await expect(bar(page)).toBeHidden();
 
   await openTimer(page, 'Marketing Order A5');
-  await expect(popover(page).locator('.timer-picker__stopwatch')).toHaveText('Stopwatch');
+  await expect(popover(page).locator('.timer-picker__stopwatch')).toHaveText('Count up');
   await expect(popover(page).locator('.timer-picker__preset')).toHaveText(['5', '15', '25', '45', '60']);
   await expect(popover(page).locator('.timer-picker__custom')).toBeVisible();
   await popover(page).locator('.timer-picker__preset', { hasText: /^5$/ }).click();
@@ -268,7 +268,7 @@ test('▶ starts a countdown: clock live, bar visible, survives reload, pause/re
   expect(errors).toEqual([]);
 });
 
-test('starting a second timer asks to stop the first; Done ✓ ticks the task', async ({ page }) => {
+test('starting a second timer asks to stop the first; Done ticks the task', async ({ page }) => {
   await seed(page, { tasks: SORTED(), stage: 4 });
   await page.goto('/');
   await openTimer(page, 'Marketing Order A5');
