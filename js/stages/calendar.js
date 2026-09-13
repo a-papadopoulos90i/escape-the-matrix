@@ -38,11 +38,6 @@ export function mount(container, context) {
     els.more,
     ui.h(
       'div',
-      { class: 'calendar__footer' },
-      legend(),
-    ),
-    ui.h(
-      'div',
       { class: 'calendar__demo-row' },
       ui.h('button', { class: 'calendar__demo', type: 'button', onClick: loadDemo }, ctx.i18n.t('calendar.demo')),
     ),
@@ -81,6 +76,18 @@ function toolbar() {
     ui.h(
       'div',
       { class: 'calendar__tools' },
+      ui.h(
+        'button',
+        {
+          class: 'btn-icon calendar__info',
+          type: 'button',
+          'aria-haspopup': 'dialog',
+          'aria-label': t('calendar.legendTitle'),
+          title: t('calendar.legendTitle'),
+          onClick: (event) => openLegend(event.currentTarget),
+        },
+        ui.icon('info', { size: 18 }),
+      ),
       (els.flip = ui.h(
         'button',
         { class: 'btn btn-sm calendar__flip', type: 'button', 'aria-pressed': String(flipped), onClick: toggleFlip },
@@ -134,7 +141,22 @@ function flipCells(phase) {
   });
 }
 
-/** Legend under the grid (the stage tip has no anchor here: app.js places it under the header). */
+let legendPop = null;
+
+/** The colour key, tucked behind the toolbar's ⓘ instead of sitting under the calendar. */
+function openLegend(anchor) {
+  if (legendPop) return legendPop.close();
+  legendPop = ctx.ui.popover({
+    anchor,
+    content: legend(),
+    className: 'popover--legend',
+    label: ctx.i18n.t('calendar.legendTitle'),
+    onClose: () => {
+      legendPop = null;
+    },
+  });
+}
+
 function legend() {
   const { ui, i18n: { t } } = ctx;
   const item = (kind) =>

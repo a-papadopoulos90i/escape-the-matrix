@@ -96,6 +96,7 @@ export const strings = {
   'analysis.times': '×{n}',
   'analysis.empty': 'No time tracked yet. Start a task timer on the board and it shows up here.',
   'calendar.demoConfirm': 'Load a two-month demo? This replaces the tasks saved in this browser (only here — nothing is uploaded).',
+  'calendar.legendTitle': 'What the colours mean',
   'calendar.legend.done': 'green = done tasks, one stripe each (up to 10)',
   'calendar.legend.today': 'blue = today',
   'calendar.legend.empty': 'gray = empty',

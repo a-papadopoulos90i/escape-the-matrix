@@ -245,26 +245,21 @@
 }
 
 /* ---------- Legend ---------- */
-/* Legend + the subtle "demo version" link on one centred row (wraps on narrow screens). */
-.calendar__footer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: center;
-  gap: var(--space-2) var(--space-4);
-  margin-top: var(--space-4);
-}
-
+/* The colour key, shown in the toolbar's ⓘ popover — one item per line. */
 .calendar__legend {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--space-2) var(--space-5);
-  max-width: var(--calendar-width);
+  flex-direction: column;
+  gap: var(--space-2);
+  width: max-content;
+  max-width: 260px;
   margin: 0;
   padding: 0;
   list-style: none;
   font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.calendar__info {
   color: var(--muted);
 }
 

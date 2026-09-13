@@ -117,7 +117,11 @@ test('March 2026 renders Sun–Sat, six rows, starting on Mar 1 (the full week i
   expect(keys[31]).toBe('2026-04-01');
   expect(keys[41]).toBe('2026-04-11');
   await expect(cells(page).nth(31).locator('.calendar__num')).toHaveText('1');
-  await expect(panel(page).locator('.calendar__legend-item')).toHaveText(['green = done tasks, one stripe each (up to 10)', 'blue = today', 'gray = empty']);
+  // The colour key moved behind the toolbar's ⓘ.
+  await expect(panel(page).locator('.calendar__legend')).toHaveCount(0);
+  await panel(page).locator('.calendar__info').click();
+  await expect(page.locator('.popover--legend .calendar__legend-item')).toHaveText(['green = done tasks, one stripe each (up to 10)', 'blue = today', 'gray = empty']);
+  await page.keyboard.press('Escape');
   // The weekends toggle and its note are gone; the week is always Sun–Sat.
   await expect(panel(page).locator('.switch__input')).toHaveCount(0);
   await expect(panel(page).locator('.calendar__note')).toHaveCount(0);

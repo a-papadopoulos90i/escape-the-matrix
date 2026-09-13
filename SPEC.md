@@ -75,8 +75,8 @@ Cell design (rounded square, ~1:1, number centred, bold):
 - Click/Enter on a cell → selects that date and always goes to **Stage 4 (Ready)**, whatever the
   date and whether or not the day has tasks. Write down and Prioritize are one tab away.
 
-Legend under the grid (small): green = done tasks (one stripe each, up to 10), blue = today,
-gray = empty. Beside the legend, a subtle **"demo version"** link fills this browser with a
+The colour key (green = done tasks, one stripe each up to 10 · blue = today · gray = empty) is not
+printed under the grid: a discreet **ⓘ** in the toolbar opens it in a small popover. Beside the legend, a subtle **"demo version"** link fills this browser with a
 two-month sample (mostly-done past days → a green calendar, plus a few backlog items) after a
 confirm — local only, nothing uploaded; it replaces what's saved in this browser. The **"Demo
 Version"** label (title case, no underline) sits on its own line below the legend, low on the page.
