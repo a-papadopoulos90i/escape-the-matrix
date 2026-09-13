@@ -127,9 +127,10 @@ live **count badge** (owner adopted the Lovable names):
 - `Delegate` — *Urgent but Not Important* (blue, users)
 - `Drop` — *Not Urgent & Not Important* (gray, trash)
 
-Task card, controls left→right: **circular checkbox** ("done mark"), the title (click → rename in
-place), a **clock** (opens the timer picker), a **⏩** (opens the schedule picker), and a **red ✕**
-(deletes at once, with an Undo toast). Done tasks: checkbox checked, title struck through and
+Task card, controls left→right: **circular checkbox** ("done mark"), a **priority icon** (the
+quadrant's coloured glyph before the title — click it to change the task's priority via a small
+menu), the title (click → rename in place), a **clock** (opens the timer picker), a **⏩** (opens the
+schedule picker), and a **red ✕** (deletes at once, with an Undo toast). Done tasks: checkbox checked, title struck through and
 dimmed, moved to the bottom. The count badge in each quadrant header is a plain number (no pill).
 
 Bottom of each quadrant: a single **`+`** button that adds a task straight into that quadrant

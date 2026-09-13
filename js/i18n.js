@@ -116,6 +116,7 @@ export const strings = {
   'board.markUndone': 'Mark not done',
   'board.deleteTask': 'Delete task',
   'board.renameTask': 'Rename — click to edit',
+  'board.changePriority': 'Change priority',
   'board.dragHint': 'Drag a card to another quadrant to move it.',
   'board.timerIdle': 'No timer — start one',
   'board.timerRunning': 'Timer running: {time}',

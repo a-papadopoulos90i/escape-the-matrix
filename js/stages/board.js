@@ -179,9 +179,42 @@ function taskCard(task) {
     'div',
     { class: `task-card ${task.done ? 'task-card--done' : ''}`.trim(), dataset: { id: task.id } },
     doneControl(task),
+    priorityButton(task),
     titleButton(task),
     ui.h('div', { class: 'task-card__actions' }, clock, scheduleButton(task), deleteButton(task)),
   );
+}
+
+/** A tag-coloured icon before the title showing the task's priority; click it to change it. */
+function priorityButton(task) {
+  const { ui, i18n } = ctx;
+  return ui.h(
+    'button',
+    {
+      class: `task-card__priority priority-icon--${task.quadrant}`,
+      type: 'button',
+      'aria-haspopup': 'menu',
+      'aria-label': i18n.t('board.changePriority'),
+      title: i18n.t('board.changePriority'),
+      dataset: { focusKey: `priority:${task.id}` },
+      onClick: (event) => openPriorityMenu(task, event.currentTarget),
+    },
+    ui.h('span', {
+      'aria-hidden': 'true',
+      html: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">${QUAD_ICON[task.quadrant]}</svg>`,
+    }),
+  );
+}
+
+function openPriorityMenu(task, anchor) {
+  const { ui, i18n } = ctx;
+  const items = QUADRANTS.map((quadrant) => ({
+    label: i18n.quadrantLabel(quadrant),
+    disabled: task.quadrant === quadrant,
+    onSelect: () => moveToQuadrant(task, quadrant),
+  }));
+  items.push('-', { label: i18n.t('quadrant.unsorted'), onSelect: () => moveToQuadrant(task, null) });
+  ui.menu({ anchor, items });
 }
 
 /** ⏩ between the clock and the ✕: opens the schedule picker (next day + postpone), the way the
@@ -484,7 +517,7 @@ function onClickCapture(event) {
 function draggableCardAt(target) {
   const card = target.closest('.task-card');
   if (!card || card.classList.contains('task-card--new') || card.classList.contains('task-card--record')) return null;
-  if (target.closest('.task-card__check, .task-card__clock, .task-card__forward, .task-card__delete, .quadrant__add, .waiting-place')) return null;
+  if (target.closest('.task-card__check, .task-card__priority, .task-card__clock, .task-card__forward, .task-card__delete, .quadrant__add, .waiting-place')) return null;
   return card;
 }
 

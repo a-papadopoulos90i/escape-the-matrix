@@ -442,6 +442,23 @@
   gap: 0;
 }
 
+/* Priority tag before the title: the quadrant's coloured glyph; click to change the priority. */
+.task-card__priority {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background var(--dur-fast);
+}
+
+.task-card__priority:hover,
+.task-card__priority:focus-visible {
+  background: var(--surface-2);
+}
+
 .task-card__clock {
   display: inline-flex;
   align-items: center;
