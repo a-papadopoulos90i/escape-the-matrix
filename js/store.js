@@ -363,12 +363,15 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
     },
 
     /**
-     * Unfinished tasks left on days before `date` — not done, not already carried forward and
-     * not in the DELETE quadrant — oldest day first. These are what "Pull them here" offers.
+     * Unfinished tasks left on days before `date` that were actually **placed in a quadrant** —
+     * not done, not already carried forward, not in the DELETE quadrant, and not still sitting in
+     * the waiting list (`quadrant === null`) — oldest day first. These are what "Pull them here"
+     * offers: only committed, unfinished work carries forward, so a task left in a waiting list
+     * stays put and is never pulled again once it lands in one.
      */
     unfinishedBefore(date) {
       return doc.tasks
-        .filter((task) => live(task) && !isRecord(task) && !task.done && task.quadrant !== 'delete' && task.date < date)
+        .filter((task) => live(task) && !isRecord(task) && !task.done && task.quadrant !== null && task.quadrant !== 'delete' && task.date < date)
         .sort((a, b) => a.date.localeCompare(b.date) || compareTasks(a, b));
     },
 

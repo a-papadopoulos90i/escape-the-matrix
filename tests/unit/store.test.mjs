@@ -157,6 +157,30 @@ test('moveTaskToDate + undo', () => {
   assert.throws(() => store.moveTaskToDate(task.id, 'nope'));
 });
 
+test('pull (unfinishedBefore) carries forward only placed, unfinished work — never waiting-list tasks', () => {
+  const past = '2026-03-10';
+  const today = '2026-03-11';
+  const { store } = makeStore();
+  const placed = store.addTask({ title: 'Placed, not done', date: past, quadrant: 'do' });
+  const done = store.addTask({ title: 'Placed and done', date: past, quadrant: 'plan' });
+  store.toggleDone(done.id);
+  store.addTask({ title: 'Dropped', date: past, quadrant: 'delete' });
+  store.addTask({ title: 'Left in the waiting list', date: past }); // quadrant === null
+
+  // Only the placed, unfinished task is offered to "Pull them here".
+  assert.deepEqual(store.unfinishedBefore(today).map((t) => t.title), ['Placed, not done']);
+
+  // Pulling copies it into today's waiting list (attempt 2) and leaves a record behind.
+  store.carryOver([placed.id], today);
+  const copy = store.tasksForDate(today).find((t) => t.title === 'Placed, not done');
+  assert.equal(copy.quadrant, null);
+  assert.equal(copy.attempt, 2);
+  assert.equal(store.findTask(placed.id).carriedTo, today);
+
+  // The pulled copy now sits in a waiting list, so a later day never pulls it again.
+  assert.deepEqual(store.unfinishedBefore('2026-03-12').map((t) => t.title), []);
+});
+
 test('undo is single-level: only the last undoable mutation reverts', () => {
   const { store } = makeStore();
   const a = store.addTask({ title: 'a', date: DAY });

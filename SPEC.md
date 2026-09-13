@@ -196,10 +196,15 @@ and the **red ✕**. On a device with a pointer the glyph row and the ✕ stay h
 hovered or focused (touch devices always show them). They are on hold: the `Next →` button on Stage 3
 carries the "· N waiting" count.
 
-**Pulling unfinished tasks forward.** When earlier days still hold unfinished tasks (not done, not
-in DELETE, not already pulled), stages 2 and 4 show a strip "N unfinished tasks left on Mon 9 Mar,
-Tue 10 Mar — Pull them here". Pulling gives each task a **fresh copy on this day** (in the waiting
-list) and leaves the original on its day as a **record**: faded red, "Pulled to Thu 12 Mar",
+**Pulling unfinished tasks forward.** Pull carries forward only **committed, unfinished work** —
+tasks that were **placed in a quadrant** (`do` / `plan` / `delegate`) on an earlier day and are not
+done. It never pulls a task still sitting in a **waiting list** (`quadrant === null`), nor one in
+**DELETE** (Drop), nor a record already pulled. So a task you merely wrote and left unsorted stays on
+its own day, and — because a pulled copy lands in the waiting list — once something is in a waiting
+list it is never pulled again. When such tasks exist on earlier days, stages 2 and 4 show a strip
+"N unfinished tasks left on Mon 9 Mar, Tue 10 Mar — Pull them here"; you can go days without pulling
+and then pull everything at once. Pulling gives each task a **fresh copy on this day** (in the
+waiting list) and leaves the original on its day as a **record**: faded red, "Pulled to Thu 12 Mar",
 nothing to tick or start, and **not counted** anywhere. Each task carries `attempt`, the number of
 times it has been on a plan; a copy shows a red `×3` badge ("3rd time on the plan") so the owner
 sees how often a task has been carried. One toast with Undo reverts the whole pull.
