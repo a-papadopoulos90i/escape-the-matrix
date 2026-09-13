@@ -179,8 +179,9 @@ unplaces it).
   the bar, and, if Notification permission was granted, posts a browser notification.
 - **📅 Postpone:** a native `<input type="date">` (min = today) → sets `task.date`; the task leaves
   this day's board. Toast: "Moved to Tue 15 Sep" with **Undo**.
-- **⏩ Next day:** sets `task.date` to **tomorrow** (the literal next day — weekends are ordinary days
-  now, so a Friday task goes to Saturday). Toast with **Undo**.
+- **⏩ Next day:** sets `task.date` to the **next weekday**, skipping weekends (a Friday task goes to
+  Monday). Weekends still show on the calendar; this only affects where the one-tap action lands.
+  Toast with **Undo**.
 
 **Waiting list (the 5th category).** Tasks left unplaced on stage 3 (`quadrant: null`) are listed
 under the matrix in a "Waiting list (N)" panel, the **same width as the matrix** above it. Each
@@ -392,7 +393,7 @@ rising from the bottom (ten fill the cell). Buttons are pill-shaped; the primary
 7. Ticking a task strikes it through and Stage 1 shows one green stripe per done task (ten fill the cell).
 8. Stage 4 popover: ▶️ starts a countdown (timer bar visible, clock icon live); reload → timer still running; countdown end beeps.
 9. 📅 moves the task to the chosen date (visible on that day, gone from this one) with Undo working.
-10. ⏩ moves the task to the literal next day, weekends included (Fri → Sat), Undo works.
+10. ⏩ moves the task to the next weekday, skipping weekends (Fri → Mon), Undo works.
 11. `…` menu actions work in each quadrant; "Delete all tasks here" only in gray quadrant.
 12. Every speech bubble text from §2 appears on its stage the first time, can be closed, and `?` re-opens it.
 13. Stepper and ←/→ keys navigate; transitions animate; reduced-motion disables animation.

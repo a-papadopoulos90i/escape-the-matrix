@@ -494,7 +494,7 @@ test('9. 📅 moves the task to the chosen date (gone here, visible there) and U
   await expect(quadrant(page, 'plan').locator('.task-card')).toHaveText([TITLES[2]]);
 });
 
-test('10. ⏩ sends a task to the next day (weekends included); Undo works', async ({ page }) => {
+test('10. ⏩ sends a Friday task to Monday (skips the weekend); Undo works', async ({ page }) => {
   await page.clock.setFixedTime(FIXED_NOW);
   const friday = '2026-03-13';
   await seed(page, { tasks: sortedTasks(friday), stage: 4, date: friday });
@@ -503,8 +503,8 @@ test('10. ⏩ sends a task to the next day (weekends included); Undo works', asy
   await openSchedule(page, TITLES[0]);
   await popover(page).locator('.schedule-picker__nextday').click();
   await expect(card(page, TITLES[0])).toHaveCount(0);
-  await expect(page.locator('.toast')).toContainText('Moved to Sat 14 Mar'); // weekends are ordinary days now
-  await waitForSaved(page, (doc) => taskById(doc, 't_1').date === '2026-03-14');
+  await expect(page.locator('.toast')).toContainText('Moved to Mon 16 Mar'); // ⏩ skips the weekend
+  await waitForSaved(page, (doc) => taskById(doc, 't_1').date === '2026-03-16');
 
   await page.locator('.toast__action', { hasText: 'Undo' }).click();
   await expect(quadrant(page, 'do').locator('.task-card')).toHaveText([TITLES[0]]);
