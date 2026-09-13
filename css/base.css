@@ -479,6 +479,12 @@ a {
   text-align: center;
 }
 
+/* Same label sitting inside a toolbar row (Stage 1). */
+.stage-kicker--inline {
+  margin: 0;
+  text-align: center;
+}
+
 /* Centred current-day display with discreet arrows to step the day. */
 .stage-nav__day {
   display: inline-flex;

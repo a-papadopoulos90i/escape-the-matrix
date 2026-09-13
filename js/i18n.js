@@ -25,7 +25,6 @@ export const strings = {
   'nav.label': 'Stage navigation',
   'nav.back': '← Back',
   'nav.next': 'Next →',
-  'nav.nextWaiting': 'Next ({n} waiting) →',
   'nav.backToCalendar': 'Back to calendar',
 
   'day.today': 'Today',

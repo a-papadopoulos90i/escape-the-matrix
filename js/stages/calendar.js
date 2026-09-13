@@ -32,7 +32,7 @@ export function mount(container, context) {
   root = ui.h(
     'div',
     { class: 'stage-body calendar' },
-    ui.stageHeader({ stage: 1, title: '' }),
+    ui.stageHeader({ stage: 1, title: '', kicker: false }),
     toolbar(),
     els.months,
     els.more,
@@ -78,6 +78,7 @@ function toolbar() {
       els.month,
       ui.h('button', { class: 'btn-icon', type: 'button', 'aria-label': t('calendar.nextMonth'), onClick: () => shiftMonth(1) }, ui.icon('chevron-right')),
     ),
+    ui.stageKicker(1, 'inline'),
     ui.h(
       'div',
       { class: 'calendar__tools' },
@@ -91,26 +92,42 @@ function toolbar() {
   );
 }
 
-/** Flips the calendar between the normal view and Manage mode (task previews + day popup). */
+const FLIP_STEP_MS = 6; // stagger between neighbouring cells, so the wave runs across the grid
+const FLIP_MAX_STAGGER_MS = 150;
+const FLIP_HALF_MS = 190 + FLIP_MAX_STAGGER_MS; // half-turn plus the wave
+
+/** Flips the calendar between the normal view and Manage mode (task previews + day popup). The
+ *  cells turn edge-on first, swap what they show at that point, then turn back — so the data is
+ *  revealed BY the flip rather than appearing before it. */
 function toggleFlip() {
   flipped = !flipped;
-  root.classList.toggle('calendar--flipped', flipped);
   els.flip.setAttribute('aria-pressed', String(flipped));
   els.flip.replaceChildren(ctx.ui.icon('refresh', { size: 15 }), ctx.i18n.t(flipped ? 'calendar.manageOff' : 'calendar.manage'));
-  render();
-  playCellFlip(); // each day turns over on its own, in a quick left-to-right wave
+
+  const swap = () => {
+    root.classList.toggle('calendar--flipped', flipped);
+    render();
+  };
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return swap();
+
+  flipCells('out');
+  setTimeout(() => {
+    swap(); // at 90° the cells are edge-on: nothing of the change is visible yet
+    flipCells('in');
+  }, FLIP_HALF_MS);
 }
 
-/** Runs the per-cell flip animation across the freshly rendered grid, staggered by position so the
- *  days turn over one after another instead of the whole board flipping as a single sheet. */
-function playCellFlip() {
+/** Half of the per-cell turn: 'out' takes the cells to edge-on, 'in' brings them back showing the
+ *  other side. Staggered by position so the days turn one after another. */
+function flipCells(phase) {
   els.months.querySelectorAll('.calendar__day').forEach((cell, i) => {
-    cell.style.setProperty('--flip-delay', `${Math.min(i * 12, 360)}ms`);
-    cell.classList.add('calendar__day--flipping');
+    cell.style.setProperty('--flip-delay', `${Math.min(i * FLIP_STEP_MS, FLIP_MAX_STAGGER_MS)}ms`);
+    cell.classList.add(`calendar__day--flip-${phase}`);
+    if (phase === 'out') return; // these cells are replaced by the swap, no cleanup needed
     cell.addEventListener(
       'animationend',
       () => {
-        cell.classList.remove('calendar__day--flipping');
+        cell.classList.remove('calendar__day--flip-in');
         cell.style.removeProperty('--flip-delay');
       },
       { once: true },

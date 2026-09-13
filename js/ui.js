@@ -479,9 +479,10 @@ export function stageHeader({ stage, title, subtitle, kicker = true }) {
   );
 }
 
-/** The "STAGE N" label, shown centred at the very bottom of stages 2–4. */
-export function stageKicker(stage) {
-  return h('p', { class: 'stage-kicker stage-kicker--footer' }, t('stage.heading', { n: stage }));
+/** The "STAGE N" label. `footer` sits centred at the bottom of stages 2–4; `inline` sits inside a
+ *  toolbar row (Stage 1, between the month and All Tasks). */
+export function stageKicker(stage, variant = 'footer') {
+  return h('p', { class: `stage-kicker stage-kicker--${variant}` }, t('stage.heading', { n: stage }));
 }
 
 /** Navigation row: Back and Next flank the centred day switcher (pass `day`). Omit onBack / onNext to

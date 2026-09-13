@@ -77,7 +77,7 @@ function render() {
   const { backlog, all } = cards();
 
   listEl.replaceChildren(...(all.length ? all.map(cardEl) : [ui.h('p', { class: 'sort__done' }, i18n.t('sort.empty'))]));
-  nextButton.textContent = backlog.length ? i18n.t('nav.nextWaiting', { n: backlog.length }) : i18n.t('nav.next');
+  nextButton.textContent = i18n.t('nav.next'); // same wording on every stage
 
   if (focusedId) {
     const card = listEl.querySelector(`.sort-card[data-id="${focusedId}"]`);

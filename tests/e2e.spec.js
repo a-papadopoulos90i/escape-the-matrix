@@ -178,7 +178,7 @@ test('walkthrough: pick a day, dump, sort, work the board, organize, back to a g
   await expect(stageTitle(page)).toHaveText('Place them by priority');
   await closeTip(page);
   await expect(pileCards(page)).toHaveCount(3);
-  await expect(panel(page).locator('.stage-nav__next')).toHaveText('Next (3 waiting) →');
+  await expect(panel(page).locator('.stage-nav__next')).toHaveText('Next →');
   const tag = (title, q) => panel(page).locator('.sort-card', { hasText: title }).locator(`.priority-icon--${q}`);
   await tag(TITLES[0], 'do').click();
   await tag(TITLES[1], 'delegate').click();

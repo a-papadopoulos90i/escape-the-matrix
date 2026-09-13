@@ -111,9 +111,14 @@
   background: var(--surface-2);
 }
 
+/* Tagged: the glyph fills with its own colour — no ring around it. */
 .priority-icon.is-active {
-  box-shadow: 0 0 0 2px var(--focus); /* the selection ring, green */
-  background: color-mix(in srgb, var(--focus) 12%, transparent);
+  box-shadow: none;
+  background: transparent;
+}
+
+.priority-icon.is-active svg {
+  fill: currentColor;
 }
 
 /* Red ✕ that deletes the task (with Undo). */

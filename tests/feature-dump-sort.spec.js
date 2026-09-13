@@ -138,7 +138,7 @@ test.describe('stage 3 (desktop)', () => {
     await expect(panel(page).locator('.matrix')).toHaveCount(0); // no matrix on stage 3 anymore
     await expect(pileCards(page)).toHaveCount(4);
     const next = panel(page).locator('.stage-nav__next');
-    await expect(next).toHaveText('Next (4 waiting) →');
+    await expect(next).toHaveText('Next →');
 
     // Each priority icon tags the task; it stays in the list with the chosen icon ringed.
     const quadrants = ['do', 'plan', 'delegate', 'delete'];
@@ -157,7 +157,7 @@ test.describe('stage 3 (desktop)', () => {
     // Untag: tapping the active icon again returns the task to the backlog.
     await priorityIcon(page, TITLES[1], 'plan').click();
     await expect(priorityIcon(page, TITLES[1], 'plan')).not.toHaveClass(/is-active/);
-    await expect(next).toHaveText('Next (1 waiting) →');
+    await expect(next).toHaveText('Next →');
 
     await expect
       .poll(async () => Object.fromEntries((await storedTasks(page)).map((task) => [task.title, task.quadrant])))
