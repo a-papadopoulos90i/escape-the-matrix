@@ -2,7 +2,7 @@
    numbered task list, and a scrollable "pull unfinished tasks" section at the bottom. */
 
 .dump {
-  max-width: 680px;
+  max-width: var(--content-col); /* the same column as every other stage */
   margin: 0 auto;
   width: 100%;
 }
