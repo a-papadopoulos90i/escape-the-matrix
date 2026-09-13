@@ -118,14 +118,13 @@ function quadrantBox(quadrant, tasks) {
 
 function cardEl(task) {
   const { ui } = state.ctx;
-  // The tag lights up only when this task is placed here on the day being viewed.
-  const activeQuadrant = task.date === state.date ? task.quadrant : null;
+  // The tag travels with the task — it is a label, not a placement, so it shows on every day.
   const classes = ['task-card', 'sort-card', task.done && 'task-card--done'].filter(Boolean).join(' ');
   return ui.h(
     'div',
     { class: classes, dataset: { id: task.id }, role: 'listitem' },
     ui.h('span', { class: 'sort-card__title' }, attemptBadge(state.ctx, task), ui.h('span', { class: 'task-card__title' }, task.title)),
-    priorityIcons(state.ctx, task, activeQuadrant),
+    priorityIcons(state.ctx, task, task.tag),
     deleteButton(task),
   );
 }
@@ -151,16 +150,15 @@ function findTask(id) {
   return state.ctx.store.findTask(id);
 }
 
-/** Tags a task with `quadrant` for the day being viewed, or untags it when that tag is already set
- *  on this day. Tagging also moves the task onto this day — that is how you choose *when*. */
+/** Labels the task with `quadrant`, or clears the label when it already carries it. This only tags:
+ *  it never puts the task in a day's box and never changes its date. */
 function tag(id, quadrant) {
   const { store, i18n } = state.ctx;
   const task = findTask(id);
   if (!task) return;
-  const taggedHere = task.date === state.date && task.quadrant === quadrant;
-  const next = taggedHere ? null : quadrant;
-  store.setQuadrant(id, next, state.date);
-  state.live.textContent = next ? i18n.t('sort.placed', { quadrant: i18n.quadrantName(next) }) : i18n.t('quadrant.unsorted');
+  const next = task.tag === quadrant ? null : quadrant;
+  store.setTag(id, next);
+  state.live.textContent = next ? i18n.t('sort.tagged', { quadrant: i18n.quadrantName(next) }) : i18n.t('sort.untagged');
 }
 
 function del(id) {

@@ -160,14 +160,19 @@ test.describe('stage 3 (desktop)', () => {
     await expect(next).toHaveText('Next →');
 
     await expect
-      .poll(async () => Object.fromEntries((await storedTasks(page)).map((task) => [task.title, task.quadrant])))
+      .poll(async () => Object.fromEntries((await storedTasks(page)).map((task) => [task.title, task.tag])))
       .toEqual({ [TITLES[0]]: 'delete', [TITLES[1]]: null, [TITLES[2]]: 'delegate', [TITLES[3]]: 'delete' });
+    // Tagging is a label only: nothing was placed on a day.
+    await expect
+      .poll(async () => (await storedTasks(page)).every((task) => task.quadrant === null))
+      .toBe(true);
 
-    // Tagged tasks show in their quadrant on Stage 4.
+    // So Stage 4's boxes stay empty and the tasks are still on the waiting list.
     await page.locator('#stepper .step').nth(3).click();
     await page.locator('#stage .panel--ghost').waitFor({ state: 'detached' });
-    await expect(quadrantCards(page, 'delete')).toHaveText([TITLES[0], TITLES[3]]);
-    await expect(quadrantCards(page, 'delegate')).toHaveText([TITLES[2]]);
+    await expect(quadrantCards(page, 'delete')).toHaveCount(0);
+    await expect(quadrantCards(page, 'delegate')).toHaveCount(0);
+    await expect(panel(page).locator('.waiting-card')).toHaveCount(4);
     expect(errors).toEqual([]);
   });
 
@@ -178,7 +183,7 @@ test.describe('stage 3 (desktop)', () => {
     await priorityIcon(page, TITLES[0], 'do').focus();
     await page.keyboard.press('Enter');
     await expect(priorityIcon(page, TITLES[0], 'do')).toHaveClass(/is-active/);
-    await expect(panel(page).locator('[aria-live="polite"]').last()).toHaveText('Placed in Urgent & Important');
+    await expect(panel(page).locator('[aria-live="polite"]').last()).toHaveText('Tagged Urgent & Important');
 
     // The red ✕ deletes the task, with Undo.
     await cardByTitle(page, TITLES[1]).locator('.sort-card__delete').click();
@@ -198,7 +203,7 @@ test.describe('touch', () => {
     const { x, y } = await centre(icon);
     await page.touchscreen.tap(x, y);
     await expect(icon).toHaveClass(/is-active/);
-    await expect.poll(async () => (await storedTasks(page))[0].quadrant).toBe('delegate');
+    await expect.poll(async () => (await storedTasks(page))[0].tag).toBe('delegate');
   });
 });
 

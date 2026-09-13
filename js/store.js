@@ -60,6 +60,10 @@ function normalizeTask(raw) {
     title: typeof raw.title === 'string' ? raw.title : '',
     date: raw.date,
     quadrant: QUADRANTS.includes(raw.quadrant) ? raw.quadrant : null,
+    // The priority label the user puts on a task in Stage 3. It travels with the task and is
+    // independent of where (or whether) the task sits on a day's board. Documents written before
+    // tags existed inherit the task's quadrant so nothing looks unlabelled.
+    tag: QUADRANTS.includes(raw.tag) ? raw.tag : QUADRANTS.includes(raw.quadrant) ? raw.quadrant : null,
     order: Number.isFinite(raw.order) ? raw.order : 0,
     done: raw.done === true,
     doneAt: typeof raw.doneAt === 'string' ? raw.doneAt : null,
@@ -438,6 +442,13 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
     setQuadrant(id, quadrant, date = null) {
       const next = QUADRANTS.includes(quadrant) ? quadrant : null;
       return undoable(() => patchTask(id, () => (next !== null && isDateKey(date) ? { quadrant: next, date } : { quadrant: next }), 'setQuadrant'));
+    },
+
+    /** Sets (or clears, with null) the task's priority label. Never touches its quadrant or date —
+     *  tagging is a characterisation, not a placement. */
+    setTag(id, tag) {
+      const next = QUADRANTS.includes(tag) ? tag : null;
+      return undoable(() => patchTask(id, () => ({ tag: next }), 'setTag'));
     },
 
     /** Marking done also stops a live timer on that task. */

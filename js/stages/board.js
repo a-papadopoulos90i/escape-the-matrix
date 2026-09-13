@@ -185,13 +185,15 @@ function taskCard(task) {
   );
 }
 
-/** A tag-coloured icon before the title showing the task's priority; click it to change it. */
+/** The task's priority TAG, shown right after the done tick. It is the label set in Prioritize, not
+ *  the box the card sits in — click it to change the label. Untagged tasks show no icon. */
 function priorityButton(task) {
   const { ui, i18n } = ctx;
+  if (!task.tag) return null;
   return ui.h(
     'button',
     {
-      class: `task-card__priority priority-icon--${task.quadrant}`,
+      class: `task-card__priority priority-icon--${task.tag}`,
       type: 'button',
       'aria-haspopup': 'menu',
       'aria-label': i18n.t('board.changePriority'),
@@ -201,19 +203,19 @@ function priorityButton(task) {
     },
     ui.h('span', {
       'aria-hidden': 'true',
-      html: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">${QUAD_ICON[task.quadrant]}</svg>`,
+      html: `<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">${QUAD_ICON[task.tag]}</svg>`,
     }),
   );
 }
 
 function openPriorityMenu(task, anchor) {
-  const { ui, i18n } = ctx;
+  const { ui, i18n, store } = ctx;
   const items = QUADRANTS.map((quadrant) => ({
     label: i18n.quadrantLabel(quadrant),
-    disabled: task.quadrant === quadrant,
-    onSelect: () => moveToQuadrant(task, quadrant),
+    disabled: task.tag === quadrant,
+    onSelect: () => store.setTag(task.id, quadrant),
   }));
-  items.push('-', { label: i18n.t('quadrant.unsorted'), onSelect: () => moveToQuadrant(task, null) });
+  items.push('-', { label: i18n.t('quadrant.unsorted'), onSelect: () => store.setTag(task.id, null) });
   ui.menu({ anchor, items });
 }
 

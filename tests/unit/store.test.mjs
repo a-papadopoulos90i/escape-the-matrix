@@ -96,6 +96,35 @@ test('setQuadrant validates and is undoable', () => {
   assert.equal(store.get().tasks[0].quadrant, null);
 });
 
+test('setTag labels a task without touching its placement or date', () => {
+  const { store } = makeStore();
+  const task = store.addTask({ title: 'a', date: DAY });
+  store.setTag(task.id, 'delegate');
+  const tagged = store.get().tasks[0];
+  assert.equal(tagged.tag, 'delegate');
+  assert.equal(tagged.quadrant, null); // a tag is a label, never a placement
+  assert.equal(tagged.date, DAY);
+
+  store.setTag(task.id, 'bogus'); // anything invalid clears the label
+  assert.equal(store.get().tasks[0].tag, null);
+
+  store.setTag(task.id, 'do');
+  assert.equal(store.undo(), true);
+  assert.equal(store.get().tasks[0].tag, null);
+});
+
+test('a doc written before tags existed inherits each task\'s quadrant as its tag', () => {
+  const { store } = makeStore({
+    tasks: [
+      { id: 't_old', title: 'placed', date: DAY, quadrant: 'plan' },
+      { id: 't_free', title: 'backlog', date: DAY, quadrant: null },
+    ],
+  });
+  const byId = Object.fromEntries(store.get().tasks.map((task) => [task.id, task]));
+  assert.equal(byId.t_old.tag, 'plan');
+  assert.equal(byId.t_free.tag, null);
+});
+
 test('removeTask leaves a hidden tombstone; undo restores the task with its fields', () => {
   const { store } = makeStore();
   const task = store.addTask({ title: 'keep me', date: DAY, quadrant: 'delegate' });

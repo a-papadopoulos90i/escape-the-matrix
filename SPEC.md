@@ -118,7 +118,7 @@ task rows).
 Title: `Place them by priority` (plain).
 
 Stage 3 has **the four quadrant boxes on top** — the same look as the board, showing what the day
-being viewed holds and updating as you step the date with the day switcher. Under them sits the
+being viewed already holds (read-only here) and updating as you step the date with the day switcher. Under them sits the
 **fixed "Your tasks" list**: every open task, whatever its day, all gathered in one place
 (`store.allTasks()`), in a dashed card headed `Your tasks` with a short hint. Changing the day
 changes the boxes, never the list. The list scrolls **vertically only**.
@@ -127,13 +127,14 @@ Each card shows the task title (with its `×n` attempt badge when carried), then
 colour-coded priority icons** (Do now flame / Schedule star / Delegate users / Drop trash) and a
 **red ✕** (delete, with Undo). There is no drag, no matrix and no `▾` menu.
 
-- **Tap a priority icon to tag** the task with that priority — it sets the task's quadrant and moves
-  it onto the day being viewed (that is how you choose *when*). The card **stays in the list**; the
-  chosen icon **fills with its own colour** (no ring), and it only lights up on the day the task
-  belongs to.
-- **Tap the active icon again to untag** it (back to the backlog). Enter on a focused icon does the
-  same, so it works by keyboard and touch.
-- The tag decides which quadrant the task lands in on the Stage 4 board.
+- **Tap a priority icon to tag** the task. A tag is a **label only** (`task.tag`): it never puts the
+  task in a day's box and never changes its date. The card **stays in the list** and the chosen icon
+  **fills with its own colour** (no ring). Because it is a property of the task, it shows on every
+  day.
+- **Tap the active icon again to clear the label.** Enter on a focused icon does the same, so it
+  works by keyboard and touch.
+- Putting a task on a day's board is a separate act, done on **Stage 4** (the waiting list's place
+  glyphs, drag between quadrants, or a quadrant's `+`).
 - `Next →` is always enabled and reads the same as on every other stage.
 
 Quadrant fill / accent colours (the icons here, and the board on Stage 4): do `#fdede8` / red, plan
@@ -272,7 +273,8 @@ the header): **"Organize them by priority:"** then bullets `start the timer or t
       id: "t_k3j9x2",                 // random id, generated client-side
       title: "Marketing Order A5",
       date: "2026-03-11",             // YYYY-MM-DD, local calendar day the task belongs to
-      quadrant: null,                 // null | 'do' | 'plan' | 'delegate' | 'delete'
+      quadrant: null,                 // null | 'do' | 'plan' | 'delegate' | 'delete' — WHERE it sits on a day's board
+      tag: null,                      // null | 'do' | 'plan' | 'delegate' | 'delete' — the priority LABEL (Stage 3)
       order: 1731350000000,           // number used for ordering within a day/quadrant
       done: false,
       doneAt: null,                   // ISO or null

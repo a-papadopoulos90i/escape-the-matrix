@@ -189,9 +189,16 @@ test('walkthrough: pick a day, dump, sort, work the board, organize, back to a g
   await panel(page).locator('.stage-nav__next').click();
   await settled(page);
 
-  // Stage 4 → tick one task.
+  // Stage 4 → tags are only labels, so place each task on today's board from the waiting list.
   await expect(stageTitle(page)).toHaveText('Ready to start');
   await closeTip(page);
+  const place = (title, q) => panel(page).locator('.waiting-card', { hasText: title }).locator(`.waiting-place--${q}`);
+  await place(TITLES[0], 'do').click();
+  await place(TITLES[1], 'delegate').click();
+  await place(TITLES[2], 'plan').click();
+  await expect(panel(page).locator('.waiting-card')).toHaveCount(0);
+
+  // Tick one task.
   await card(page, TITLES[2]).locator('.task-card__check').check();
   await expect(card(page, TITLES[2])).toHaveClass(/task-card--done/);
 
@@ -293,7 +300,7 @@ test('4. adding tasks builds a numbered list; ✕ deletes with Undo; reload keep
 
 // ---------- 5: sorting ----------
 
-test('5. Stage 3: tag each task with a priority; tags persist and fill the Stage 4 quadrants', async ({ page }) => {
+test('5. Stage 3: tagging labels a task without placing it; the label persists', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 1100 });
   await page.clock.setFixedTime(FIXED_NOW);
   await seed(page, { tasks: unsortedTasks(), stage: 3 });
@@ -314,16 +321,17 @@ test('5. Stage 3: tag each task with a priority; tags persist and fill the Stage
   // Re-tag: tapping a different icon changes the priority.
   await iconFor(TITLES[1], 'plan').click();
   await expect(iconFor(TITLES[1], 'plan')).toHaveClass(/is-active/);
-  await waitForSaved(page, (doc) => taskById(doc, 't_1').quadrant === 'do' && taskById(doc, 't_2').quadrant === 'plan' && taskById(doc, 't_3').quadrant === 'delegate');
+  await waitForSaved(page, (doc) => taskById(doc, 't_1').tag === 'do' && taskById(doc, 't_2').tag === 'plan' && taskById(doc, 't_3').tag === 'delegate');
+  // The label never moves a task onto a day.
+  await waitForSaved(page, (doc) => ['t_1', 't_2', 't_3'].every((id) => taskById(doc, id).quadrant === null));
 
-  // Stage 4 shows them in their coloured quadrants.
+  // Stage 4 keeps its coloured boxes empty; the tasks wait to be placed there.
   await goToStage(page, 4);
   for (const [q, fill] of [['do', RGB.redFill], ['plan', RGB.yellowFill], ['delegate', RGB.blueFill], ['delete', RGB.grayFill]]) {
     await expect(quadrant(page, q)).toHaveCSS('background-color', fill);
+    await expect(quadrant(page, q).locator('.task-card')).toHaveCount(0);
   }
-  await expect(quadrant(page, 'do').locator('.task-card')).toHaveText([TITLES[0]]);
-  await expect(quadrant(page, 'plan').locator('.task-card')).toHaveText([TITLES[1]]);
-  await expect(quadrant(page, 'delegate').locator('.task-card')).toHaveText([TITLES[2]]);
+  await expect(panel(page).locator('.waiting-card')).toHaveCount(3);
 });
 
 // ---------- 6–7: the board ----------
@@ -675,6 +683,7 @@ test('18. no console errors on any stage and no network needed after the first l
   await panel(page).locator('.sort-card', { hasText: 'Offline task' }).locator('.priority-icon--do').click();
   await expect(panel(page).locator('.sort-card', { hasText: 'Offline task' }).locator('.priority-icon--do')).toHaveClass(/is-active/);
   await goToStage(page, 4);
+  await panel(page).locator('.waiting-card', { hasText: 'Offline task' }).locator('.waiting-place--do').click();
   await card(page, 'Offline task').locator('.task-card__check').check();
   await goToStage(page, 1);
   await expect(cell(page, TODAY)).toHaveAttribute('title', '1 of 4 done');
