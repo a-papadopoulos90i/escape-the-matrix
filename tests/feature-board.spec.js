@@ -99,10 +99,19 @@ test('stage 4 shows the labelled quadrants, cards with checkbox + clock, and the
   const waiting = panel(page).locator('.waiting');
   await expect(waiting.locator('.waiting__label')).toHaveText('Waiting list (1)');
   await expect(waiting.locator('.waiting-card')).toHaveText(/Loose end/);
-  await expect(waiting.locator('.waiting-place')).toHaveCount(4); // one glyph per quadrant, no dropdown
-  await waiting.locator('.waiting-place--do').click(); // file it into Do now directly
-  await expect(quadrant(page, 'do').locator('.task-card')).toHaveText(['Marketing Order A5', 'Loose end']);
-  await expect(panel(page).locator('.waiting')).toHaveCount(0);
+  await expect(waiting.locator('.waiting-place')).toHaveCount(4); // one glyph per quadrant
+
+  // The glyphs TAG the task — they never file it into a quadrant.
+  await waiting.locator('.waiting-place--do').click();
+  await expect(waiting.locator('.waiting-place--do')).toHaveClass(/is-active/);
+  await expect(waiting.locator('.task-card__priority')).toHaveClass(/priority-icon--do/); // shown after the tick
+  await expect(quadrant(page, 'do').locator('.task-card')).toHaveText(['Marketing Order A5']); // not moved
+  await expect(waiting.locator('.waiting-card')).toHaveText(/Loose end/);
+  await waitForSaved(page, (doc) => taskById(doc, 't_4').tag === 'do' && taskById(doc, 't_4').quadrant === null);
+
+  // Tapping the active glyph again clears the label.
+  await waiting.locator('.waiting-place--do').click();
+  await expect(waiting.locator('.waiting-place--do')).not.toHaveClass(/is-active/);
   expect(errors).toEqual([]);
 });
 

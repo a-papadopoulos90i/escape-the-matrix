@@ -969,3 +969,8 @@ body.has-timer-bar .toast-root {
   opacity: 1;
   color: var(--ink);
 }
+
+/* A tagged glyph on a waiting card fills with its own colour. */
+.waiting-place.is-active svg {
+  fill: currentColor;
+}

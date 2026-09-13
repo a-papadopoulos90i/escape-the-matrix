@@ -129,6 +129,17 @@ async function touchDrag(page, from, to) {
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 }
 
+/** Drops a card into a quadrant. Tagging is only a label, so dragging is how a task gets placed. */
+async function dropInto(page, cardLocator, quadrantName) {
+  const from = await centre(cardLocator.locator('.task-card__title'));
+  const to = await centre(quadrant(page, quadrantName));
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 6 });
+  await page.mouse.move(to.x, to.y, { steps: 6 });
+  await page.mouse.up();
+}
+
 async function typeTasks(page, titles) {
   const input = panel(page).locator('.dump__input');
   for (const title of titles) {
@@ -176,13 +187,13 @@ test('walkthrough: pick a day, dump, sort, work the board, organize, back to a g
   await panel(page).locator('.stage-nav__next').click();
   await settled(page);
 
-  // Stage 3 (Prioritize) → place each task on today's board from the waiting list.
+  // Stage 3 (Prioritize) → drag each task from the waiting list onto the board.
   await expect(stageTitle(page)).toHaveText('Place them by priority');
   await closeTip(page);
-  const place = (title, q) => panel(page).locator('.waiting-card', { hasText: title }).locator(`.waiting-place--${q}`);
-  await place(TITLES[0], 'do').click();
-  await place(TITLES[1], 'delegate').click();
-  await place(TITLES[2], 'plan').click();
+  const waitingCard = (title) => panel(page).locator('.waiting-card', { hasText: title });
+  await dropInto(page, waitingCard(TITLES[0]), 'do');
+  await dropInto(page, waitingCard(TITLES[1]), 'delegate');
+  await dropInto(page, waitingCard(TITLES[2]), 'plan');
   await expect(panel(page).locator('.waiting-card')).toHaveCount(0);
 
   // Tick one task.
@@ -637,6 +648,7 @@ test.describe('mobile', () => {
 // ---------- 18–19: robustness and deployment ----------
 
 test('18. no console errors on any stage and no network needed after the first load (free mode)', async ({ page, context }) => {
+  await page.setViewportSize({ width: 1280, height: 1100 }); // room to drag a card onto the board
   const errors = collectErrors(page);
   const requests = [];
   page.on('request', (request) => requests.push(request.url()));
@@ -652,7 +664,7 @@ test('18. no console errors on any stage and no network needed after the first l
   await goToStage(page, 2);
   await typeTasks(page, ['Offline task']);
   await goToStage(page, 3);
-  await panel(page).locator('.waiting-card', { hasText: 'Offline task' }).locator('.waiting-place--do').click();
+  await dropInto(page, panel(page).locator('.waiting-card', { hasText: 'Offline task' }), 'do');
   await card(page, 'Offline task').locator('.task-card__check').check();
   await goToStage(page, 1);
   await expect(cell(page, TODAY)).toHaveAttribute('title', '1 of 4 done');

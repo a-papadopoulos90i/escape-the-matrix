@@ -353,7 +353,7 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
     /** The live (not deleted) task with this id, or null. */
     findTask: find,
 
-    addTask({ title, date, quadrant = null, attempt = 1, carriedFrom = null }) {
+    addTask({ title, date, quadrant = null, tag = null, attempt = 1, carriedFrom = null }) {
       if (!isDateKey(date)) throw new Error(`addTask: invalid date "${date}"`);
       const at = stamp();
       const task = {
@@ -361,6 +361,7 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
         title: String(title ?? '').trim(),
         date,
         quadrant: QUADRANTS.includes(quadrant) ? quadrant : null,
+        tag: QUADRANTS.includes(tag) ? tag : null,
         order: nextOrder(),
         done: false,
         doneAt: null,

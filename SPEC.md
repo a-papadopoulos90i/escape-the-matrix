@@ -177,6 +177,12 @@ unplaces it).
   Monday). Weekends still show on the calendar; this only affects where the one-tap action lands.
   Toast with **Undo**.
 
+Each waiting card shows, left to right: the done tick, its **priority tag** (the label, filled in the
+quadrant's colour), the title, the four tag glyphs, and the red ✕. **The glyphs only tag** — tap one
+to label the task, tap the active one again to clear it. They never file the task into a quadrant:
+that is done by dragging the card onto one (or by a quadrant's `+`, which creates a task there
+already carrying that quadrant's tag).
+
 **Waiting list — one global backlog.** Every unplaced task (`quadrant: null`) lives in a single
 backlog shared across **all** days and shown on Stages 2, 3 and 4 (under the matrix in a
 "Waiting list (N)" panel, the **same width as the matrix**). An item stays in the backlog until it is

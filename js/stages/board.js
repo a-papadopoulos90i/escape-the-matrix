@@ -293,7 +293,8 @@ function addRow(quadrant) {
     settled = true;
     const title = input.value.trim();
     if (commit && title) {
-      ctx.store.addTask({ title, date: ctx.getDate(), quadrant }); // the re-render opens a fresh row
+      // Born in a quadrant, so it carries that quadrant's label from the start.
+      ctx.store.addTask({ title, date: ctx.getDate(), quadrant, tag: quadrant }); // the re-render opens a fresh row
       return;
     }
     adding = null;
@@ -345,30 +346,35 @@ function waitingPanel(tasks) {
 function waitingCard(task) {
   if (isRecord(task)) return recordCard(task);
   const { ui } = ctx;
-  // A waiting task is completed like any other (its own checkbox) and placed by clicking one of the
-  // four small category glyphs (Do now / Schedule / Delegate / Drop) — no dropdown.
+  // A waiting task is completed like any other (its own checkbox), and the four small glyphs TAG it
+  // (Do now / Schedule / Delegate / Drop). Tagging is a label: it never files the task into a day's
+  // quadrant — drag the card onto one for that. The chosen tag shows right after the done tick.
   return ui.h(
     'div',
     { class: `task-card waiting-card ${task.done ? 'task-card--done' : ''}`.trim(), dataset: { id: task.id } },
     doneControl(task),
+    priorityButton(task),
     titleButton(task),
-    ui.h('div', { class: 'waiting-card__places' }, QUADRANTS.map((quadrant) => placeIconButton(task, quadrant))),
+    ui.h('div', { class: 'waiting-card__places' }, QUADRANTS.map((quadrant) => tagIconButton(task, quadrant))),
     deleteButton(task),
   );
 }
 
-/** Small colour-coded glyph that files a waiting task straight into that quadrant. */
-function placeIconButton(task, quadrant) {
-  const { ui, i18n } = ctx;
+/** Small colour-coded glyph that TAGS a waiting task with that priority (tap again to clear it).
+ *  It is a label only — it never moves the task into a quadrant. */
+function tagIconButton(task, quadrant) {
+  const { ui, i18n, store } = ctx;
+  const active = task.tag === quadrant;
   return ui.h(
     'button',
     {
-      class: `waiting-place waiting-place--${quadrant}`,
+      class: `waiting-place waiting-place--${quadrant} ${active ? 'is-active' : ''}`.trim(),
       type: 'button',
-      'aria-label': `${i18n.t('sort.placeIn')} — ${i18n.quadrantLabel(quadrant)}`,
+      'aria-pressed': String(active),
+      'aria-label': i18n.quadrantLabel(quadrant),
       title: i18n.quadrantLabel(quadrant),
-      dataset: { focusKey: `place:${task.id}:${quadrant}` },
-      onClick: () => moveToQuadrant(task, quadrant),
+      dataset: { focusKey: `tag:${task.id}:${quadrant}` },
+      onClick: () => store.setTag(task.id, active ? null : quadrant),
     },
     ui.h('span', {
       'aria-hidden': 'true',
