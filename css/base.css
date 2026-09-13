@@ -12,6 +12,16 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* Always reserve the scrollbar's width where scrollbars actually take space (mouse/trackpad).
+   Without this the header, the nav and the content jump sideways whenever a stage is tall enough
+   to scroll and the next one isn't. Touch devices overlay their scrollbars, and reserving a gutter
+   there would eat into the calendar's already tight cells, so it starts at the 768px breakpoint. */
+@media (min-width: 768px) {
+  html {
+    scrollbar-gutter: stable;
+  }
+}
+
 body {
   margin: 0;
   font-family: var(--font);
