@@ -70,7 +70,7 @@
 
 /* ---------- Waiting list: tasks left unplaced, on hold for the day ---------- */
 .waiting {
-  max-width: 720px; /* same width as the matrix above it */
+  max-width: var(--content-col); /* same width as the matrix above it */
   margin: var(--space-5) auto 0;
   padding: var(--space-3) var(--space-4) var(--space-4);
   border: 1.5px dashed var(--border);

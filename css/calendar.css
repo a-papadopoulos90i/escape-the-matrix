@@ -5,7 +5,7 @@
   --cols: 5;
   --calendar-cell: 88px;
   --calendar-gap: 14px;
-  --calendar-width: calc(var(--cols) * var(--calendar-cell) + (var(--cols) - 1) * var(--calendar-gap));
+  --calendar-width: var(--content-col);
 }
 
 /* ---------- Toolbar ---------- */

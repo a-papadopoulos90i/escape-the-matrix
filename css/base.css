@@ -123,7 +123,9 @@ a {
 }
 
 .app-header__inner {
-  max-width: var(--content-max);
+  /* Padding included, so the logo's left edge and the account's right edge land exactly on the
+     content column below (the calendar grid / the matrix). */
+  max-width: calc(var(--content-col) + 2 * var(--space-4));
   margin: 0 auto;
   padding: var(--space-2) var(--space-4);
   min-height: var(--header-h);
@@ -451,7 +453,7 @@ a {
   align-items: center;
   gap: var(--space-2);
   width: 100%;
-  max-width: 720px; /* align Back / Next with the content (matrix) width, not the screen edges */
+  max-width: var(--content-col); /* align Back / Next with the content column */
   margin: 0 auto var(--space-4);
 }
 
@@ -1044,7 +1046,7 @@ body.has-modal {
   grid-template-rows: 1fr 1fr;
   gap: var(--space-4);
   width: 100%;
-  max-width: 720px;
+  max-width: var(--content-col);
   margin: 0 auto;
   padding: 0;
   border: 0;

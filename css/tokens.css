@@ -93,6 +93,9 @@
 
   /* Layout */
   --content-max: 1040px;
+  /* The single column everything lines up on: the calendar grid, the matrix, the stage nav and the
+     header's logo / account. */
+  --content-col: 720px;
   --header-h: 60px;
   --touch: 44px;
 
