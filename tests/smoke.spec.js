@@ -64,10 +64,12 @@ test('clicking each stepper step shows the right stage title', async ({ page }) 
 });
 
 test('Back / Next buttons walk the stages; stage 4 returns to the calendar', async ({ page }) => {
+  await page.clock.setFixedTime(new Date(2026, 2, 11, 9, 0, 0)); // today = Wed 11 Mar 2026
   await page.goto('/');
   // Stage 1 has no nav buttons — you enter by picking a day.
   await expect(activePanel(page).locator('.stage-nav')).toHaveCount(0);
-  await activePanel(page).locator('.calendar__day').first().click(); // an empty day → Stage 2
+  // A future empty day → Stage 2 (a past day would jump straight to Ready).
+  await activePanel(page).locator('.calendar__day[data-key="2026-03-19"]').click();
   await expect(activeTitle(page)).toHaveText(TITLES[2]);
 
   // Stage 2 only lets Next through once the day has a task (SPEC §2).

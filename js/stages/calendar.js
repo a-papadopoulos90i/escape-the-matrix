@@ -226,7 +226,10 @@ function dayCell(key, tabbable) {
 
 function openDay(key) {
   ctx.setDate(key);
-  ctx.goTo(ctx.store.statsForDate(key).total ? 4 : 2);
+  // Past days always open in Ready (Stage 4) — there's nothing to plan for a day that's gone, even
+  // if it's empty. Today and future days go to Ready when they have tasks, else to Write down.
+  const isPast = key < ctx.dates.todayKey();
+  ctx.goTo(isPast || ctx.store.statsForDate(key).total ? 4 : 2);
 }
 
 /** Manage-mode popup: view / add / rename / tick / delete a single day's tasks, without leaving the

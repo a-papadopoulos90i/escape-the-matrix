@@ -219,10 +219,12 @@ test('‹ › change the displayed month, update the title and persist the month
   await expect(panel(page).locator('.calendar__month')).toHaveText('February 2026');
 });
 
-test('clicking an empty day opens Stage 2, a day with tasks opens Stage 4', async ({ page }) => {
+test('routing: a future empty day opens Stage 2; a day with tasks or any past day opens Stage 4', async ({ page }) => {
+  await onAWeekday(page); // today = 2026-03-11
   await seed(page);
   await page.goto('/');
 
+  // Future empty day → Write down (Stage 2).
   await cell(page, '2026-03-12').click();
   await expect(panel(page)).toHaveAttribute('data-stage', '2');
 
@@ -230,10 +232,16 @@ test('clicking an empty day opens Stage 2, a day with tasks opens Stage 4', asyn
   await expect(panel(page)).toHaveAttribute('data-stage', '1');
   await expect(panel(page).locator('.calendar__day--selected')).toHaveAttribute('data-key', '2026-03-12');
 
+  // A day with tasks → Ready (Stage 4).
   await cell(page, '2026-03-02').click();
   await expect(panel(page)).toHaveAttribute('data-stage', '4');
   expect((await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), UI_KEY)).selectedDate).toBe('2026-03-02');
   await expect(panel(page).locator('.task-card').first()).toBeVisible();
+
+  // A PAST day goes straight to Ready even when it's empty (nothing to plan for a day that's gone).
+  await page.locator('#stepper .step').nth(0).click();
+  await cell(page, '2026-03-08').click();
+  await expect(panel(page)).toHaveAttribute('data-stage', '4');
 });
 
 test('keyboard: arrows move between cells without leaving the stage; Enter opens the day', async ({ page }) => {
