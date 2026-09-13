@@ -435,9 +435,43 @@
   max-width: 100%;
 }
 
+/* The Add button and each row's [tag ✕] group share a width, so their right edges line up. */
+.day-pop {
+  --day-pop-actions: 58px;
+}
+
 .day-pop__add {
   display: flex;
   gap: var(--space-2);
+}
+
+.day-pop__add .btn {
+  min-width: var(--day-pop-actions);
+}
+
+.day-pop__end {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: var(--day-pop-actions);
+}
+
+.day-pop__tag {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+}
+
+.day-pop__tag--none {
+  color: var(--muted);
+  opacity: 0.45;
+}
+
+.day-pop__end .day-pop__del {
+  width: 28px;
+  height: 28px;
 }
 
 .day-pop__add-input {

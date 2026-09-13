@@ -7,6 +7,7 @@
 // A "Manage" toggle flips the calendar over: each cell then previews the day's task titles, and
 // tapping a day opens a popup to add / edit / tick / delete that day's tasks without leaving.
 import { isRecord } from '../store.js';
+import { QUAD_ICON } from '../carry.js';
 
 let ctx = null;
 let root = null;
@@ -297,7 +298,17 @@ function openDayPopup(key) {
       { class: 'btn-icon day-pop__del', type: 'button', 'aria-label': i18n.t('board.deleteTask'), onClick: () => store.removeTask(task.id) },
       ui.icon('close', { size: 14 }),
     );
-    return ui.h('div', { class: `day-pop__row ${task.done ? 'task-card--done' : ''}`.trim(), dataset: { id: task.id } }, ui.h('label', { class: 'task-card__done' }, check), title, del);
+    // The task's priority label, left of the ✕ — filled in its colour, muted while untagged.
+    const tag = ui.h('span', {
+      class: `day-pop__tag ${task.tag ? `priority-icon--${task.tag}` : 'day-pop__tag--none'}`,
+      title: task.tag ? i18n.quadrantLabel(task.tag) : '',
+      'aria-hidden': 'true',
+      html: task.tag
+        ? `<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">${QUAD_ICON[task.tag]}</svg>`
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M3.5 11.6V4.6a1 1 0 0 1 1-1h7l8.4 8.4-8 8z"/><circle cx="7.6" cy="7.6" r="1.3"/></svg>',
+    });
+    const end = ui.h('div', { class: 'day-pop__end' }, tag, del);
+    return ui.h('div', { class: `day-pop__row ${task.done ? 'task-card--done' : ''}`.trim(), dataset: { id: task.id } }, ui.h('label', { class: 'task-card__done' }, check), title, end);
   };
 
   const renderRows = () => {
