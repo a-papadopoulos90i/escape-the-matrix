@@ -48,7 +48,8 @@ Back / Next.
 ### Stage 1 — "Pick your day"
 
 Title: `Pick your day` (the displayed month shows in the toolbar label, e.g. "March 2026").
-Controls: `‹` previous month, `›` next month, `Today`. There is **no "Show weekends" toggle** and
+Controls: `‹` previous month, `›` next month, and the **"All Tasks"** flip toggle (see Manage mode).
+There is no separate "Today" button (removed at the owner's request), **no "Show weekends" toggle** and
 **no Back/Next nav** on this stage (removed at the owner's request): you advance simply by picking a
 day. The calendar **scrolls vertically**: a **`Show next month`** button appends the following month
 below (no popup, no resizing — the page just scrolls).
@@ -76,19 +77,22 @@ Cell design (rounded square, ~1:1, number centred, bold):
 Legend under the grid (small): green = done tasks (one stripe each, up to 10), blue = today,
 gray = empty. Beside the legend, a subtle **"demo version"** link fills this browser with a
 two-month sample (mostly-done past days → a green calendar, plus a few backlog items) after a
-confirm — local only, nothing uploaded; it replaces what's saved in this browser.
+confirm — local only, nothing uploaded; it replaces what's saved in this browser. The **"Demo
+Version"** label (title case, no underline) sits on its own line below the legend, low on the page.
 
-Also in the footer, a **"Time report"** button opens a modal that sums each task's tracked timer
-time across every day it appeared and lists them most-time-first with a running total. Tasks carried
-forward under the same title are aggregated (each day's copy keeps its own elapsed seconds) and
-badged **×N** for the number of days tracked. Tasks with no timer, or zero tracked time, are omitted;
-when nothing has been tracked the modal explains where time comes from.
+The **Time report** lives in the header **gear (Settings) menu** — reachable from every stage, signed
+in or not (the account/login settings will join it there later). It opens a modal that sums each
+task's tracked timer time across every day it appeared and lists them most-time-first with a running
+total. Tasks carried forward under the same title are aggregated (each day's copy keeps its own
+elapsed seconds) and badged **×N** for the number of days tracked. Tasks with no timer, or zero
+tracked time, are omitted; when nothing has been tracked the modal explains where time comes from.
 
-**Manage mode (flip).** A **"Flip to edit"** toggle in the toolbar flips the calendar over (a flip
-animation): each cell then previews the day's task titles (trimmed, done ones struck) instead of the
-green fill, and tapping a day opens a **day popup** — add a task, rename, tick done, delete — plus an
-**"Open day →"** button that jumps into that day's stage. Toggling back ("Back to calendar") returns
-to the normal view where a tap opens the day directly.
+**Manage mode (flip).** An **"All Tasks"** toggle in the toolbar flips the calendar over — each day
+cell turns over on its own in a quick staggered wave (not the whole board as one sheet). Flipped,
+each cell previews the day's task titles (trimmed, done ones struck) instead of the green fill, and
+tapping a day opens a **day popup** — add a task, rename, tick done, delete — plus an **"Open day →"**
+button that jumps into that day's stage. Toggling back ("Back to calendar") returns to the normal
+view where a tap opens the day directly.
 
 ### Stage 2 — "Write it all down"
 
@@ -222,9 +226,10 @@ the header): **"Organize them by priority:"** then bullets `start the timer or t
 ## 3. App shell
 
 - **Header:** left — logo mark (a tiny 2×2 coloured matrix glyph) + "Escape the Matrix";
-  centre — the **stepper**: 4 numbered dots with short labels `Calendar · Write down · Prioritize ·
-  Ready`, current step highlighted, completed steps ticked, clickable; right — **account
-  area**: `Sign in with Google` button (white, Google "G" glyph, "Sign in with Google") or, when
+  centre — the **stepper**: 4 icon dots with short labels `Calendar · Write down · Prioritize ·
+  Ready` — one themed icon per stage (calendar, pencil/note-keeping, 2×2 grid/organizing,
+  play/executing), current step highlighted, clickable; right — a **gear (Settings)** button (opens
+  the Time report menu) and the **account area**: `Sign in with Google` button (white, Google "G" glyph, "Sign in with Google") or, when
   signed in, avatar + first name + a menu (`Synced ✓ / Syncing… / Offline` status, `Sign out`,
   `Sign out & clear this device`). A `?` icon button re-opens the current stage's tip bubble.
 - There is **no day bar** (removed at the owner's request): the day is chosen on the calendar, and

@@ -6,8 +6,7 @@
 //
 // A "Manage" toggle flips the calendar over: each cell then previews the day's task titles, and
 // tapping a day opens a popup to add / edit / tick / delete that day's tasks without leaving.
-import { isRecord, timerElapsed } from '../store.js';
-import { formatTime } from '../timer.js';
+import { isRecord } from '../store.js';
 
 let ctx = null;
 let root = null;
@@ -41,7 +40,10 @@ export function mount(container, context) {
       'div',
       { class: 'calendar__footer' },
       legend(),
-      ui.h('button', { class: 'btn btn-sm calendar__analysis', type: 'button', onClick: openAnalysis }, ui.icon('clock', { size: 15 }), ctx.i18n.t('calendar.analysis')),
+    ),
+    ui.h(
+      'div',
+      { class: 'calendar__demo-row' },
       ui.h('button', { class: 'calendar__demo', type: 'button', onClick: loadDemo }, ctx.i18n.t('calendar.demo')),
     ),
   );
@@ -79,7 +81,6 @@ function toolbar() {
     ui.h(
       'div',
       { class: 'calendar__tools' },
-      ui.h('button', { class: 'btn btn-sm calendar__today', type: 'button', onClick: goToToday }, t('calendar.today')),
       (els.flip = ui.h(
         'button',
         { class: 'btn btn-sm calendar__flip', type: 'button', 'aria-pressed': String(flipped), onClick: toggleFlip },
@@ -94,12 +95,27 @@ function toolbar() {
 function toggleFlip() {
   flipped = !flipped;
   root.classList.toggle('calendar--flipped', flipped);
-  els.months.classList.remove('calendar__months--flipping');
-  void els.months.offsetWidth; // restart the flip animation
-  els.months.classList.add('calendar__months--flipping');
   els.flip.setAttribute('aria-pressed', String(flipped));
   els.flip.replaceChildren(ctx.ui.icon('refresh', { size: 15 }), ctx.i18n.t(flipped ? 'calendar.manageOff' : 'calendar.manage'));
   render();
+  playCellFlip(); // each day turns over on its own, in a quick left-to-right wave
+}
+
+/** Runs the per-cell flip animation across the freshly rendered grid, staggered by position so the
+ *  days turn over one after another instead of the whole board flipping as a single sheet. */
+function playCellFlip() {
+  els.months.querySelectorAll('.calendar__day').forEach((cell, i) => {
+    cell.style.setProperty('--flip-delay', `${Math.min(i * 12, 360)}ms`);
+    cell.classList.add('calendar__day--flipping');
+    cell.addEventListener(
+      'animationend',
+      () => {
+        cell.classList.remove('calendar__day--flipping');
+        cell.style.removeProperty('--flip-delay');
+      },
+      { once: true },
+    );
+  });
 }
 
 /** Legend under the grid (the stage tip has no anchor here: app.js places it under the header). */
@@ -294,50 +310,6 @@ function shiftMonth(delta) {
   monthsShown = 1;
   ctx.setCalendarMonth(ctx.dates.addMonths(ctx.getCalendarMonth(), delta));
   render();
-}
-
-function goToToday() {
-  monthsShown = 1;
-  ctx.setCalendarMonth(ctx.dates.monthOfKey(ctx.dates.todayKey()));
-  render();
-  els.months.querySelector('.calendar__day--today')?.focus();
-}
-
-/** Time report: how long each task took, summed across every day it appeared, most time first. */
-function openAnalysis() {
-  const { ui, store, i18n } = ctx;
-  const byTask = new Map(); // title -> { seconds, count }
-  for (const task of store.get().tasks) {
-    if (task.deleted || !task.timer) continue;
-    const seconds = timerElapsed(task.timer);
-    if (seconds <= 0) continue;
-    const row = byTask.get(task.title) ?? { seconds: 0, count: 0 };
-    row.seconds += seconds;
-    row.count += 1;
-    byTask.set(task.title, row);
-  }
-  const rows = [...byTask.entries()].sort((a, b) => b[1].seconds - a[1].seconds);
-  const total = rows.reduce((sum, [, row]) => sum + row.seconds, 0);
-  const content = ui.h(
-    'div',
-    { class: 'analysis' },
-    rows.length
-      ? ui.h(
-          'div',
-          { class: 'analysis__list' },
-          rows.map(([title, row]) =>
-            ui.h(
-              'div',
-              { class: 'analysis__row' },
-              ui.h('span', { class: 'analysis__task' }, title, row.count > 1 ? ui.h('span', { class: 'analysis__count' }, ` ${i18n.t('analysis.times', { n: row.count })}`) : null),
-              ui.h('span', { class: 'analysis__time' }, formatTime(row.seconds)),
-            ),
-          ),
-        )
-      : ui.h('p', { class: 'analysis__empty text-muted' }, i18n.t('analysis.empty')),
-    rows.length ? ui.h('div', { class: 'analysis__total' }, ui.h('span', null, i18n.t('analysis.total')), ui.h('span', null, formatTime(total))) : null,
-  );
-  ui.modal({ title: i18n.t('analysis.title'), content, actions: [{ label: i18n.t('common.close'), primary: true }] });
 }
 
 /** Fills this browser with a two-month demo (local only) so the app can be seen populated. */

@@ -73,6 +73,12 @@ function collectErrors(page) {
 const onAWeekday = (page) => page.clock.setFixedTime(new Date(2026, 2, 11, 9, 0, 0));
 
 const panel = (page) => page.locator('#stage .panel:not(.panel--ghost)');
+
+/** Opens the Time report from the header gear menu (it moved out of the calendar footer). */
+async function openReport(page) {
+  await page.locator('.settings-btn').click();
+  await page.getByRole('menuitem', { name: 'Time report' }).click();
+}
 const cells = (page) => panel(page).locator('.calendar__day');
 const cell = (page, key) => panel(page).locator(`.calendar__day[data-key="${key}"]`);
 const weekdays = (page) => panel(page).locator('.calendar__weekday');
@@ -154,10 +160,9 @@ test('cells show one green stripe per done task (a tenth of the cell each, ten a
 });
 
 test('today gets the 2px blue border and aria-current="date"', async ({ page }) => {
+  await onAWeekday(page); // pins today into the seeded March view (the "Today" button was removed)
   await seed(page);
   await page.goto('/');
-  // The full week is always shown, so today is visible whatever weekday it is.
-  await panel(page).locator('.calendar__today').click();
 
   const todayKey = await page.evaluate(() => {
     const d = new Date();
@@ -168,7 +173,6 @@ test('today gets the 2px blue border and aria-current="date"', async ({ page }) 
   await expect(today).toHaveCount(1);
   await expect(today).toHaveAttribute('data-key', todayKey);
   await expect(today).toHaveAttribute('aria-current', 'date');
-  await expect(today).toBeFocused();
   const m = await metrics(page, todayKey);
   expect(m.borderColor).toBe(TODAY_BLUE);
   expect(m.borderWidth).toBe('2px');
@@ -285,8 +289,6 @@ test('a weekend day sits on the grid, outlined as today and reachable', async ({
   const today = panel(page).locator('.calendar__day--today');
   await expect(today).toHaveAttribute('data-key', '2026-03-14');
   expect((await metrics(page, '2026-03-14')).borderColor).toBe(TODAY_BLUE);
-  await panel(page).locator('.calendar__today').click();
-  await expect(today).toBeFocused();
 
   // A written task goes to the global backlog (not tied to a day), so the weekend cell still reads
   // "No tasks yet" until something is actually placed on it.
@@ -326,7 +328,7 @@ test('the "demo version" link loads a local two-month demo', async ({ page }) =>
   await expect
     .poll(async () => page.evaluate((k) => JSON.parse(localStorage.getItem(k)).tasks.filter((t) => t.timer && t.timer.elapsedSec > 0).length, DOC_KEY))
     .toBeGreaterThan(10);
-  await panel(page).locator('.calendar__analysis').click();
+  await openReport(page);
   await expect(page.locator('[role="dialog"] .analysis__row').first()).toBeVisible();
   await expect(page.locator('[role="dialog"] .analysis__total')).toContainText(':');
 });
@@ -341,7 +343,7 @@ test('the time report sums tracked time per task, most first', async ({ page }) 
   ];
   await seed(page, { doc });
   await page.goto('/');
-  await panel(page).locator('.calendar__analysis').click();
+  await openReport(page);
   const dialog = page.locator('[role="dialog"]');
   await expect(dialog.locator('.analysis__row')).toHaveCount(2); // "Deep work" aggregated across two days, "Email"
   await expect(dialog.locator('.analysis__row').first()).toContainText('Deep work');

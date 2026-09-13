@@ -371,8 +371,13 @@ test('📅 postpones a task to any day, a weekend included, and it shows on the 
   await expect(page.locator('.toast')).toContainText(`Moved to ${formatShort(saturday)}`);
   await waitForSaved(page, (doc) => taskById(doc, 't_2').date === toKey(saturday));
   await page.locator('#stepper .step').nth(0).click();
-  await panel(page).locator('.calendar__today').click();
-  await expect(panel(page).locator(`.calendar__day[data-key="${toKey(saturday)}"]`)).toHaveAttribute('title', '0 of 1 done');
+  // The calendar opens on the seeded month; step forward to the postponed Saturday's month (the
+  // "Today" jump button was removed, so navigate with the month arrow).
+  const satCell = panel(page).locator(`.calendar__day[data-key="${toKey(saturday)}"]`);
+  for (let i = 0; i < 24 && (await satCell.count()) === 0; i += 1) {
+    await panel(page).locator('[aria-label="Next month"]').click();
+  }
+  await expect(satCell).toHaveAttribute('title', '0 of 1 done');
 });
 
 test('the clock icon opens the timer picker directly; presets carry the "min" unit', async ({ page }) => {

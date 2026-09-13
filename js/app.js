@@ -6,6 +6,7 @@ import { createLocalAdapter } from './storage/local.js';
 import * as dates from './dates.js';
 import * as ui from './ui.js';
 import * as i18n from './i18n.js';
+import { openTimeReport } from './report.js';
 import * as calendar from './stages/calendar.js';
 import * as dump from './stages/dump.js';
 import * as sort from './stages/sort.js';
@@ -14,6 +15,8 @@ import { init as initTimer } from './timer.js';
 
 const { t } = i18n;
 const STAGE_COUNT = 4;
+// One themed icon per stage: calendar → note-keeping → organizing (the 2×2 matrix) → executing.
+const STEP_ICONS = ['calendar', 'pencil', 'grid', 'play'];
 const STAGE_MODULES = { 1: calendar, 2: dump, 3: sort, 4: board };
 // Each stage's bubbles come from i18n.tips with their default tone/tail; a stage may override
 // those via data-tip-tone / data-tip-tail on its [data-tip-anchor] element. A bubble that is
@@ -74,7 +77,7 @@ function renderStepper() {
             'aria-label': stageLabel(n),
             onClick: () => goTo(n),
           },
-          ui.h('span', { class: 'step__dot', 'aria-hidden': 'true' }, isDone ? ui.icon('check', { size: 16 }) : String(n)),
+          ui.h('span', { class: 'step__dot', 'aria-hidden': 'true' }, ui.icon(STEP_ICONS[n - 1], { size: 18 })),
           ui.h('span', { class: 'step__label', 'aria-hidden': 'true' }, i18n.stepperLabel(n)),
         ),
       ),
@@ -295,6 +298,33 @@ async function initAuth() {
   }
 }
 
+// ---------- Settings (gear menu in the header) ----------
+
+/** A gear button in the header opens a small menu. Time report lives here (and later the account /
+ *  sign-in settings), so it's reachable from every stage — signed in or not. */
+function initSettings() {
+  if (!els.headerActions) return;
+  const btn = ui.h(
+    'button',
+    { class: 'btn-icon settings-btn', type: 'button', 'aria-haspopup': 'menu', 'aria-expanded': 'false', 'aria-label': t('settings.title'), title: t('settings.title') },
+    ui.icon('settings', { size: 20 }),
+  );
+  let open = null;
+  btn.addEventListener('click', () => {
+    if (open) return open.close();
+    btn.setAttribute('aria-expanded', 'true');
+    open = ui.menu({
+      anchor: btn,
+      items: [{ label: t('settings.timeReport'), icon: 'clock', onSelect: () => openTimeReport({ ui, store, i18n }) }],
+      onClose: () => {
+        open = null;
+        btn.setAttribute('aria-expanded', 'false');
+      },
+    });
+  });
+  els.headerActions.prepend(btn);
+}
+
 // ---------- Boot ----------
 
 async function boot() {
@@ -304,6 +334,7 @@ async function boot() {
     banner: document.getElementById('banner'),
     stage: document.getElementById('stage'),
     account: document.getElementById('account'),
+    headerActions: document.querySelector('.header-actions'),
     announcer: document.getElementById('announcer'),
     skipLink: document.getElementById('skip-link'),
     brand: document.querySelector('.brand'),
@@ -329,6 +360,7 @@ async function boot() {
   renderBanner();
   mountStage(state.stage, null);
   bindKeyboard();
+  initSettings();
   initAuth();
 }
 
