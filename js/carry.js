@@ -13,15 +13,16 @@ export const QUAD_ICON = {
   delete: '<path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
 };
 
-/** A row of the four colour-coded priority icons for a task; the active one (task.quadrant) is
- *  ringed. `onPick(quadrant)` fires on click — the caller decides set vs toggle-off. */
-export function priorityIcons(ctx, task) {
+/** A row of the four colour-coded priority icons for a task; the tagged one fills with its colour.
+ *  Pass `activeQuadrant` to decide the tag from something other than task.quadrant (Stage 3 only
+ *  lights it up when the task is placed on the day being viewed). */
+export function priorityIcons(ctx, task, activeQuadrant = task.quadrant) {
   const { ui, i18n } = ctx;
   return ui.h(
     'div',
     { class: 'priority-icons' },
     QUADRANTS.map((quadrant) => {
-      const active = task.quadrant === quadrant;
+      const active = activeQuadrant === quadrant;
       return ui.h(
         'button',
         {

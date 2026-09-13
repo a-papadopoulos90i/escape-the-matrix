@@ -483,6 +483,17 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
         .sort(compareTasks);
     },
 
+    /**
+     * Every open task, from any day, in one list — what Stage 3 prioritises against. Unplaced
+     * backlog items and tasks already placed on some day both appear; finished ones and records
+     * (carried-forward originals) do not. Independent of the selected day.
+     */
+    allTasks() {
+      return doc.tasks
+        .filter((task) => live(task) && !isRecord(task) && !task.done)
+        .sort(compareTasks);
+    },
+
     /** Counts for a day — only tasks actually placed in a quadrant count; the global waiting-list
      *  backlog belongs to no single day, and records (carried to a later day) are left out. */
     statsForDate(date) {

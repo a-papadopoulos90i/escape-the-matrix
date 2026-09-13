@@ -297,7 +297,7 @@ test('5. Stage 3: tag each task with a priority; tags persist and fill the Stage
   await page.goto('/');
 
   await expect(stageTitle(page)).toHaveText('Place them by priority');
-  await expect(panel(page).locator('.matrix')).toHaveCount(0); // no matrix on stage 3 anymore
+  await expect(panel(page).locator('.sort__matrix .quadrant')).toHaveCount(4); // the four boxes preview the day
   await expect(pileCards(page)).toHaveText(TITLES);
 
   const iconFor = (title, q) => panel(page).locator('.sort-card', { hasText: title }).locator(`.priority-icon--${q}`);

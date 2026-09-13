@@ -135,7 +135,7 @@ test.describe('stage 3 (desktop)', () => {
     await seed(page, { stage: 3, tasks: TITLES });
     await page.goto('/');
 
-    await expect(panel(page).locator('.matrix')).toHaveCount(0); // no matrix on stage 3 anymore
+    await expect(panel(page).locator('.sort__matrix .quadrant')).toHaveCount(4); // the four boxes preview the day
     await expect(pileCards(page)).toHaveCount(4);
     const next = panel(page).locator('.stage-nav__next');
     await expect(next).toHaveText('Next →');

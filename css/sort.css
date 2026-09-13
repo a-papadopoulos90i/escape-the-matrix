@@ -161,3 +161,27 @@
     height: var(--touch);
   }
 }
+
+/* ---------- Stage 3: the four boxes for the day being viewed ---------- */
+/* Same look as the board's matrix, but read-only: they simply show where this day's tasks landed
+   while you tag them in the fixed list below. */
+.sort__matrix {
+  grid-template-rows: none;
+  align-items: start;
+  margin-bottom: var(--space-5);
+}
+
+.sort__matrix .quadrant {
+  min-height: 132px;
+}
+
+.sort__placed-item {
+  padding: 6px 10px;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font-size: var(--text-sm);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
