@@ -469,6 +469,13 @@
   opacity: 0.45;
 }
 
+.day-pop__tag:hover,
+.day-pop__tag:focus-visible {
+  opacity: 1;
+  border-radius: 50%;
+  background: var(--hover);
+}
+
 .day-pop__end .day-pop__del {
   width: 28px;
   height: 28px;
@@ -513,6 +520,11 @@
 .day-pop__title:focus {
   border-color: var(--card-border);
   background: var(--surface);
+}
+
+/* The field's own border already marks focus — no green ring around it. */
+.day-pop__title:focus-visible {
+  outline: none;
 }
 
 .day-pop__row.task-card--done .day-pop__title {

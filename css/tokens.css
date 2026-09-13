@@ -102,7 +102,9 @@
   /* Layers (tips stay below the sticky header so a scrolled bubble never paints over it) */
   --z-bubble: 10;
   --z-header: 20;
-  --z-popover: 40;
   --z-toast: 50;
   --z-modal: 60;
+  /* Above the modal: a popover/menu is always opened from whatever sits beneath it, and a menu
+     raised from inside a dialog must stay clickable. */
+  --z-popover: 70;
 }

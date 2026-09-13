@@ -215,7 +215,7 @@ function openPriorityMenu(task, anchor) {
     disabled: task.tag === quadrant,
     onSelect: () => store.setTag(task.id, quadrant),
   }));
-  items.push('-', { label: i18n.t('quadrant.unsorted'), onSelect: () => store.setTag(task.id, null) });
+  items.push('-', { label: i18n.t('board.noTag'), onSelect: () => store.setTag(task.id, null) });
   ui.menu({ anchor, items });
 }
 
