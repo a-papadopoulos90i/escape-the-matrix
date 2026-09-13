@@ -218,6 +218,33 @@ test('pull (unfinishedBefore) carries forward only placed, unfinished work — n
   assert.deepEqual(store.unfinishedBefore('2026-03-12').map((t) => t.title), []);
 });
 
+test('pulling the same task from several days leaves ONE backlog entry, counting the attempts', () => {
+  const { store } = makeStore();
+  const first = store.addTask({ title: 'Pay the rent', date: '2026-03-01', quadrant: 'do' });
+  const second = store.addTask({ title: 'Pay the rent', date: '2026-03-05', quadrant: 'plan' });
+  const other = store.addTask({ title: 'Call the bank', date: '2026-03-05', quadrant: 'do' });
+
+  store.carryOver([first.id, second.id, other.id], '2026-03-11');
+
+  const waiting = store.waitingTasks();
+  assert.deepEqual(waiting.map((t) => t.title).sort(), ['Call the bank', 'Pay the rent']); // no duplicate
+  assert.equal(waiting.filter((t) => t.title === 'Pay the rent').length, 1);
+  assert.equal(waiting.find((t) => t.title === 'Pay the rent').attempt, 2);
+
+  // Both originals stay behind as records, so neither is offered for pulling again.
+  assert.equal(store.findTask(first.id).carriedTo, '2026-03-11');
+  assert.equal(store.findTask(second.id).carriedTo, '2026-03-11');
+  assert.deepEqual(store.unfinishedBefore('2026-03-20').map((t) => t.title), []);
+
+  // Put that entry back on a day, leave it unfinished, pull again: still one row, now on its third go.
+  const entry = store.waitingTasks().find((t) => t.title === 'Pay the rent');
+  store.setQuadrant(entry.id, 'do', '2026-03-12');
+  store.carryOver([entry.id], '2026-03-20');
+  const after = store.waitingTasks().filter((t) => t.title === 'Pay the rent');
+  assert.equal(after.length, 1);
+  assert.equal(after[0].attempt, 3);
+});
+
 test('undo is single-level: only the last undoable mutation reverts', () => {
   const { store } = makeStore();
   const a = store.addTask({ title: 'a', date: DAY });

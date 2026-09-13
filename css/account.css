@@ -258,4 +258,5 @@
   background: var(--surface);
   color: var(--ink);
   font: inherit;
+  text-align: center; /* placeholder and the address you type, centred like the rest of the dialog */
 }

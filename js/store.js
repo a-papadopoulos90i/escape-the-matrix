@@ -401,7 +401,14 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
         for (const id of ids) {
           const task = find(id);
           if (!task || isRecord(task) || task.date >= date) continue;
-          store.addTask({ title: task.title, date, attempt: task.attempt + 1, carriedFrom: task.id });
+          // The backlog keeps ONE entry per task. Pulling the same title forward again — from
+          // another day, or in a later pull — raises that entry's attempt count instead of adding a
+          // second copy, so the list never fills with duplicates.
+          const waiting = doc.tasks.find(
+            (other) => live(other) && !isRecord(other) && other.quadrant === null && !other.done && other.title === task.title,
+          );
+          if (waiting) patchTask(waiting.id, () => ({ attempt: Math.max(waiting.attempt, task.attempt + 1) }), 'carryOver');
+          else store.addTask({ title: task.title, date, attempt: task.attempt + 1, carriedFrom: task.id });
           patchTask(id, () => ({ carriedTo: date }), 'carryOver');
         }
       });
