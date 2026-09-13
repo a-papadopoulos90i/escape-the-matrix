@@ -74,7 +74,9 @@ Cell design (rounded square, ~1:1, number centred, bold):
   otherwise **Stage 4**.
 
 Legend under the grid (small): green = done tasks (one stripe each, up to 10), blue = today,
-gray = empty.
+gray = empty. Beside the legend, a subtle **"demo version"** link fills this browser with a
+two-month sample (mostly-done past days → a green calendar, plus a few backlog items) after a
+confirm — local only, nothing uploaded; it replaces what's saved in this browser.
 
 ### Stage 2 — "Write it all down"
 

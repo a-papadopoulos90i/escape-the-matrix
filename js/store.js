@@ -335,6 +335,12 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
       notify({ reason: 'replace' });
     },
 
+    /** Swaps the whole doc AND persists it (used by the local "load demo data" action). */
+    importDoc(nextDoc) {
+      const clean = normalizeDoc(nextDoc, now());
+      commit(clean.tasks, { reason: 'import' }, clean.settings);
+    },
+
     /** The live (not deleted) task with this id, or null. */
     findTask: find,
 

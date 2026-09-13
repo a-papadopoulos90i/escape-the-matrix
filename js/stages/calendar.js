@@ -31,7 +31,12 @@ export function mount(container, context) {
     toolbar(),
     els.months,
     els.more,
-    legend(),
+    ui.h(
+      'div',
+      { class: 'calendar__footer' },
+      legend(),
+      ui.h('button', { class: 'calendar__demo', type: 'button', onClick: loadDemo }, ctx.i18n.t('calendar.demo')),
+    ),
   );
   els.title = root.querySelector('.stage-title');
 
@@ -187,6 +192,56 @@ function goToToday() {
   ctx.setCalendarMonth(ctx.dates.monthOfKey(ctx.dates.todayKey()));
   render();
   els.months.querySelector('.calendar__day--today')?.focus();
+}
+
+/** Fills this browser with a two-month demo (local only) so the app can be seen populated. */
+async function loadDemo() {
+  if (!(await ctx.ui.confirm(ctx.i18n.t('calendar.demoConfirm')))) return;
+  ctx.store.importDoc(buildDemoDoc(ctx));
+}
+
+const DEMO_TITLES = ['Email the client', 'Invoice #A5', 'Excel report', 'Call the bank', 'Book flights', 'Renew the domain', 'Water the plants', 'Read 20 pages', 'Gym session', 'Groceries', 'Plan Q2', 'Fix the login bug', 'Back up the laptop', 'Dentist appointment', 'Team standup', 'Review the PR', 'Pay the rent', 'Tidy the inbox'];
+const DEMO_QUADRANTS = ['do', 'plan', 'delegate', 'delete'];
+const DEMO_COUNTS = [2, 0, 3, 1, 4, 2, 1, 3, 0, 2]; // per-day task counts, repeating — a lively history
+
+/** A doc spanning ~45 days back to ~12 forward: placed tasks (many past ones done → a green
+ *  calendar) plus a few global backlog items. */
+function buildDemoDoc(ctx) {
+  const { dates } = ctx;
+  const today = dates.todayKey();
+  const iso = (key) => `${key}T12:00:00.000Z`;
+  const tasks = [];
+  let order = 1;
+  for (let offset = -45; offset <= 12; offset += 1) {
+    const date = dates.addDays(today, offset);
+    const count = DEMO_COUNTS[((offset % DEMO_COUNTS.length) + DEMO_COUNTS.length) % DEMO_COUNTS.length];
+    for (let i = 0; i < count; i += 1) {
+      const done = offset < 0 && (offset + i) % 3 !== 0; // most past tasks completed
+      tasks.push({
+        id: `demo_${date}_${i}`,
+        title: DEMO_TITLES[(Math.abs(offset) * 2 + i) % DEMO_TITLES.length],
+        date,
+        quadrant: DEMO_QUADRANTS[(i + Math.abs(offset)) % DEMO_QUADRANTS.length],
+        order: order++,
+        done,
+        doneAt: done ? iso(date) : null,
+        createdAt: iso(date),
+        updatedAt: iso(date),
+        timer: null,
+        attempt: 1,
+        carriedTo: null,
+      });
+    }
+  }
+  for (const [i, title] of ['Idea: start a newsletter', 'Someday: learn Rust', 'Maybe: repaint the office'].entries()) {
+    tasks.push({ id: `demo_backlog_${i}`, title, date: today, quadrant: null, order: order++, done: false, doneAt: null, createdAt: iso(today), updatedAt: iso(today), timer: null, attempt: 1, carriedTo: null });
+  }
+  return {
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    settings: { showWeekends: false, bannerDismissed: true, tipsSeen: { 1: true, 2: true, 3: true, 4: true } },
+    tasks,
+  };
 }
 
 /** Arrow keys walk the cells (Up/Down by a week), Home/End jump to the first/last cell. */

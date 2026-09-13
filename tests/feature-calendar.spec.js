@@ -311,6 +311,19 @@ test('another tab clearing the saved document empties this one too (cross-tab "c
   await expect(panel(page).locator('.calendar__day--planned')).toHaveCount(0);
 });
 
+test('the "demo version" link loads a local two-month demo', async ({ page }) => {
+  await onAWeekday(page);
+  await seed(page);
+  await page.goto('/');
+  await panel(page).locator('.calendar__demo').click();
+  await page.getByRole('button', { name: 'Confirm' }).click();
+  // The doc is replaced with a rich demo, and past days with completed tasks turn green.
+  await expect
+    .poll(async () => (await page.evaluate((k) => JSON.parse(localStorage.getItem(k)).tasks.length, DOC_KEY)))
+    .toBeGreaterThan(20);
+  await expect(panel(page).locator('.calendar__day--planned').first()).toBeVisible();
+});
+
 test('no stage tip and no "?" button (tips were removed)', async ({ page }) => {
   await seed(page, { doc: makeDoc({ tipSeen: false }) });
   await page.goto('/');

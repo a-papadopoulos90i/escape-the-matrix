@@ -245,17 +245,42 @@
 }
 
 /* ---------- Legend ---------- */
+/* Legend + the subtle "demo version" link on one centred row (wraps on narrow screens). */
+.calendar__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-4);
+}
+
 .calendar__legend {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: var(--space-2) var(--space-5);
   max-width: var(--calendar-width);
-  margin: var(--space-4) auto 0;
+  margin: 0;
   padding: 0;
   list-style: none;
   font-size: var(--text-xs);
   color: var(--muted);
+}
+
+.calendar__demo {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  opacity: 0.65;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: opacity var(--dur-fast), color var(--dur-fast);
+}
+
+.calendar__demo:hover,
+.calendar__demo:focus-visible {
+  opacity: 1;
+  color: var(--ink);
 }
 
 .calendar__legend-item {

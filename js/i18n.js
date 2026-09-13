@@ -78,6 +78,8 @@ export const strings = {
   'calendar.today': 'Today',
   'calendar.showNext': 'Show next month',
   'calendar.showWeekends': 'Show weekends',
+  'calendar.demo': 'demo version',
+  'calendar.demoConfirm': 'Load a two-month demo? This replaces the tasks saved in this browser (only here — nothing is uploaded).',
   'calendar.legend.done': 'green = done tasks, one stripe each (up to 10)',
   'calendar.legend.today': 'blue = today',
   'calendar.legend.empty': 'gray = empty',
