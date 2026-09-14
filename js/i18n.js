@@ -195,6 +195,8 @@ export const strings = {
   'sort.tagged': 'Tagged {quadrant}',
   'sort.untagged': 'Tag removed',
 
+  'board.quickAdd': 'Don’t let anything interrupt you — write it down here, empty your head and stay focused.',
+  'board.quickAddLabel': 'Write down a new task',
   'board.waiting': 'Waiting list ({n})',
   'board.waitingHint': 'On hold for this day — place a task when you decide to work on it.',
   'board.menu': 'More actions',

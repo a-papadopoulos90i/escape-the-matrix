@@ -308,6 +308,31 @@ test('clicking the day label opens a month picker: flip months, pick a day, jump
   await expect(dayLabel()).toHaveText('Thu 19 Mar');
 });
 
+test('quick add between the matrix and the waiting list: typed tasks land in the waiting list and the field keeps focus', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.clock.setFixedTime(new Date(2026, 2, 11, 9, 0, 0));
+  await seed(page, { tasks: SORTED() });
+  await page.goto('/');
+  const form = panel(page).locator('.quick-add');
+  await expect(form).toContainText('Don’t let anything interrupt you');
+
+  const input = form.getByRole('textbox', { name: "What's on your mind?" });
+  await input.fill('Call the plumber');
+  await input.press('Enter');
+  await expect(panel(page).locator('.waiting .task-card', { hasText: 'Call the plumber' })).toHaveCount(1);
+  await expect(input).toHaveValue('');
+  // It sits after the matrix and before the waiting list.
+  const order = await panel(page).locator('.board').evaluate((board) => [...board.children].map((el) => el.className.split(' ')[0]));
+  expect(order.indexOf('matrix')).toBeLessThan(order.indexOf('quick-add'));
+  expect(order.indexOf('quick-add')).toBeLessThan(order.indexOf('waiting'));
+  await expect(input).toBeFocused();
+  await input.pressSequentially('Buy stamps');
+  await form.getByRole('button', { name: 'Add' }).click();
+  await expect(panel(page).locator('.waiting .task-card', { hasText: 'Buy stamps' })).toHaveCount(1);
+  await expect(page.locator('#stepper .step.is-current')).toHaveAttribute('aria-label', /Prioritize/); // typing arrows did not switch tabs
+  await panel(page).locator('.board').screenshot({ path: path.join(SHOTS, 'quick-add.png') });
+});
+
 test('dragging a waiting-list card shrinks it to the size of a card inside a quadrant', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 1000 });
   await seed(page, { tasks: [...SORTED(), task('t_wait', 'Book the venue', null, { tag: 'delegate' })] });

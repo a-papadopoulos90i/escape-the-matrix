@@ -69,6 +69,19 @@
 }
 
 /* ---------- Waiting list: tasks left unplaced, on hold for the day ---------- */
+/* Quick add between the matrix and the waiting list (same column width). */
+.quick-add {
+  max-width: var(--content-col);
+  margin: var(--space-5) auto 0;
+}
+
+.quick-add__slogan {
+  margin: 0 0 var(--space-2);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
 .waiting {
   max-width: var(--content-col); /* same width as the matrix above it */
   margin: var(--space-5) auto 0;

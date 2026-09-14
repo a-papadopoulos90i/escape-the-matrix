@@ -25,7 +25,8 @@ function quadrantIcon(quadrant) {
 
 let ctx = null;
 let root = null; // .stage-body
-let boardEl = null; // strip + matrix + waiting list, re-rendered on every task change
+let boardEl = null; // strip + matrix + quick add + waiting list, re-rendered on every task change
+let quickAdd = null; // the one quick-add form, kept across renders so a half-typed task survives
 let unsubscribe = null;
 let adding = null; // quadrant with an open "add task" row
 let popover = null; // open task popover
@@ -49,6 +50,7 @@ export function mount(container, nextCtx) {
   });
   boardEl.addEventListener('touchmove', onTouchMove, { passive: false }); // must be cancelable
   boardEl.addEventListener('click', onClickCapture, true); // swallow the post-drag click
+  quickAdd = quickAddForm();
   root = ui.h('div', { class: 'stage-body' }, nav, ui.stageHeader({ stage: 3, title: i18n.t('stage.3.title') }), boardEl);
   container.append(root);
   render();
@@ -61,6 +63,7 @@ export function unmount() {
   unsubscribe?.();
   unsubscribe = null;
   adding = null;
+  quickAdd = null;
   boardEl = null;
   root = null;
   ctx = null;
@@ -89,10 +92,46 @@ function render() {
   const tasks = currentTasks();
   const waiting = ctx.store.waitingTasks(); // the global backlog, shared by every day
   boardEl.replaceChildren(
-    ...[carryStrip(ctx, ctx.getDate()), matrix(tasks.filter((task) => task.quadrant !== null)), waiting.length ? waitingPanel(waiting) : null].filter(Boolean),
+    ...[carryStrip(ctx, ctx.getDate()), matrix(tasks.filter((task) => task.quadrant !== null)), quickAdd, waiting.length ? waitingPanel(waiting) : null].filter(Boolean),
   );
   markTipAnchor();
   restoreFocus(focusKey);
+}
+
+/** Between the matrix and the waiting list: jot down whatever comes up without leaving the board.
+ *  The task lands in the waiting list below, for this day. */
+function quickAddForm() {
+  const { ui, i18n } = ctx;
+  const { t } = i18n;
+  const input = ui.h('input', {
+    class: 'dump__input',
+    type: 'text',
+    maxlength: 200,
+    autocomplete: 'off',
+    enterkeyhint: 'done',
+    placeholder: t('dump.whatsOnYourMind'),
+    'aria-label': t('dump.whatsOnYourMind'),
+    dataset: { focusKey: 'quick-add' },
+  });
+  const onSubmit = (event) => {
+    event.preventDefault();
+    const title = input.value.trim();
+    if (!title) return;
+    input.value = '';
+    ctx.store.addTask({ title, date: ctx.getDate() }); // re-renders; focus returns to the field by its key
+  };
+  return ui.h(
+    'section',
+    { class: 'quick-add', 'aria-label': t('board.quickAddLabel') },
+    ui.h('p', { class: 'quick-add__slogan' }, t('board.quickAdd')),
+    ui.h(
+      'form',
+      { class: 'dump__add', onSubmit },
+      ui.h('span', { class: 'dump__add-icon', 'aria-hidden': 'true', html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' }),
+      input,
+      ui.h('button', { class: 'btn btn-primary dump__add-btn', type: 'submit' }, ui.icon('plus', { size: 16 }), t('dump.add')),
+    ),
+  );
 }
 
 /** Timer-only changes: update every clock in place so open popovers and the tip keep their anchors. */
