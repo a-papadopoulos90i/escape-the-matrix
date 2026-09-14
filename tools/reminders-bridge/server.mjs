@@ -98,6 +98,12 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+server.on('error', (error) => {
+  if (error.code !== 'EADDRINUSE') throw error;
+  console.log(`The bridge is already running on port ${PORT} — nothing to do. (To restart it, close the other one first.)`);
+  process.exit(0);
+});
+
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`Levelix ↔ Reminders bridge on http://127.0.0.1:${PORT} (list "Levelix"). Ctrl+C to stop.`);
 });
