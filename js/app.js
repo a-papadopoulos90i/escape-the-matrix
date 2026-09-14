@@ -205,6 +205,16 @@ function makeCtx(stage) {
     getCalendarMonth: () => state.calendarMonth,
     setCalendarMonth,
     goTo,
+    // A day opened from the flipped calendar's popup: Back / Back to calendar return to it, still flipped.
+    markFlipReturn: () => {
+      state.flipReturn = true;
+    },
+    returnsToFlippedCalendar: () => Boolean(state.flipReturn),
+    takeFlipReturn: () => {
+      const flip = Boolean(state.flipReturn);
+      state.flipReturn = false;
+      return flip;
+    },
     showTip: () => showTip(state.stage, { focus: true }),
   };
 }
@@ -255,6 +265,7 @@ function mountStage(stage, direction) {
 function goTo(stage) {
   const next = Number(stage);
   if (!Number.isInteger(next) || next < HOME || next > STAGE_COUNT || next === state.stage) return;
+  if (next !== 1) state.flipReturn = false; // going anywhere but the calendar ends the "back to the flipped calendar" route
   const direction = next > state.stage ? 'forward' : 'back';
   state.stage = next;
   persistUiState();

@@ -588,7 +588,7 @@ test('14. the free-mode banner shows when signed out, dismisses, and stays dismi
   await page.goto('/');
   const banner = page.locator('#banner');
   await expect(banner).toBeVisible();
-  await expect(banner).toContainText("You're in free mode — tasks are saved only in this browser. Clearing cookies/site data erases them. Sign in with Google to keep them everywhere.");
+  await expect(banner).toContainText('Free mode — your tasks live only in this browser. Sign in to keep them on every device.');
   await banner.locator('button', { hasText: 'Dismiss' }).click();
   await expect(banner).toBeHidden();
   await waitForSaved(page, (doc) => doc.settings.bannerDismissed === true);

@@ -37,7 +37,7 @@ test('loads with the title, a 3-step stepper and no console errors', async ({ pa
   await expect(page.locator('#stepper .step')).toHaveCount(3);
   await expect(page.locator('#stepper .step').nth(0)).toHaveAttribute('aria-current', 'step');
   await expect(activeTitle(page)).toHaveText(TITLES[1]);
-  await expect(page.locator('#banner')).toContainText("You're in free mode");
+  await expect(page.locator('#banner')).toContainText('Free mode');
   await expect(page.locator('#account button')).toHaveAttribute('aria-label', 'Sign in');
   expect(errors).toEqual([]);
 });
@@ -110,6 +110,45 @@ test('"See an example" sweeps the logo colours on arrival and is hidden for sign
   await expect(demo).toHaveClass(/is-inviting/);
   await page.evaluate(() => document.body.classList.add('is-signed-in')); // what the app sets on sign-in
   await expect(demo).toBeHidden();
+});
+
+test('a day opened from the flipped calendar returns there: Back and Back to calendar land on it flipped, day selected', async ({ page }) => {
+  await page.clock.setFixedTime(new Date(2026, 2, 11, 9, 0, 0)); // today = Wed 11 Mar 2026
+  const DAY = '2026-03-16';
+  const task = { id: 't_1', title: 'Call the bank', date: DAY, quadrant: 'do', tag: 'do', order: 1, done: false, doneAt: null, createdAt: 'x', updatedAt: 'x', timer: null, attempt: 1, carriedTo: null };
+  await seed(page, {
+    ui: { stage: 1, selectedDate: '2026-03-11', calendarMonth: '2026-03' },
+    doc: { version: 1, updatedAt: 'x', settings: { showWeekends: false, bannerDismissed: true, tipsSeen: { 1: true, 2: true, 3: true, 4: true } }, tasks: [task] },
+  });
+  await page.goto('/');
+  const calendar = () => activePanel(page).locator('.calendar');
+  const openFromFlip = async () => {
+    const flip = activePanel(page).locator('.calendar__flip');
+    if ((await flip.getAttribute('aria-pressed')) !== 'true') await flip.click();
+    await expect(calendar()).toHaveClass(/calendar--flipped/);
+    await activePanel(page).locator(`.calendar__day[data-key="${DAY}"]`).click();
+    await page.getByRole('button', { name: 'Open day →' }).click();
+    await expect(activePanel(page)).toHaveAttribute('data-stage', '3');
+  };
+  const expectFlippedCalendar = async () => {
+    await expect(activePanel(page)).toHaveAttribute('data-stage', '1');
+    await expect(calendar()).toHaveClass(/calendar--flipped/);
+    await expect(activePanel(page).locator('.calendar__flip')).toHaveAttribute('aria-pressed', 'true');
+    await expect(activePanel(page).locator(`.calendar__day[data-key="${DAY}"]`)).toHaveClass(/calendar__day--selected/);
+  };
+
+  await openFromFlip();
+  await activePanel(page).getByRole('button', { name: '← Back' }).click();
+  await expectFlippedCalendar();
+
+  await openFromFlip();
+  await activePanel(page).getByRole('button', { name: 'Back to calendar' }).click();
+  await expectFlippedCalendar();
+
+  // Prioritize reached any other way (here: the tab) keeps its normal Back, to Write down.
+  await page.locator('#stepper .step').nth(2).click();
+  await activePanel(page).getByRole('button', { name: '← Back' }).click();
+  await expect(activePanel(page)).toHaveAttribute('data-stage', '2');
 });
 
 test('clicking each stepper step shows the right stage title', async ({ page }) => {

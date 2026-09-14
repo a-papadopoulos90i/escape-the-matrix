@@ -160,7 +160,7 @@ test.describe('free mode (firebaseConfig = null)', () => {
     await expect(dialog.getByRole('button', { name: 'Continue with Apple' })).toBeVisible();
     await expect(dialog.getByRole('button', { name: 'Continue with email' })).toBeVisible();
     await page.keyboard.press('Escape');
-    await expect(page.locator('#banner')).toContainText("You're in free mode");
+    await expect(page.locator('#banner')).toContainText('Free mode');
     expect(errors).toEqual([]);
   });
 

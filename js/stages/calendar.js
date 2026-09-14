@@ -21,6 +21,7 @@ let unsubscribe = null;
 export function mount(container, context) {
   ctx = context;
   const { ui, store } = ctx;
+  flipped = ctx.takeFlipReturn?.() ?? false; // back from a day opened in the flipped view: stay flipped
 
   els.months = ui.h('div', { class: 'calendar__months', role: 'group', onKeydown: onGridKeydown });
   els.month = ui.h('p', { class: 'calendar__month', 'aria-live': 'polite' });
@@ -47,7 +48,7 @@ export function mount(container, context) {
   els.title = root.querySelector('.stage-title');
 
   monthsShown = 1;
-  flipped = false;
+  root.classList.toggle('calendar--flipped', flipped);
   render();
   unsubscribe = store.subscribe(render);
   container.append(root);
@@ -264,11 +265,13 @@ function dayCell(key, tabbable) {
 
 // ---------- Actions ----------
 
-function openDay(key) {
+function openDay(key, { fromFlip = false } = {}) {
+  const { markFlipReturn } = ctx; // goTo unmounts the calendar, which clears ctx
   ctx.setDate(key);
   // Today starts at Write down — you brain-dump it first, then move on to Prioritize. Every other
   // day (past or future) opens straight in Prioritize.
   ctx.goTo(key === ctx.dates.todayKey() ? 2 : 3);
+  if (fromFlip) markFlipReturn?.(); // its Back / Back to calendar then return to the flipped calendar
 }
 
 /** Manage-mode popup: view / add / rename / tick / delete a single day's tasks, without leaving the
@@ -366,7 +369,7 @@ function openDayPopup(key) {
     title: dates.formatLong(key),
     content: ui.h('div', { class: 'day-pop' }, addForm, list),
     actions: [
-      { label: i18n.t('calendar.openDay'), primary: true, onClick: () => openDay(key) },
+      { label: i18n.t('calendar.openDay'), primary: true, onClick: () => openDay(key, { fromFlip: true }) },
       { label: i18n.t('common.close') },
     ],
     onClose: () => unsubscribeRows(),

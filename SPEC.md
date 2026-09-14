@@ -104,7 +104,9 @@ tracked time, are omitted; when nothing has been tracked the modal explains wher
 cell turns over on its own in a quick staggered wave (not the whole board as one sheet). Flipped,
 each cell previews the day's task titles (trimmed, done ones struck) instead of the green fill, and
 tapping a day opens a **day popup** — add a task, rename, tick done, delete — plus an **"Open day →"**
-button that jumps into that day's stage. Toggling back ("Back to calendar") returns to the normal
+button that jumps into that day's stage. From a day opened this way, **Back** and **Back to calendar**
+return to the calendar still flipped, with that day selected; reaching the stage any other way keeps
+the normal Back. Toggling back ("Back to calendar") returns to the normal
 view where a tap opens the day directly.
 
 ### Stage 2 — "Write it all down"
@@ -241,9 +243,8 @@ the header): **"Organize them by priority:"** then bullets `start the timer or t
   steps, each a title + one sentence beside a real screenshot (`assets/home/*.webp`), sides
   alternating, stacked on phones; clicking a screenshot opens that step — then **Our purpose** as a four-panel illustrated mini story (A full head → Write it down → Focus on the few → Room for life),
   **Free, for everyone** (non-profit upkeep for now, future revenue funds it; a studio quote — one short phrase, what it means in practice, signed PanTik.io with an account-style avatar; `QUOTES` in home.js takes more) and a small as-is / no-professional-advice disclaimer. Wording stays neutral.
-- **Free-mode banner** (only when not signed in, dismissible, remembered): "You're in free mode —
-  tasks are saved only in this browser. Clearing cookies/site data erases them. Sign in with Google
-  to keep them everywhere."
+- **Free-mode banner** (only when not signed in, dismissible, remembered): "Free mode — your tasks live only in this
+  browser. Sign in to keep them on every device." (short, and not tied to one sign-in provider)
 - Stage panels: alternate with a ~250ms slide + fade; respect `prefers-reduced-motion`.
 - Toasts bottom-centre (with optional Undo). Modals/popovers close on Escape and outside click.
 - Keyboard: `←`/`→` (when no input is focused) go Back/Next; `?` opens the tip.

@@ -36,7 +36,8 @@ let suppressClick = false; // swallow the click that follows a completed drag
 export function mount(container, nextCtx) {
   ctx = nextCtx;
   const { ui, i18n } = ctx;
-  const nav = ui.stageNav({ onBack: () => ctx.goTo(2), onNext: () => ctx.goTo(1), nextLabel: i18n.t('nav.backToCalendar'), day: dayNav(ctx) });
+  // Back leads to Write down — unless this day was opened from the flipped calendar, then back there.
+  const nav = ui.stageNav({ onBack: () => ctx.goTo(ctx.returnsToFlippedCalendar() ? 1 : 2), onNext: () => ctx.goTo(1), nextLabel: i18n.t('nav.backToCalendar'), day: dayNav(ctx) });
   boardEl = ui.h('div', {
     class: 'board',
     onPointerdown: onPointerDown,

@@ -70,7 +70,7 @@ export const strings = {
   'day.noTasks': 'No tasks yet',
 
   'banner.text':
-    "You're in free mode — tasks are saved only in this browser. Clearing cookies/site data erases them. Sign in with Google to keep them everywhere.",
+    'Free mode — your tasks live only in this browser. Sign in to keep them on every device.',
   'banner.dismiss': 'Dismiss',
 
   'account.signIn': 'Sign in',
