@@ -12,7 +12,15 @@
 // };
 //
 // See SETUP.md for the full walkthrough (providers, authorized domains, Firestore rules).
-export const firebaseConfig = null;
+// Firebase project "Escape the Matrix" (project ID katopsi-elite — the ID is permanent).
+export const firebaseConfig = {
+  apiKey: 'AIzaSyBohjbgd-ehrSxRDZi-GaalzhNxNBa2bkQ',
+  authDomain: 'katopsi-elite.firebaseapp.com',
+  projectId: 'katopsi-elite',
+  storageBucket: 'katopsi-elite.firebasestorage.app',
+  messagingSenderId: '542908804568',
+  appId: '1:542908804568:web:3a01f898440b84c1da56ad',
+};
 
 // Sign-in options shown in the chooser. Add 'apple' once Apple is configured (SETUP.md, Part B3).
 export const authProviders = ['google', 'email'];

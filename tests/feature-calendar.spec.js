@@ -1,4 +1,4 @@
-import { test, expect } from 'playwright/test';
+import { test, expect } from './fixtures.js';
 import path from 'node:path';
 
 // Stage 1 — month calendar. Seeds March 2026 (the design board's month) with tasks on several

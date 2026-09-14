@@ -1,4 +1,4 @@
-import { test, expect } from 'playwright/test';
+import { test, expect, FREE_MODE_CONFIG } from './fixtures.js';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -687,6 +687,8 @@ test('19. every asset URL is relative: the app boots unchanged under a /escape-t
   page.on('request', (request) => requests.push(request.url()));
   await page.route('**/escape-the-matrix/**', async (route) => {
     const url = new URL(route.request().url());
+    // This page-level route wins over the fixture's context route, so keep free mode here too.
+    if (url.pathname.endsWith('/js/firebase-config.js')) return route.fulfill({ status: 200, contentType: 'text/javascript', body: FREE_MODE_CONFIG });
     url.pathname = url.pathname.replace('/escape-the-matrix', '');
     await route.fulfill({ response: await route.fetch({ url: url.toString() }) });
   });

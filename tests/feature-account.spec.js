@@ -1,4 +1,4 @@
-import { test, expect } from 'playwright/test';
+import { test, expect } from './fixtures.js';
 import path from 'node:path';
 
 // Account area (SPEC §3 / §5): free mode with firebaseConfig === null, and Google mode driven by a

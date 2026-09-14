@@ -1,4 +1,4 @@
-import { test } from 'playwright/test';
+import { test } from './fixtures.js';
 import path from 'node:path';
 
 // Visual check helper: writes one screenshot per stage (desktop + mobile) so agents can LOOK at

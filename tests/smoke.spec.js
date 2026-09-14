@@ -1,4 +1,4 @@
-import { test, expect } from 'playwright/test';
+import { test, expect } from './fixtures.js';
 
 const UI_KEY = 'escape-the-matrix:ui';
 const DOC_KEY = 'escape-the-matrix:v1';

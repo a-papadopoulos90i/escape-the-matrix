@@ -1,4 +1,4 @@
-import { test, expect } from 'playwright/test';
+import { test, expect } from './fixtures.js';
 import path from 'node:path';
 
 // Stage 2 (brain dump) and Stage 3 (place by priority) — behaviour, persistence, every placement
