@@ -126,6 +126,8 @@
 
   .waiting-card:hover .waiting-card__places,
   .waiting-card:focus-within .waiting-card__places,
+  .dump-row:hover .waiting-card__places,
+  .dump-row:focus-within .waiting-card__places,
   .waiting-card:hover .task-card__delete,
   .waiting-card:focus-within .task-card__delete {
     opacity: 1;

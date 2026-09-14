@@ -147,3 +147,33 @@ for (const [label, viewport] of Object.entries({ desktop: { width: 1280, height:
     await page.screenshot({ path: path.join(OUT, `${label}-stage3.png`), fullPage: true });
   });
 }
+
+test('Write down rows carry the waiting list\'s priority controls: glyphs tag, the priority icon files a tagged task', async ({ page }) => {
+  const errors = collectErrors(page);
+  await seed(page, { stage: 2, tasks: TITLES.slice(0, 2) });
+  await page.goto('/');
+  const rows = panel(page).locator('.dump-row');
+  const stored = async (id) => (await storedTasks(page)).find((task) => task.id === id);
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0).locator('.waiting-place')).toHaveCount(4);
+  await expect(rows.nth(0).locator('.task-card__priority')).toHaveClass(/task-card__priority--none/);
+
+  // A glyph tags the task; it stays on the list.
+  await rows.nth(0).hover();
+  await rows.nth(0).locator('.waiting-place--plan').click();
+  await expect(rows.nth(0).locator('.task-card__priority')).toHaveClass(/priority-icon--plan/);
+  await expect(rows.nth(0).locator('.waiting-place--plan')).toHaveClass(/is-active/);
+  await expect(rows).toHaveCount(2);
+  await expect.poll(async () => (await stored('t_0')).tag).toBe('plan');
+
+  // An untagged row's icon opens the priority menu.
+  await rows.nth(1).locator('.task-card__priority').click();
+  await page.getByRole('menuitem', { name: 'Urgent / Important', exact: true }).click();
+  await expect(rows.nth(1).locator('.task-card__priority')).toHaveClass(/priority-icon--do/);
+
+  // A tagged row's icon activates the tag: the task goes into that quadrant for the open day.
+  await rows.nth(0).locator('.task-card__priority').click();
+  await expect(rows).toHaveCount(1);
+  await expect.poll(async () => { const task = await stored('t_0'); return `${task.quadrant}/${task.tag}/${task.date}`; }).toBe(`plan/plan/${DATE}`);
+  expect(errors).toEqual([]);
+});

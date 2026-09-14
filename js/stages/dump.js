@@ -3,6 +3,7 @@
 // with a ✕), kept until an item is placed in a quadrant, ticked done, or deleted. At the bottom,
 // when earlier days still hold unfinished placed tasks, a "Pull them here" button and their list.
 import { attemptBadge, pendingCarry } from '../carry.js';
+import { priorityButton, tagPlaces } from '../tags.js';
 
 const PENCIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 
@@ -96,7 +97,9 @@ function reconcileRows(tasks) {
   const ids = new Set(tasks.map((task) => task.id));
   for (const [id, row] of rows) if (!ids.has(id)) row.remove();
   tasks.forEach((task, index) => {
-    const row = rows.get(task.id) ?? taskRow(task);
+    const existing = rows.get(task.id);
+    const row = existing ?? taskRow(task);
+    if (existing) refreshTags(row, task);
     row.querySelector('.dump-row__num').textContent = String(index + 1);
     const input = row.querySelector('input');
     if (document.activeElement !== input) input.value = task.title;
@@ -126,9 +129,21 @@ function taskRow(task) {
     { class: 'dump-row', dataset: { id } },
     ui.h('span', { class: 'dump-row__num', 'aria-hidden': 'true' }),
     attemptBadge(state.ctx, task),
+    priorityButton(state.ctx, task), // the same priority controls as Prioritize's waiting list
     input,
+    tagPlaces(state.ctx, task),
     remove,
   );
+}
+
+/** Redraws a kept row's priority button and tag glyphs for the task's current tag, keeping keyboard
+ *  focus on the same control. */
+function refreshTags(row, task) {
+  const { ctx } = state;
+  const focusKey = row.contains(document.activeElement) ? document.activeElement.dataset.focusKey : null;
+  row.querySelector('.task-card__priority').replaceWith(priorityButton(ctx, task));
+  row.querySelector('.waiting-card__places').replaceWith(tagPlaces(ctx, task));
+  if (focusKey) row.querySelector(`[data-focus-key="${focusKey}"]`)?.focus();
 }
 
 function findTask(id) {

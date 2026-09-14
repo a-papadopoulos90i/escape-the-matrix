@@ -4,7 +4,8 @@
 // (timer / postpone / next day) opened from a task title or its clock.
 import * as timer from '../timer.js';
 import { QUADRANTS, isRecord } from '../store.js';
-import { carryStrip, attemptBadge, recordLabel, dayNav, QUAD_ICON, quadrantGlyph, quadrantAxes } from '../carry.js';
+import { carryStrip, attemptBadge, recordLabel, dayNav, QUAD_ICON } from '../carry.js';
+import { priorityButton, tagPlaces } from '../tags.js';
 
 const PRESET_MINUTES = [5, 15, 25, 45, 60];
 const TIP_ROOM = 150; // px free beside the matrix needed to put the "Done mark" bubble on the left
@@ -180,74 +181,10 @@ function taskCard(task) {
     'div',
     { class: `task-card ${task.done ? 'task-card--done' : ''}`.trim(), dataset: { id: task.id } },
     doneControl(task),
-    priorityButton(task),
+    priorityButton(ctx, task),
     titleButton(task),
     ui.h('div', { class: 'task-card__actions' }, clock, scheduleButton(task), deleteButton(task)),
   );
-}
-
-/** The task's priority TAG, shown right after the done tick. It is the label set in Prioritize, not
- *  the box the card sits in — click it to change the label. Untagged tasks show no icon. */
-function priorityButton(task) {
-  const { ui, i18n } = ctx;
-  // Untagged cards still show the button (a muted tag glyph) — it is the only way to add a label.
-  const glyph = task.tag
-    ? `<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">${QUAD_ICON[task.tag]}</svg>`
-    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M3.5 11.6V4.6a1 1 0 0 1 1-1h7l8.4 8.4-8 8z"/><circle cx="7.6" cy="7.6" r="1.3"/></svg>';
-  // A tagged card in the waiting list goes straight into its tag's quadrant ("activate the tag");
-  // an untagged one, or a card already placed, opens the priority menu instead.
-  const activates = task.quadrant === null && Boolean(task.tag);
-  const label = activates ? i18n.t('board.activateTag', { label: i18n.quadrantLabel(task.tag) }) : i18n.t('board.changePriority');
-  return ui.h(
-    'button',
-    {
-      class: `task-card__priority ${task.tag ? `priority-icon--${task.tag}` : 'task-card__priority--none'}`,
-      type: 'button',
-      'aria-haspopup': activates ? null : 'menu',
-      'aria-label': label,
-      title: label,
-      dataset: { focusKey: `priority:${task.id}` },
-      onClick: (event) => (activates ? fileWithTag(task, task.tag) : openPriorityMenu(task, event.currentTarget)),
-    },
-    ui.h('span', { 'aria-hidden': 'true', html: glyph }),
-  );
-}
-
-/** The 5-option priority menu. On a card that sits in a quadrant it FILES the card: another priority
- *  moves it there (labelled to match), "No priority" sends it back to the waiting list. On a waiting
- *  card it only sets the label, like the card's glyphs. */
-function openPriorityMenu(task, anchor) {
-  const { ui, i18n, store } = ctx;
-  const placed = task.quadrant !== null;
-  const items = QUADRANTS.map((quadrant) => ({
-    label: quadrantAxes(ctx, quadrant),
-    iconEl: quadrantGlyph(ctx, quadrant),
-    disabled: placed ? task.quadrant === quadrant && task.tag === quadrant : task.tag === quadrant,
-    onSelect: () => (placed ? fileWithTag(task, quadrant) : store.setTag(task.id, quadrant)),
-  }));
-  items.push('-', {
-    label: i18n.t('board.noTag'),
-    icon: 'tag',
-    disabled: !placed && !task.tag,
-    onSelect: () => (placed ? fileWithTag(task, null) : store.setTag(task.id, null)),
-  });
-  ui.menu({ anchor, items });
-}
-
-/** Moves a placed card into `quadrant` with the matching label, or — with null — back to the waiting
- *  list with no label. One undo step. */
-function fileWithTag(task, quadrant) {
-  const { store } = ctx;
-  store.undoable(() => {
-    if (quadrant) {
-      const last = currentTasks().reduce((max, item) => Math.max(max, item.order + 1), Date.now());
-      store.setQuadrant(task.id, quadrant, ctx.getDate());
-      store.reorderTask(task.id, last);
-    } else {
-      store.setQuadrant(task.id, null);
-    }
-    store.setTag(task.id, quadrant);
-  });
 }
 
 /** ⏩ between the clock and the ✕: opens the schedule picker (next day + postpone), the way the
@@ -383,33 +320,10 @@ function waitingCard(task) {
     'div',
     { class: `task-card waiting-card ${task.done ? 'task-card--done' : ''}`.trim(), dataset: { id: task.id } },
     doneControl(task),
-    priorityButton(task),
+    priorityButton(ctx, task),
     titleButton(task),
-    ui.h('div', { class: 'waiting-card__places' }, QUADRANTS.map((quadrant) => tagIconButton(task, quadrant))),
+    tagPlaces(ctx, task),
     deleteButton(task),
-  );
-}
-
-/** Small colour-coded glyph that TAGS a waiting task with that priority (tap again to clear it).
- *  It is a label only — it never moves the task into a quadrant. */
-function tagIconButton(task, quadrant) {
-  const { ui, i18n, store } = ctx;
-  const active = task.tag === quadrant;
-  return ui.h(
-    'button',
-    {
-      class: `waiting-place waiting-place--${quadrant} ${active ? 'is-active' : ''}`.trim(),
-      type: 'button',
-      'aria-pressed': String(active),
-      'aria-label': i18n.quadrantLabel(quadrant),
-      title: i18n.quadrantLabel(quadrant),
-      dataset: { focusKey: `tag:${task.id}:${quadrant}` },
-      onClick: () => store.setTag(task.id, active ? null : quadrant),
-    },
-    ui.h('span', {
-      'aria-hidden': 'true',
-      html: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">${QUAD_ICON[quadrant]}</svg>`,
-    }),
   );
 }
 
