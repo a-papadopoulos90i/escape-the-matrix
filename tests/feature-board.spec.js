@@ -329,6 +329,7 @@ test('quick add between the matrix and the waiting list: typed tasks land in the
   await input.pressSequentially('Buy stamps');
   await form.getByRole('button', { name: 'Add' }).click();
   await expect(panel(page).locator('.waiting .task-card', { hasText: 'Buy stamps' })).toHaveCount(1);
+  await expect(panel(page).locator('.waiting .task-card__title')).toHaveText(['Buy stamps', 'Call the plumber']); // latest entry on top
   await expect(page.locator('#stepper .step.is-current')).toHaveAttribute('aria-label', /Prioritize/); // typing arrows did not switch tabs
   await panel(page).locator('.board').screenshot({ path: path.join(SHOTS, 'quick-add.png') });
 });

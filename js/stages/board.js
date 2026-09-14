@@ -90,7 +90,7 @@ function render() {
   endDrag(); // a remote change mid-drag would detach the dragged card
   const focusKey = focusedKey();
   const tasks = currentTasks();
-  const waiting = ctx.store.waitingTasks(); // the global backlog, shared by every day
+  const waiting = ctx.store.waitingTasks().reverse(); // the global backlog, shared by every day — latest entry first
   boardEl.replaceChildren(
     ...[carryStrip(ctx, ctx.getDate()), matrix(tasks.filter((task) => task.quadrant !== null)), quickAdd, waiting.length ? waitingPanel(waiting) : null].filter(Boolean),
   );
