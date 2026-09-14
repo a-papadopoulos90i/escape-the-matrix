@@ -118,7 +118,9 @@ green **Add** button; Enter or Add commits, the field clears and keeps focus. Be
 backlog** — a **numbered list** of every unplaced task, each row a rounded card with a number circle,
 the (inline-editable) title and a red **✕** (delete, with Undo). At the bottom, when earlier days
 hold unfinished **placed** tasks, a **"Pull them here"** button and a **scrollable list** of those
-tasks — pulling carries them into the backlog. `Next →` needs ≥ 1 backlog item.
+tasks — pulling carries them into the backlog. The pull (here and on Prioritize) is offered **only on the real today**, for unfinished
+placed work from the days before it: a future or past day opened from the calendar never offers one, and today's own
+tasks are not "left" until today is over. `Next →` needs ≥ 1 backlog item.
 
 **The waiting list is one global backlog** (see Stage 3). Writing a task adds it there
 (`quadrant: null`); the same list shows on Stage 2 and Stage 3, on **every** day, and each

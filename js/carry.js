@@ -13,9 +13,16 @@ export const QUAD_ICON = {
 };
 
 /** The "N unfinished tasks left on … — Pull them here" strip, or null when there is nothing to pull. */
+/** Unfinished work to offer on `date`: only on the real today, and only from the days before it —
+ *  a future (or past) day opened from the calendar never offers a pull, and today's own tasks are
+ *  not "left" until today is over. Shared by Prioritize and Write down. */
+export function pendingCarry(ctx, date) {
+  return date === ctx.dates.todayKey() ? ctx.store.unfinishedBefore(date) : [];
+}
+
 export function carryStrip(ctx, date) {
   const { store, ui, i18n, dates } = ctx;
-  const pending = store.unfinishedBefore(date);
+  const pending = pendingCarry(ctx, date);
   if (!pending.length) return null;
   const n = pending.length;
   const days = [...new Set(pending.map((task) => task.date))];

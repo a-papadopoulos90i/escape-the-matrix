@@ -243,6 +243,32 @@ test('in the waiting list, a tagged card\'s priority icon activates the tag: the
   expect(errors).toEqual([]);
 });
 
+test('"Pull them here" is offered only on the real today, for unfinished work from the days before it', async ({ page }) => {
+  await page.clock.setFixedTime(new Date(2026, 2, 11, 9, 0, 0)); // today = Wed 11 Mar 2026 (= DAY)
+  await seed(page, { tasks: [...SORTED(), task('t_old', 'Old report', 'do', { date: '2026-03-09' })] });
+  await page.goto('/');
+  const strip = () => panel(page).locator('.carry-strip');
+  const dayLabel = () => panel(page).locator('.stage-nav__day-label');
+
+  await expect(strip()).toHaveCount(1); // today: offers the 9 Mar leftover
+  await expect(strip()).toContainText('Mon 9 Mar');
+
+  await panel(page).locator('.stage-nav__day-arrow').last().click(); // Thu 12 Mar — not today yet
+  await expect(dayLabel()).toHaveText('Thu 12 Mar');
+  await expect(strip()).toHaveCount(0);
+  await page.locator('#stepper .step').nth(1).click(); // Write down for that future day: no pull list either
+  await expect(panel(page).locator('.dump__carry .carry-strip__pull')).toHaveCount(0);
+  await page.locator('#stepper .step').nth(2).click();
+
+  await panel(page).locator('.stage-nav__day-arrow').first().click();
+  await panel(page).locator('.stage-nav__day-arrow').first().click(); // Tue 10 Mar — a past day
+  await expect(dayLabel()).toHaveText('Tue 10 Mar');
+  await expect(strip()).toHaveCount(0);
+
+  await panel(page).locator('.stage-nav__day-arrow').last().click(); // back on today
+  await expect(strip()).toHaveCount(1);
+});
+
 test('dragging a waiting-list card shrinks it to the size of a card inside a quadrant', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 1000 });
   await seed(page, { tasks: [...SORTED(), task('t_wait', 'Book the venue', null, { tag: 'delegate' })] });
