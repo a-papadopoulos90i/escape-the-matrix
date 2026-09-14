@@ -172,6 +172,7 @@ export const strings = {
   'board.deleteTask': 'Delete task',
   'board.renameTask': 'Rename — click to edit',
   'board.changePriority': 'Change priority',
+  'board.activateTag': 'Move to {label}',
   'board.noTag': 'No priority',
   'board.dragHint': 'Drag a card to another quadrant to move it.',
   'board.timerIdle': 'No timer — start one',

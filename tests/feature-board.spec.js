@@ -217,6 +217,32 @@ test('on the board the tag menu files the card: a priority moves it there, "No p
   expect(errors).toEqual([]);
 });
 
+test('in the waiting list, a tagged card\'s priority icon activates the tag: the card goes straight into that quadrant', async ({ page }) => {
+  const errors = collectErrors(page);
+  await seed(page, { tasks: [...SORTED(), task('t_wait', 'Book the venue', null, { tag: 'delegate' }), task('t_bare', 'Loose idea', null, { tag: null })] });
+  await page.goto('/');
+  const waiting = (title) => panel(page).locator('.waiting-card', { hasText: title });
+
+  await expect(waiting('Book the venue').locator('.task-card__priority')).toHaveAttribute('aria-label', 'Move to Delegate');
+  await waiting('Book the venue').locator('.task-card__priority').click();
+  await expect(quadrant(page, 'delegate').locator('.task-card', { hasText: 'Book the venue' })).toHaveCount(1);
+  await expect(waiting('Book the venue')).toHaveCount(0);
+  await expect(page.getByRole('menu')).toHaveCount(0); // no menu — it moved at once
+  await waitForSaved(page, (doc) => taskById(doc, 't_wait').quadrant === 'delegate' && taskById(doc, 't_wait').tag === 'delegate');
+
+  // Once placed, the same icon opens the menu again (that behaviour is unchanged).
+  await quadrant(page, 'delegate').locator('.task-card', { hasText: 'Book the venue' }).locator('.task-card__priority').click();
+  await expect(page.getByRole('menuitem', { name: 'No priority' })).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  // An untagged waiting card has nothing to activate: its icon opens the menu.
+  await waiting('Loose idea').locator('.task-card__priority').click();
+  await expect(page.getByRole('menuitem', { name: 'Do now' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(waiting('Loose idea')).toHaveCount(1);
+  expect(errors).toEqual([]);
+});
+
 test('a card drags into another quadrant; the red ✕ deletes it with undo', async ({ page }) => {
   const errors = collectErrors(page);
   await page.setViewportSize({ width: 1280, height: 1000 });

@@ -193,16 +193,20 @@ function priorityButton(task) {
   const glyph = task.tag
     ? `<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">${QUAD_ICON[task.tag]}</svg>`
     : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M3.5 11.6V4.6a1 1 0 0 1 1-1h7l8.4 8.4-8 8z"/><circle cx="7.6" cy="7.6" r="1.3"/></svg>';
+  // A tagged card in the waiting list goes straight into its tag's quadrant ("activate the tag");
+  // an untagged one, or a card already placed, opens the priority menu instead.
+  const activates = task.quadrant === null && Boolean(task.tag);
+  const label = activates ? i18n.t('board.activateTag', { label: i18n.quadrantLabel(task.tag) }) : i18n.t('board.changePriority');
   return ui.h(
     'button',
     {
       class: `task-card__priority ${task.tag ? `priority-icon--${task.tag}` : 'task-card__priority--none'}`,
       type: 'button',
-      'aria-haspopup': 'menu',
-      'aria-label': i18n.t('board.changePriority'),
-      title: i18n.t('board.changePriority'),
+      'aria-haspopup': activates ? null : 'menu',
+      'aria-label': label,
+      title: label,
       dataset: { focusKey: `priority:${task.id}` },
-      onClick: (event) => openPriorityMenu(task, event.currentTarget),
+      onClick: (event) => (activates ? fileWithTag(task, task.tag) : openPriorityMenu(task, event.currentTarget)),
     },
     ui.h('span', { 'aria-hidden': 'true', html: glyph }),
   );

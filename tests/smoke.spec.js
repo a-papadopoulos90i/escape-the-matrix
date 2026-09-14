@@ -104,6 +104,14 @@ test('the Time report button is always last, under every task, on Write down and
   await expect(fab).toBeHidden();
 });
 
+test('"See an example" sweeps the logo colours on arrival and is hidden for signed-in users', async ({ page }) => {
+  await page.goto('/');
+  const demo = activePanel(page).locator('.calendar__demo');
+  await expect(demo).toHaveClass(/is-inviting/);
+  await page.evaluate(() => document.body.classList.add('is-signed-in')); // what the app sets on sign-in
+  await expect(demo).toBeHidden();
+});
+
 test('clicking each stepper step shows the right stage title', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/');
