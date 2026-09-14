@@ -177,6 +177,10 @@ unplaces it).
   Monday). Weekends still show on the calendar; this only affects where the one-tap action lands.
   Toast with **Undo**.
 
+On a card **placed in a quadrant**, the tag button opens a 5-option menu that also files the card:
+picking another priority moves it into that quadrant (labelled to match), and **No priority** sends
+it back to the waiting list with no label.
+
 Each waiting card shows, left to right: the done tick, its **priority tag** (the label, filled in the
 quadrant's colour), the title, the four tag glyphs, and the red ✕. **The glyphs only tag** — tap one
 to label the task, tap the active one again to clear it. They never file the task into a quadrant:

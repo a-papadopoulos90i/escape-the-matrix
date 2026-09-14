@@ -298,7 +298,7 @@ test('4. adding tasks builds a numbered list; ✕ deletes with Undo; reload keep
 
 // ---------- 5: sorting ----------
 
-test('5. a card\'s tag button labels the task without moving it', async ({ page }) => {
+test('5. on the board, a card\'s tag menu files it into the chosen priority', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 1100 });
   await page.clock.setFixedTime(FIXED_NOW);
   await seed(page, { tasks: sortedTasks(), stage: 3 });
@@ -318,9 +318,10 @@ test('5. a card\'s tag button labels the task without moving it', async ({ page 
   await expect(tagBtn(TITLES[0])).toHaveClass(/priority-icon--plan/);
   await waitForSaved(page, (doc) => taskById(doc, 't_1').tag === 'plan');
 
-  // Labelling never moves the card: it stays in the quadrant it was placed in.
-  await expect(quadrant(page, 'do').locator('.task-card')).toHaveText([TITLES[0]]);
-  await waitForSaved(page, (doc) => taskById(doc, 't_1').quadrant === 'do');
+  // On the board the menu files the card as well: it moves to Schedule, labelled Schedule.
+  await expect(quadrant(page, 'plan').locator('.task-card', { hasText: TITLES[0] })).toHaveCount(1);
+  await expect(quadrant(page, 'do').locator('.task-card')).toHaveCount(0);
+  await waitForSaved(page, (doc) => taskById(doc, 't_1').quadrant === 'plan');
 });
 
 // ---------- 6–7: the board ----------

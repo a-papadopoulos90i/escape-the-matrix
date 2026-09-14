@@ -196,6 +196,27 @@ test('the card title opens rename in place; the ⏩ opens the schedule picker', 
   expect(errors).toEqual([]);
 });
 
+test('on the board the tag menu files the card: a priority moves it there, "No priority" sends it back to the waiting list', async ({ page }) => {
+  const errors = collectErrors(page);
+  await seed(page, { tasks: SORTED() });
+  await page.goto('/');
+  const tagBtn = () => card(page, 'Marketing Order A5').locator('.task-card__priority');
+
+  await tagBtn().click();
+  await page.getByRole('menuitem', { name: 'Schedule' }).click();
+  await expect(quadrant(page, 'plan').locator('.task-card', { hasText: 'Marketing Order A5' })).toHaveCount(1);
+  await expect(quadrant(page, 'do').locator('.task-card')).toHaveCount(0);
+  await expect(tagBtn()).toHaveClass(/priority-icon--plan/);
+  await waitForSaved(page, (doc) => taskById(doc, 't_1').quadrant === 'plan' && taskById(doc, 't_1').tag === 'plan');
+
+  await tagBtn().click();
+  await page.getByRole('menuitem', { name: 'No priority' }).click();
+  await expect(panel(page).locator('.waiting-card', { hasText: 'Marketing Order A5' })).toHaveCount(1);
+  await expect(quadrant(page, 'plan').locator('.task-card', { hasText: 'Marketing Order A5' })).toHaveCount(0);
+  await waitForSaved(page, (doc) => taskById(doc, 't_1').quadrant === null && taskById(doc, 't_1').tag === null);
+  expect(errors).toEqual([]);
+});
+
 test('a card drags into another quadrant; the red ✕ deletes it with undo', async ({ page }) => {
   const errors = collectErrors(page);
   await page.setViewportSize({ width: 1280, height: 1000 });

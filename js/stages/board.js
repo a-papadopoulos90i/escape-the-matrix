@@ -208,16 +208,41 @@ function priorityButton(task) {
   );
 }
 
+/** The 5-option priority menu. On a card that sits in a quadrant it FILES the card: another priority
+ *  moves it there (labelled to match), "No priority" sends it back to the waiting list. On a waiting
+ *  card it only sets the label, like the card's glyphs. */
 function openPriorityMenu(task, anchor) {
   const { ui, i18n, store } = ctx;
+  const placed = task.quadrant !== null;
   const items = QUADRANTS.map((quadrant) => ({
     label: i18n.quadrantLabel(quadrant),
     iconEl: quadrantGlyph(ctx, quadrant),
-    disabled: task.tag === quadrant,
-    onSelect: () => store.setTag(task.id, quadrant),
+    disabled: placed ? task.quadrant === quadrant && task.tag === quadrant : task.tag === quadrant,
+    onSelect: () => (placed ? fileWithTag(task, quadrant) : store.setTag(task.id, quadrant)),
   }));
-  items.push('-', { label: i18n.t('board.noTag'), icon: 'tag', disabled: !task.tag, onSelect: () => store.setTag(task.id, null) });
+  items.push('-', {
+    label: i18n.t('board.noTag'),
+    icon: 'tag',
+    disabled: !placed && !task.tag,
+    onSelect: () => (placed ? fileWithTag(task, null) : store.setTag(task.id, null)),
+  });
   ui.menu({ anchor, items });
+}
+
+/** Moves a placed card into `quadrant` with the matching label, or — with null — back to the waiting
+ *  list with no label. One undo step. */
+function fileWithTag(task, quadrant) {
+  const { store } = ctx;
+  store.undoable(() => {
+    if (quadrant) {
+      const last = currentTasks().reduce((max, item) => Math.max(max, item.order + 1), Date.now());
+      store.setQuadrant(task.id, quadrant, ctx.getDate());
+      store.reorderTask(task.id, last);
+    } else {
+      store.setQuadrant(task.id, null);
+    }
+    store.setTag(task.id, quadrant);
+  });
 }
 
 /** ⏩ between the clock and the ✕: opens the schedule picker (next day + postpone), the way the
