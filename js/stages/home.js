@@ -14,48 +14,43 @@ const STEPS = [
 const QUOTES = ['shared'];
 
 // "Our purpose" as a four-panel mini story: a full head → write it down → focus on the few → room for life.
-const INK = 'stroke="#241e16" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"';
 const STORY_ART = [
-  `<svg viewBox="0 0 160 120" ${INK}>
-    <path d="M52 112c0-18 12-28 28-28s28 10 28 28"/>
-    <circle cx="80" cy="66" r="15" fill="#fefdfa"/>
-    <circle cx="74.5" cy="63" r="1.3" fill="#241e16"/><circle cx="85.5" cy="63" r="1.3" fill="#241e16"/>
-    <path d="M74 73q6-4 12 0"/>
-    <path d="M58 46l-6-5M102 46l6-5" stroke="#877f73"/>
-    <rect x="28" y="18" width="24" height="17" rx="3" fill="#fdede8" stroke="#d13e38" transform="rotate(-12 40 26)"/>
-    <rect x="108" y="16" width="24" height="17" rx="3" fill="#fef2de" stroke="#e1901f" transform="rotate(10 120 24)"/>
-    <rect x="14" y="56" width="22" height="15" rx="3" fill="#e8f4fb" stroke="#2382ba" transform="rotate(8 25 63)"/>
-    <circle cx="134" cy="62" r="10" fill="#fefdfa"/><path d="M134 56.5v5.5l3.5 2"/>
-    <path d="M75 18a6 6 0 1 1 8.5 5.5c-2 1-2.5 2.2-2.5 4.5"/><circle cx="81" cy="33" r="1.4" fill="#241e16"/>
+  `<svg viewBox="0 0 160 120" fill="none" stroke="#241e16" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M30 74c-5-28 18-52 48-54s54 16 55 42-20 46-52 46-46-8-51-34z" fill="#fbe1dc" stroke="none"/>
+    <path d="M50 110c0-15 12-24 30-24s30 9 30 24"/>
+    <circle cx="80" cy="67" r="15" fill="#fefdfa"/>
+    <circle cx="74.5" cy="64" r="1.2" fill="#241e16"/><circle cx="85.5" cy="64" r="1.2" fill="#241e16"/>
+    <path d="M73 73.5q3.5-2.5 7 0t7 0"/>
+    <path d="M54 44c6-17 31-19 35-3s-25 11-13-6 31-12 33 6-21 9-9-8 27-4 23 12" stroke="#d13e38" stroke-width="2"/>
+    <circle cx="46" cy="58" r="2" fill="#d13e38" stroke="none"/><circle cx="118" cy="30" r="2" fill="#d13e38" stroke="none"/>
   </svg>`,
-  `<svg viewBox="0 0 160 120" ${INK}>
-    <rect x="62" y="14" width="56" height="88" rx="8" fill="#fefdfa"/>
-    <rect x="71" y="29" width="9" height="9" rx="2"/><path d="M73 33.5l2 2 3.5-4" stroke="#2ba162"/><path d="M86 33.5h23"/>
-    <rect x="71" y="48" width="9" height="9" rx="2"/><path d="M86 52.5h19"/>
-    <rect x="71" y="67" width="9" height="9" rx="2"/><path d="M86 71.5h23"/>
-    <path d="M86 90h14" stroke="#877f73"/>
-    <path d="M125 104l2.5-9 16-33 7 3.4-16 33z" fill="#fef2de" stroke="#e1901f"/>
-    <rect x="12" y="30" width="24" height="17" rx="3" fill="#fdede8" stroke="#d13e38" transform="rotate(-10 24 38)"/>
-    <rect x="18" y="70" width="22" height="15" rx="3" fill="#e8f4fb" stroke="#2382ba" transform="rotate(8 29 77)"/>
-    <path d="M40 42q10 2 16 10M44 76q7-4 12-10" stroke="#877f73" stroke-dasharray="3 5"/>
-    <path d="M51 49l5 3.5-1 5.5M51 70l5-4 5 1" stroke="#877f73"/>
+  `<svg viewBox="0 0 160 120" fill="none" stroke="#241e16" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M28 66c-4-26 20-48 50-48s56 12 56 40-22 50-54 50-48-16-52-42z" fill="#fdefcb" stroke="none"/>
+    <rect x="56" y="16" width="48" height="86" rx="8" fill="#fefdfa"/>
+    <rect x="66" y="30" width="8" height="8" rx="2"/><path d="M68 34l2 2 3.5-4"/><path d="M80 34h16"/>
+    <rect x="66" y="48" width="8" height="8" rx="2"/><path d="M80 52h12"/>
+    <rect x="66" y="66" width="8" height="8" rx="2"/><path d="M80 70h16"/>
+    <path d="M66 88h14" stroke-dasharray="2 4"/>
+    <path d="M118 98l2-8 14-28 6 3-14 28z" fill="#ffcd29" stroke="#e1901f" stroke-width="2"/><path d="M120 90l6 3" stroke="#e1901f" stroke-width="2"/>
+    <path d="M30 44q10-4 20 4M34 78q8 2 16-6" stroke="#e1901f" stroke-width="2" stroke-dasharray="2 5"/>
   </svg>`,
-  `<svg viewBox="0 0 160 120" ${INK}>
-    <rect x="84" y="22" width="36" height="36" rx="8" fill="#fef2de" stroke="#e1901f" opacity=".35"/>
-    <rect x="42" y="64" width="36" height="36" rx="8" fill="#e8f4fb" stroke="#2382ba" opacity=".35"/>
-    <rect x="84" y="64" width="36" height="36" rx="8" fill="#f5f3ed" stroke="#877f73" opacity=".35"/>
-    <circle cx="60" cy="40" r="28" stroke="#d13e38" stroke-dasharray="4 5" opacity=".6"/>
-    <rect x="42" y="22" width="36" height="36" rx="8" fill="#fdede8" stroke="#d13e38"/>
-    <path d="M60 31c5 5 8 9 8 13a8 8 0 0 1-16 0c0-3 2-5 3.5-6.5.5 2.5 2 3.5 3.5 3.5-1-3 0-7 1-10z" fill="#d13e38" stroke="#d13e38" stroke-width="1.5"/>
+  `<svg viewBox="0 0 160 120" fill="none" stroke="#241e16" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M26 64c-2-28 22-48 54-48s54 18 54 44-24 48-54 48-52-16-54-44z" fill="#dcecf7" stroke="none"/>
+    <circle cx="60" cy="40" r="24" stroke="#2382ba" stroke-width="1.6" stroke-dasharray="3 5"/>
+    <rect x="44" y="24" width="32" height="32" rx="7" fill="#2382ba" stroke="#2382ba"/><path d="M53 40l5 5 9-10" stroke="#fefdfa" stroke-width="2.4"/>
+    <rect x="84" y="24" width="32" height="32" rx="7" fill="#fefdfa"/>
+    <rect x="44" y="64" width="32" height="32" rx="7" fill="#fefdfa"/>
+    <rect x="84" y="64" width="32" height="32" rx="7" fill="#fefdfa"/>
   </svg>`,
-  `<svg viewBox="0 0 160 120" ${INK}>
-    <path d="M6 110q40-28 82-12t68-6" fill="#e7f6ec" stroke="#2ba162"/>
-    <circle cx="118" cy="34" r="12" fill="#ffcd29" stroke="#e1901f"/>
-    <path d="M118 14v-6M118 54v6M98 34h-6M138 34h6M104 20l-4-4M132 20l4-4M104 48l-4 4M132 48l4 4" stroke="#e1901f"/>
-    <circle cx="58" cy="50" r="9" fill="#fefdfa"/>
-    <path d="M54.5 51.5q3.5 3.5 7 0"/>
-    <path d="M58 59v22M58 66l-13-13M58 66l13-13M58 81l-9 14M58 81l9 14"/>
-    <path d="M88 74c-3-5-11-2-7.5 4.5L88 86l7.5-7.5C99 72 91 69 88 74z" fill="#d13e38" stroke="#d13e38" stroke-width="1.5"/>
+  `<svg viewBox="0 0 160 120" fill="none" stroke="#241e16" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M28 70c-4-28 20-50 52-50s54 16 54 42-22 46-54 46-48-12-52-38z" fill="#d6f0df" stroke="none"/>
+    <circle cx="114" cy="38" r="11" fill="#fefdfa"/>
+    <path d="M114 20v-5M114 61v-5M96 38h-5M137 38h-5M101 25l-3-3M127 25l3-3M101 51l-3 3M127 51l3 3"/>
+    <path d="M12 98q24-10 48-2t48-2 40-2"/>
+    <circle cx="58" cy="50" r="7" fill="#fefdfa"/><path d="M55 51q3 3 6 0"/>
+    <path d="M58 57v20M58 64l-10-10M58 64l10-10M58 77l-7 16M58 77l7 16"/>
+    <path d="M92 97v-12M92 89q-6-2-8-8 6 0 8 8zM92 86q6-2 8-8-6 0-8 8z" stroke="#2ba162" stroke-width="2" fill="#bfe8cf"/>
+    <path d="M124 96v-8M124 91q5-1 6-6-5 1-6 6z" stroke="#2ba162" stroke-width="2" fill="#bfe8cf"/>
   </svg>`,
 ];
 
