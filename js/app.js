@@ -294,6 +294,7 @@ function bindKeyboard() {
 
 function setSignedIn(signedIn) {
   state.signedIn = Boolean(signedIn);
+  document.body.classList.toggle('is-signed-in', state.signedIn); // e.g. hides the calendar's example link
   renderBanner();
 }
 

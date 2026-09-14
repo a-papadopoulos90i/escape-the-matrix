@@ -356,6 +356,8 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await startFakeSession(page, { signedIn: true, photoURL: PNG_1PX });
     const accountBtn = page.locator('#account .account-btn');
     await expect(accountBtn).toBeVisible();
+    await expect(page.locator('body')).toHaveClass(/\bis-signed-in\b/); // signed-in users never see "See an example"
+    await expect(page.locator('.calendar__demo')).toBeHidden();
     await expect(accountBtn.locator('img.account-avatar')).toHaveAttribute('referrerpolicy', 'no-referrer');
     await expect(accountBtn.locator('.account-name')).toBeHidden();
     await expect(accountBtn.locator('.sr-only')).toHaveText('Synced ✓');

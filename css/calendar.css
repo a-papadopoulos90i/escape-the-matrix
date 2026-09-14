@@ -282,21 +282,25 @@
   color: var(--ink);
 }
 
-/* On arrival the example link breathes: slowly grows to a peak at 2s, back down at 4s, peaks again at
-   6s and 10s, then settles by 12s. */
+/* On arrival the logo's four colours sweep across the example link, one after another, for 15s
+   (5 passes × 3s); calendar.js drops the class when it ends. */
 .calendar__demo.is-inviting {
-  animation: demo-invite 4s ease-in-out 3;
+  opacity: 1;
+  color: transparent;
+  background-image: linear-gradient(90deg, var(--muted) 0%, var(--muted) 22%, #f24822 34%, #ffcd29 45%, #3dadff 56%, #a5a5a5 67%, var(--muted) 78%, var(--muted) 100%);
+  background-size: 300% 100%;
+  background-position: 100% 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: demo-rainbow 3s linear 5;
 }
 
-@keyframes demo-invite {
-  0%,
-  100% {
-    transform: scale(1);
+@keyframes demo-rainbow {
+  from {
+    background-position: 100% 0;
   }
-  50% {
-    transform: scale(1.14);
-    opacity: 1;
-    color: var(--ink);
+  to {
+    background-position: 0% 0;
   }
 }
 
@@ -304,6 +308,11 @@
   .calendar__demo.is-inviting {
     animation: none;
   }
+}
+
+/* Signed-in users never see the example link. */
+body.is-signed-in .calendar__demo-row {
+  display: none;
 }
 
 .calendar__legend-item {

@@ -84,8 +84,9 @@ printed under the grid: a discreet **ⓘ** in the toolbar opens it in a small po
 two-month sample (mostly-done past days → a green calendar, plus a few backlog items) after a
 confirm — local only, nothing uploaded; it replaces what's saved in this browser. The **"See an
 example"** label (small, muted, no underline) sits on its own line low on the page. The first time
-the calendar shows after the site opens it breathes slowly — scale peaks at 2s, 6s and 10s, back
-down at 4s and 8s, settled by 12s (off with reduced motion).
+the calendar shows after the site opens, the logo's four colours (red, yellow, blue, grey) sweep
+across its letters one after another for 15s (off with reduced motion). **Signed-in users never see
+the link.**
 
 The **Time report** is a round clock button on **Write down and Prioritize**, always the **last
 thing on the page, centred under every task** (one app-level button after the stage; on a short page

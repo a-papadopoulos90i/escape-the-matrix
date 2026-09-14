@@ -41,7 +41,7 @@ export function mount(container, context) {
     ui.h(
       'div',
       { class: 'calendar__demo-row' },
-      ui.h('button', { class: demoInvited ? 'calendar__demo' : ((demoInvited = true), 'calendar__demo is-inviting'), type: 'button', onClick: loadDemo }, ctx.i18n.t('calendar.demo')),
+      ui.h('button', { class: demoInvited ? 'calendar__demo' : ((demoInvited = true), 'calendar__demo is-inviting'), type: 'button', onClick: loadDemo, onAnimationend: (event) => event.currentTarget.classList.remove('is-inviting') }, ctx.i18n.t('calendar.demo')),
     ),
   );
   els.title = root.querySelector('.stage-title');
