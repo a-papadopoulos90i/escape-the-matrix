@@ -1,5 +1,7 @@
 // Home — what the planner is, its three steps (a screenshot beside each, alternating sides), the
 // purpose behind it and why it is free. The logo opens it; it is not one of the stepper tabs.
+import { QUADRANTS } from '../store.js';
+import { quadrantGlyph } from '../carry.js';
 
 const STEPS = [
   { stage: 1, icon: 'calendar', image: './assets/home/step-calendar.webp' },
@@ -41,6 +43,11 @@ export function mount(container, ctx) {
             h('span', { class: 'home-step__badge', 'aria-hidden': 'true' }, ui.icon(icon, { size: 18 }), String(stage)),
             h('h3', { class: 'home-step__title' }, t(`home.step.${stage}.title`)),
             h('p', { class: 'home-step__body' }, t(`home.step.${stage}.body`)),
+            // Prioritize lists the four priorities as bullets with their icons ("No priority" is not one).
+            stage === 3 && [
+              h('ul', { class: 'home-step__list' }, ...QUADRANTS.map((quadrant) => h('li', null, quadrantGlyph(ctx, quadrant, { size: 18 }), i18n.quadrantLabel(quadrant)))),
+              h('p', { class: 'home-step__outro' }, t('home.step.3.outro')),
+            ],
           ),
           h(
             'button',

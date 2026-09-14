@@ -93,6 +93,29 @@
   color: var(--muted);
 }
 
+.home-step__list {
+  list-style: none;
+  margin: var(--space-2) 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.home-step__list li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.home-step__outro {
+  font-size: var(--text-md);
+  line-height: 1.55;
+  color: var(--muted);
+}
+
 .home-step__shot {
   display: block;
   width: 100%;
@@ -176,6 +199,9 @@
   }
   .home-step:nth-child(even) .home-step__text {
     order: 0;
+  }
+  .home-step__list {
+    justify-content: center;
   }
   .home-steps {
     gap: var(--space-7);

@@ -21,7 +21,8 @@ export const strings = {
   'home.step.2.body': 'Empty your mind onto the page. No sorting, no judging — just get everything out.',
   'home.step.2.alt': 'The Write down page: one field to add a task and the list of everything written so far',
   'home.step.3.title': 'Place them by priority',
-  'home.step.3.body': 'Put each task where it belongs — Do now, Schedule, Delegate or Drop — then start from the top.',
+  'home.step.3.body': 'Put each task where it belongs —',
+  'home.step.3.outro': 'then start from the top.',
   'home.step.3.alt': 'The Prioritize page: four boxes for Do now, Schedule, Delegate and Drop',
   'home.purpose.title': 'Our purpose',
   'home.purpose.1':
