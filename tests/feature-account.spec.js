@@ -152,6 +152,7 @@ async function startFakeSession(page, { remote = REMOTE_ENVELOPE, signedIn = fal
           document.getElementById('banner').hidden = value;
         },
         config: { apiKey: 'fake', projectId: 'fake' },
+        providers: ['google', 'apple', 'email'], // every provider switched on, so Apple can be exercised
         loadSdk: async () => {
           if (fake.failLoads > 0) {
             fake.failLoads -= 1;
@@ -166,7 +167,7 @@ async function startFakeSession(page, { remote = REMOTE_ENVELOPE, signedIn = fal
 }
 
 test.describe('free mode (firebaseConfig = null)', () => {
-  test('renders a compact account icon that opens a sign-in chooser (Google/Apple/email), and the free-mode banner', async ({ page }) => {
+  test('renders a compact account icon that opens a sign-in chooser (Google + email; Apple hidden until configured), and the free-mode banner', async ({ page }) => {
     const errors = collectErrors(page);
     await page.goto('/');
     const button = signInBtn(page);
@@ -177,7 +178,7 @@ test.describe('free mode (firebaseConfig = null)', () => {
     await button.click();
     const dialog = page.locator('[role="dialog"]');
     await expect(dialog.getByRole('button', { name: 'Continue with Google' }).locator('svg.icon--google')).toHaveCount(1);
-    await expect(dialog.getByRole('button', { name: 'Continue with Apple' })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Continue with Apple' })).toHaveCount(0); // not in authProviders yet
     await expect(dialog.getByRole('button', { name: 'Continue with email' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.locator('#banner')).toContainText('Free mode');

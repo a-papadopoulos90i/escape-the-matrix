@@ -7,8 +7,9 @@ across devices through Firebase (Firestore).
 
 You do this **once**, as the owner of the deployment, in your own Firebase (and Apple Developer)
 account. Google and email take about 15 minutes. Apple takes another ~20 minutes and needs a paid
-**Apple Developer Program** membership. You can switch providers on one at a time — any provider you
-have not enabled yet simply fails with a "Sign-in failed" toast.
+**Apple Developer Program** membership. You can switch providers on one at a time: the app's chooser
+shows only the providers listed in `authProviders` in `js/firebase-config.js` — Google and email by
+default; Apple joins once you finish Part B3.
 
 Until Part D is done, every sign-in option shows a note explaining that sign-in is not connected
 yet — nothing else in the app changes.
@@ -68,6 +69,9 @@ and sender name.)
 7. Back in the Firebase Apple provider page fill in **Services ID** (step 4's identifier), **Apple
    team ID**, **Key ID** and the **Private key** (open the `.p8` file in a text editor and paste all of
    it). Click **Save**.
+8. Turn the button on in the app: in `js/firebase-config.js` change the last line to
+   `export const authProviders = ['google', 'apple', 'email'];` and push. (Until then the chooser
+   shows only Google and email, so nobody meets a half-configured Apple option.)
 
 ## Part C — Register the web app and copy its config
 
@@ -95,7 +99,7 @@ and sender name.)
 ## Part D — Paste the config into the app
 
 1. Open the file `js/firebase-config.js` in the project.
-2. Replace the last line
+2. Replace the line
 
    ```js
    export const firebaseConfig = null;
@@ -144,7 +148,7 @@ Sign-in popups and email links only work from domains you approve.
 1. Commit and push the change to `js/firebase-config.js` to the `main` branch. GitHub Pages
    redeploys within a minute or two.
 2. Open the site, click the account icon (top right) and try each option:
-   - **Continue with Google** / **Continue with Apple** — a popup asks you to choose the account.
+   - **Continue with Google** (and **Continue with Apple**, once B3 is done) — a popup asks you to choose the account.
    - **Email** — type your address, press **Continue with email**, then open the link from the email
      **in the same browser** (on another device the site first asks you to confirm the address).
 3. Signed in, the header shows your avatar (or initial) and a green dot ("Synced ✓" in the account

@@ -4,7 +4,7 @@
 // Firebase session: on sign-in the local document is merged into the account, then every save is
 // written to Firestore *and* localStorage while Firestore snapshots flow back into the store.
 // The Firebase SDK is imported lazily and only when a config exists, so free mode never loads it.
-import { firebaseConfig } from './firebase-config.js';
+import { firebaseConfig, authProviders } from './firebase-config.js';
 import { createEmptyDoc } from './store.js';
 import { createLocalAdapter } from './storage/local.js';
 import { createCloudAdapter } from './storage/cloud.js';
@@ -52,7 +52,7 @@ function firstName(user) {
  * Renders the account slot. showSignedOut() → Google button; showSignedIn(user, status) → avatar,
  * first name and a status dot that opens the account menu. setStatus() updates in place.
  */
-export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignOutClear }) {
+export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignOutClear, providers = ['google', 'apple', 'email'] }) {
   const { t } = i18n;
   let user = null;
   let status = 'syncing';
@@ -219,11 +219,14 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignO
       'div',
       { class: 'signin' },
       ui.h('p', { class: 'signin__subtitle text-muted' }, t('account.signInSubtitle')),
-      option('google', 'account.continueGoogle', () => choose({ provider: 'google' }), 'google'),
-      option('apple', 'account.continueApple', () => choose({ provider: 'apple' }), 'apple'),
-      ui.h('div', { class: 'signin__sep' }, ui.h('span', null, t('account.or'))),
-      email,
-      option('mail', 'account.continueEmail', sendLink, 'email'),
+      // Only the providers this deployment has switched on (firebase-config.js → authProviders).
+      providers.includes('google') && option('google', 'account.continueGoogle', () => choose({ provider: 'google' }), 'google'),
+      providers.includes('apple') && option('apple', 'account.continueApple', () => choose({ provider: 'apple' }), 'apple'),
+      providers.includes('email') && [
+        (providers.includes('google') || providers.includes('apple')) && ui.h('div', { class: 'signin__sep' }, ui.h('span', null, t('account.or'))),
+        email,
+        option('mail', 'account.continueEmail', sendLink, 'email'),
+      ],
     );
     const handle = ui.modal({ title: t('account.signInTitle'), content, actions: [{ label: t('common.cancel') }], className: 'modal--signin' });
   }
@@ -394,7 +397,7 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
  * Mounts the account area into `slot`. `config` and `loadSdk` default to the real Firebase config
  * and SDK loader; tests inject fakes. Resolves once a persisted session (if any) was restored.
  */
-export async function initAuth({ store, ui, i18n, slot, setSignedIn, config = firebaseConfig, loadSdk = loadFirebase }) {
+export async function initAuth({ store, ui, i18n, slot, setSignedIn, config = firebaseConfig, loadSdk = loadFirebase, providers = authProviders }) {
   const { t } = i18n;
   let sessionPromise = null;
   const session = () => {
@@ -419,6 +422,7 @@ export async function initAuth({ store, ui, i18n, slot, setSignedIn, config = fi
     slot,
     ui,
     i18n,
+    providers,
     onSignIn: (method) => {
       if (!config) return showNotConnected(ui, i18n);
       view.setBusy(true);

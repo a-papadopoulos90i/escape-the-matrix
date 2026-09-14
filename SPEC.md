@@ -241,7 +241,9 @@ the header): **"Organize them by priority:"** then bullets `start the timer or t
   Ready` — one themed icon per stage (calendar, pencil/note-keeping, 2×2 grid/organizing,
   play/executing), current step highlighted, clickable; right — a **gear (Settings)** button (opens
   the Time report menu) and the **account area**: signed out, an account icon that opens the **sign-in chooser** (`Continue with
-  Google`, `Continue with Apple`, an email field + `Continue with email`); when signed in, avatar + first name + a menu (`Synced ✓ / Syncing… / Offline` status, `Sign out`,
+  Google`, `Continue with Apple`, an email field + `Continue with email` — only the providers listed in
+  `authProviders` in `js/firebase-config.js`; currently Google + email, Apple added once configured);
+  when signed in, avatar + first name + a menu (`Synced ✓ / Syncing… / Offline` status, `Sign out`,
   `Sign out & clear this device`). A `?` icon button re-opens the current stage's tip bubble.
 - There is **no day bar** (removed at the owner's request): the day is chosen on the calendar.
   Stage panels show no date line.
@@ -437,7 +439,7 @@ rising from the bottom (ten fill the cell). Buttons are pill-shaped; the primary
 12. No speech-bubble tips appear on any stage, and there is no "?" button (tips were removed).
 13. Stepper and ←/→ keys navigate; transitions animate; reduced-motion disables animation.
 14. Free-mode banner shows when signed out, dismisses and stays dismissed.
-15. Account icon + sign-in chooser (Google, Apple, email) present; with `firebaseConfig = null` any option opens the explanatory modal.
+15. Account icon + sign-in chooser (the providers in `authProviders`: Google + email now) present; with `firebaseConfig = null` any option opens the explanatory modal.
 16. With a real config (code review): popup sign-in, merge, live sync, sign-out paths are correct and rules restrict access to the owner.
 17. Mobile 375px: no horizontal scroll, matrix stacks, everything reachable; touch drag works.
 18. No console errors on any stage; works offline after first load (no network needed in free mode).

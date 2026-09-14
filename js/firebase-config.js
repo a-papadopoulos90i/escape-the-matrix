@@ -13,3 +13,6 @@
 //
 // See SETUP.md for the full walkthrough (providers, authorized domains, Firestore rules).
 export const firebaseConfig = null;
+
+// Sign-in options shown in the chooser. Add 'apple' once Apple is configured (SETUP.md, Part B3).
+export const authProviders = ['google', 'email'];
