@@ -15,7 +15,12 @@
 // Firebase project "Escape the Matrix" (project ID katopsi-elite — the ID is permanent).
 export const firebaseConfig = {
   apiKey: 'AIzaSyBohjbgd-ehrSxRDZi-GaalzhNxNBa2bkQ',
-  authDomain: 'levelix.eu', // the site's own domain, so Google's sign-in window names levelix.eu
+  // Sign in through the domain the visitor is already on (its /__/auth/handler is served by Firebase
+  // Hosting there too), so sign-in never depends on another domain resolving and Google's window names
+  // our own address. Anywhere else (e.g. GitHub Pages) it falls back to the project's firebaseapp.com.
+  authDomain: ['levelix.eu', 'www.levelix.eu', 'levelix.web.app'].includes(globalThis.location?.hostname)
+    ? globalThis.location.hostname
+    : 'katopsi-elite.firebaseapp.com',
   projectId: 'katopsi-elite',
   storageBucket: 'katopsi-elite.firebasestorage.app',
   messagingSenderId: '542908804568',
