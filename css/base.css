@@ -140,7 +140,8 @@ a {
   padding: var(--space-2) var(--space-4);
   min-height: var(--header-h);
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  /* Equal side columns keep the tabs exactly centred, whatever the logo or the account area holds. */
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: var(--space-4);
 }

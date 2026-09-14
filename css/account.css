@@ -36,6 +36,26 @@
   text-overflow: ellipsis;
 }
 
+/* Signed in, the account button stays the same round 40px as the signed-out icon: just the avatar
+   (name and chevron stay out, so the header never shifts after sign-in). */
+.account-btn {
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.account-btn .account-name,
+.account-btn .icon--chevron-down {
+  display: none;
+}
+
+.account-btn .account-avatar {
+  width: 32px;
+  height: 32px;
+}
+
 /* ---------- Avatar ---------- */
 .account-avatar {
   width: 28px;
