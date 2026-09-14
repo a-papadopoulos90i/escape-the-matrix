@@ -203,7 +203,7 @@ test('on the board the tag menu files the card: a priority moves it there, "No p
   const tagBtn = () => card(page, 'Marketing Order A5').locator('.task-card__priority');
 
   await tagBtn().click();
-  await page.getByRole('menuitem', { name: 'Schedule' }).click();
+  await page.getByRole('menuitem', { name: 'Not Urgent / Important', exact: true }).click();
   await expect(quadrant(page, 'plan').locator('.task-card', { hasText: 'Marketing Order A5' })).toHaveCount(1);
   await expect(quadrant(page, 'do').locator('.task-card')).toHaveCount(0);
   await expect(tagBtn()).toHaveClass(/priority-icon--plan/);
@@ -237,7 +237,7 @@ test('in the waiting list, a tagged card\'s priority icon activates the tag: the
 
   // An untagged waiting card has nothing to activate: its icon opens the menu.
   await waiting('Loose idea').locator('.task-card__priority').click();
-  await expect(page.getByRole('menuitem', { name: 'Do now' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Urgent / Important', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(waiting('Loose idea')).toHaveCount(1);
   expect(errors).toEqual([]);

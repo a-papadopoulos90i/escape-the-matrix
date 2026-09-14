@@ -314,7 +314,7 @@ test('5. on the board, a card\'s tag menu files it into the chosen priority', as
   await expect(tagBtn(TITLES[0])).toHaveClass(/task-card__priority--none/);
 
   await tagBtn(TITLES[0]).click();
-  await page.getByRole('menuitem', { name: 'Schedule' }).click();
+  await page.getByRole('menuitem', { name: 'Not Urgent / Important', exact: true }).click();
   await expect(tagBtn(TITLES[0])).toHaveClass(/priority-icon--plan/);
   await waitForSaved(page, (doc) => taskById(doc, 't_1').tag === 'plan');
 

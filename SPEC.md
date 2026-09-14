@@ -18,7 +18,9 @@ careful product engineer would choose and note it in your report.
 A task can also carry a **tag** — a priority label. On a waiting card the tag glyphs only label the
 task, and tapping its filled priority icon (next to the done circle) **activates the tag**: the card
 goes straight into that quadrant (an untagged waiting card's muted tag icon opens the menu instead). On a card already placed in a quadrant, the tag menu files it: another priority moves it
-there, and "No priority" returns it to the waiting list.
+there, and "No priority" returns it to the waiting list. Priority menus name each quadrant by its axes, urgency
+first, in aligned columns: `Urgent / Important` (Do now), `Not Urgent / Important` (Schedule),
+`Urgent / Not Important` (Delegate), `Not Urgent / Not Important` (Drop).
 
 The 3 stages are shown as **panels ("little windows") that alternate** with a slide/fade
 transition, driven by a 3-tab stepper (the board's original stages 4 and 5 were identical, so the

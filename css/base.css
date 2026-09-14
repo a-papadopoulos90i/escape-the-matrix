@@ -1317,3 +1317,17 @@ body.has-modal {
   color: var(--accent);
   box-shadow: var(--shadow-lg);
 }
+
+/* Priority menus name each quadrant by its axes — "Urgent / Important" — in aligned columns. */
+.menu__axes {
+  display: grid;
+  grid-template-columns: 5.4em auto auto;
+  align-items: baseline;
+  white-space: nowrap;
+}
+
+.menu__axes-slash {
+  padding-inline: 0.55em;
+  color: var(--muted);
+  white-space: pre;
+}

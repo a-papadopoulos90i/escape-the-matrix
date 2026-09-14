@@ -102,6 +102,10 @@ export const strings = {
   'axis.notUrgent': 'NOT URGENT',
   'axis.important': 'IMPORTANT',
   'axis.notImportant': 'NOT IMPORTANT',
+  'axis.word.urgent': 'Urgent',
+  'axis.word.notUrgent': 'Not Urgent',
+  'axis.word.important': 'Important',
+  'axis.word.notImportant': 'Not Important',
 
   'quadrant.do.label': 'Do now',
   'quadrant.plan.label': 'Schedule',

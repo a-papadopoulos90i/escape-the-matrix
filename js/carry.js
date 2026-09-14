@@ -61,6 +61,28 @@ export function quadrantGlyph(ctx, quadrant, { size = 16, filled = true } = {}) 
   });
 }
 
+// Each quadrant as its two axes, urgency first: Do now = Urgent / Important, and so on.
+const QUAD_AXES = {
+  do: ['urgent', 'important'],
+  plan: ['notUrgent', 'important'],
+  delegate: ['urgent', 'notImportant'],
+  delete: ['notUrgent', 'notImportant'],
+};
+
+/** "Urgent / Important" as three aligned columns, so the slashes line up down a menu. */
+export function quadrantAxes(ctx, quadrant) {
+  const [urgency, importance] = QUAD_AXES[quadrant];
+  const { h } = ctx.ui;
+  const { t } = ctx.i18n;
+  return h(
+    'span',
+    { class: 'menu__axes' },
+    h('span', null, t(`axis.word.${urgency}`)),
+    h('span', { class: 'menu__axes-slash' }, ' / '),
+    h('span', null, t(`axis.word.${importance}`)),
+  );
+}
+
 /** "Pulled to Thu 17 Sep" label for a record left behind. */
 export function recordLabel(ctx, task) {
   return ctx.ui.h('span', { class: 'record-label' }, ctx.i18n.t('carry.record', { date: ctx.dates.formatShort(task.carriedTo) }));
