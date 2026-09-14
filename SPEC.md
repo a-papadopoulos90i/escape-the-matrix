@@ -236,7 +236,7 @@ the header): **"Organize them by priority:"** then bullets `start the timer or t
   ("A minimal daily planner…", `Open the calendar`), **How it works** — the three
   steps, each a title + one sentence beside a real screenshot (`assets/home/*.webp`), sides
   alternating, stacked on phones; clicking a screenshot opens that step — then **Our purpose** as a four-panel illustrated mini story (A full head → Write it down → Focus on the few → Room for life),
-  **Free, for everyone** (non-profit upkeep for now, future revenue funds it; shown as a quote signed by PanTik.io, with an empty logo box beside the name) and a small as-is / no-professional-advice disclaimer. Wording stays neutral.
+  **Free, for everyone** (non-profit upkeep for now, future revenue funds it; a studio quote — one short phrase, what it means in practice, signed PanTik.io with an account-style avatar; `QUOTES` in home.js takes more) and a small as-is / no-professional-advice disclaimer. Wording stays neutral.
 - **Free-mode banner** (only when not signed in, dismissible, remembered): "You're in free mode —
   tasks are saved only in this browser. Clearing cookies/site data erases them. Sign in with Google
   to keep them everywhere."

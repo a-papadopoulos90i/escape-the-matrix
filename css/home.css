@@ -257,15 +257,28 @@
   margin: 0;
 }
 
-.home-quote__text p {
-  font-size: var(--text-md);
-  line-height: 1.7;
+.home-quote__phrase {
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 1.1rem + 1.2vw, 1.75rem);
+  font-weight: 600;
   font-style: italic;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
   color: var(--ink);
+  text-wrap: balance;
 }
 
-.home-quote__text p + p {
-  margin-top: var(--space-3);
+.home-quote__body {
+  max-width: 32rem;
+  margin: var(--space-4) auto 0;
+  font-size: var(--text-sm);
+  line-height: 1.65;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.home-quote__figure + .home-quote__figure {
+  margin-top: var(--space-5);
 }
 
 .home-quote__by {
@@ -278,13 +291,27 @@
   border-top: 1px solid var(--line);
 }
 
-/* Empty logo box, kept for PanTik.io's logo. */
-.home-quote__logo {
-  width: 32px;
-  height: 32px;
-  border: 1.5px dashed var(--line-strong);
-  border-radius: 9px;
+/* Account-style avatar standing in for the studio's logo. */
+.home-quote__avatar {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
   background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  color: var(--muted);
+}
+
+.home-quote__who {
+  display: grid;
+  text-align: left;
+  line-height: 1.3;
+}
+
+.home-quote__role {
+  font-size: var(--text-xs);
+  color: var(--muted);
 }
 
 .home-quote__name {

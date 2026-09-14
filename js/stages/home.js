@@ -9,6 +9,10 @@ const STEPS = [
   { stage: 3, icon: 'grid', image: './assets/home/step-prioritize.webp' },
 ];
 
+// Quotes the studio stands behind, shown under "Free, for everyone" — add a key here (and its
+// home.quote.<key>.phrase / .body strings) to publish another.
+const QUOTES = ['shared'];
+
 // "Our purpose" as a four-panel mini story: a full head → write it down → focus on the few → room for life.
 const INK = 'stroke="#241e16" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"';
 const STORY_ART = [
@@ -125,20 +129,32 @@ export function mount(container, ctx) {
     ),
   );
 
-  // "Free, for everyone" reads as a quote signed by PanTik.io (its logo box stays empty until there is one).
+  // "Free, for everyone" is said by the studio, as a quote: a short phrase, then what it means in practice.
   const free = h(
     'section',
     { class: 'home-section home-quote', 'aria-labelledby': 'home-free-title' },
     h('h2', { class: 'home-section__title', id: 'home-free-title' }, t('home.free.title')),
-    h(
-      'figure',
-      { class: 'home-quote__figure' },
-      h('blockquote', { class: 'home-quote__text' }, h('p', null, t('home.free.1')), h('p', null, t('home.free.2'))),
+    ...QUOTES.map((key) =>
       h(
-        'figcaption',
-        { class: 'home-quote__by' },
-        h('span', { class: 'home-quote__logo', 'aria-hidden': 'true' }),
-        h('a', { class: 'home-quote__name', href: t('home.free.url'), target: '_blank', rel: 'noopener' }, t('home.free.by')),
+        'figure',
+        { class: 'home-quote__figure' },
+        h(
+          'blockquote',
+          { class: 'home-quote__text' },
+          h('p', { class: 'home-quote__phrase' }, t(`home.quote.${key}.phrase`)),
+          h('p', { class: 'home-quote__body' }, t(`home.quote.${key}.body`)),
+        ),
+        h(
+          'figcaption',
+          { class: 'home-quote__by' },
+          h('span', { class: 'home-quote__avatar', 'aria-hidden': 'true' }, ui.icon('user', { size: 20 })),
+          h(
+            'span',
+            { class: 'home-quote__who' },
+            h('a', { class: 'home-quote__name', href: t('home.free.url'), target: '_blank', rel: 'noopener' }, t('home.free.by')),
+            h('span', { class: 'home-quote__role' }, t('home.free.role')),
+          ),
+        ),
       ),
     ),
   );

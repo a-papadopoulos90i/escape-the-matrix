@@ -35,11 +35,11 @@ export const strings = {
   'home.story.4.title': 'Room for life',
   'home.story.4.body': 'Leave more of the day for the moments that matter.',
   'home.free.title': 'Free, for everyone',
-  'home.free.1':
-    'Escape the Matrix is free to use. We believe progress goes further when it is shared, so this is the first of a series of software projects offered and maintained at no cost to their users.',
-  'home.free.2':
-    'Keeping these tools online has real costs. For now they are maintained on a voluntary, non-profit basis; as related projects begin to generate revenue, that income is intended to fund their upkeep, so they can stay free.',
+  'home.quote.shared.phrase': 'Progress goes further when it is shared.',
+  'home.quote.shared.body':
+    'That is why Escape the Matrix is free — the first of a series of tools we offer and maintain at no cost. For now we keep them online on a voluntary, non-profit basis; as our other projects earn, that income is meant to keep them free.',
   'home.free.by': 'PanTik.io',
+  'home.free.role': 'A studio for minimal games & apps',
   'home.free.url': 'https://pantik.io',
   'home.disclaimer':
     'Escape the Matrix is a personal organisation tool, provided as is and without warranty of any kind. It does not provide medical, psychological, legal or other professional advice.',
