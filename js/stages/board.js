@@ -635,14 +635,17 @@ function positionGhost(current) {
 /** Turns the press into a drag: a fixed ghost follows the pointer, the original card dims. */
 function liftCard(current) {
   const rect = current.card.getBoundingClientRect();
-  current.offsetX = current.startX - rect.left;
+  // A wide waiting-list card shrinks to the size of a card inside a quadrant — the piece it becomes
+  // once dropped — keeping the grabbed point under the pointer.
+  const width = Math.min(rect.width, quadrantCardWidth() ?? rect.width);
+  current.offsetX = (current.startX - rect.left) * (width / rect.width);
   current.offsetY = current.startY - rect.top;
   const ghost = current.card.cloneNode(true);
   ghost.className = 'task-card board-ghost task-card--dragging';
   ghost.removeAttribute('data-id');
   ghost.setAttribute('aria-hidden', 'true');
   ghost.inert = true;
-  ghost.style.width = `${rect.width}px`;
+  ghost.style.width = `${width}px`;
   document.body.append(ghost);
   current.ghost = ghost;
   current.active = true;
@@ -654,6 +657,14 @@ function liftCard(current) {
   current.card.classList.add('task-card--lifted');
   root.classList.add('board--dragging');
   current.raf = requestAnimationFrame(() => autoScroll(current));
+}
+
+/** Width of a card slot inside a quadrant (its content box), or null when there is no quadrant. */
+function quadrantCardWidth() {
+  const quadrant = root.querySelector('.quadrant');
+  if (!quadrant) return null;
+  const style = getComputedStyle(quadrant);
+  return quadrant.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
 }
 
 /** The quadrant or waiting list under the pointer, or null. */

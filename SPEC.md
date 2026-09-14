@@ -34,7 +34,7 @@ Persistence:
   account.
 
 Deployment: static site, **no build step**, plain ES modules, served from GitHub Pages under a
-sub-path (so all URLs must be relative: `./js/app.js`, `./css/base.css`).
+sub-path (so all URLs must be relative: `./js/app.js`, `./css/base.css`). Every release bumps `?v=N` on the stylesheets, `app.js` and an **import map** listing every module, so no browser runs a new `app.js` against stale cached modules.
 
 UI language: English (the design board is in English). All strings live in `js/i18n.js`.
 Product name is always written **Escape the Matrix**.
@@ -169,7 +169,7 @@ live on this stage.) Every action is its own card control, each opening a small 
 Each picker shows the editable title at the top. Cards are **draggable between quadrants** with
 Pointer Events (mouse and touch; a plain click still opens a picker, a press-and-drag — or a touch
 long-press — lifts the card; dropping on a quadrant re-files it, dropping on the waiting list
-unplaces it).
+unplaces it). A wide waiting-list card shrinks, while dragged, to the width of a card inside a quadrant.
 
 - **Timer start:** two choices: `Stopwatch` (count up) or `Countdown` with presets
   `5 · 15 · 25 · 45 · 60 min` and a custom minutes field. Starting sets the task's clock icon live and

@@ -243,6 +243,27 @@ test('in the waiting list, a tagged card\'s priority icon activates the tag: the
   expect(errors).toEqual([]);
 });
 
+test('dragging a waiting-list card shrinks it to the size of a card inside a quadrant', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await seed(page, { tasks: [...SORTED(), task('t_wait', 'Book the venue', null, { tag: 'delegate' })] });
+  await page.goto('/');
+  const waitingCard = panel(page).locator('.waiting-card', { hasText: 'Book the venue' });
+  const placedWidth = (await quadrant(page, 'do').locator('.task-card').first().boundingBox()).width;
+  const waitingWidth = (await waitingCard.boundingBox()).width;
+  expect(waitingWidth).toBeGreaterThan(placedWidth + 100); // the waiting list is much wider
+
+  const from = await centre(waitingCard.locator('.task-card__title'));
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x + 20, from.y - 40, { steps: 4 });
+  const ghost = await page.locator('.board-ghost').boundingBox();
+  expect(Math.abs(ghost.width - placedWidth)).toBeLessThanOrEqual(2);
+  // The grabbed point stays under the pointer.
+  expect(from.x + 20).toBeGreaterThanOrEqual(ghost.x);
+  expect(from.x + 20).toBeLessThanOrEqual(ghost.x + ghost.width);
+  await page.mouse.up();
+});
+
 test('a card drags into another quadrant; the red ✕ deletes it with undo', async ({ page }) => {
   const errors = collectErrors(page);
   await page.setViewportSize({ width: 1280, height: 1000 });
