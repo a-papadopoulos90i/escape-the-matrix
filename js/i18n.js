@@ -33,8 +33,8 @@ export const strings = {
     'Escape the Matrix is free to use. We believe progress goes further when it is shared, so this is the first of a series of software projects offered and maintained at no cost to their users.',
   'home.free.2':
     'Keeping these tools online has real costs. For now they are maintained on a voluntary, non-profit basis; as related projects begin to generate revenue, that income is intended to fund their upkeep, so they can stay free.',
-  'home.free.link': 'Learn more at PantingPantik.io',
-  'home.free.url': 'https://pantingpantik.io',
+  'home.free.link': 'Learn more at PanTik.io',
+  'home.free.url': 'https://pantik.io',
   'home.disclaimer':
     'Escape the Matrix is a personal organisation tool, provided as is and without warranty of any kind. It does not provide medical, psychological, legal or other professional advice.',
 
@@ -112,7 +112,7 @@ export const strings = {
   'calendar.today': 'Today',
   'calendar.showNext': 'Show next month',
   'calendar.showWeekends': 'Show weekends',
-  'calendar.demo': 'Demo Version',
+  'calendar.demo': 'See an example',
   'calendar.manage': 'All Tasks',
   'calendar.manageOff': 'Back to calendar',
   'calendar.openDay': 'Open day →',

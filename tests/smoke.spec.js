@@ -58,9 +58,7 @@ test('the logo opens Home: three steps with screenshots, and its buttons lead in
   }
   await expect(activePanel(page).getByRole('heading', { name: 'Free, for everyone' })).toBeVisible();
 
-  await activePanel(page).getByRole('button', { name: 'Time report' }).click();
-  await expect(page.getByRole('dialog', { name: 'Time spent per task' })).toBeVisible();
-  await page.keyboard.press('Escape');
+  await expect(page.locator('.report-fab')).toBeHidden(); // the Time report lives on Write down + Prioritize
 
   await activePanel(page).getByRole('button', { name: 'Open the calendar' }).click();
   await expect(activeTitle(page)).toHaveText(TITLES[1]);
@@ -70,6 +68,28 @@ test('the logo opens Home: three steps with screenshots, and its buttons lead in
   await page.reload();
   await expect(activePanel(page)).toHaveAttribute('data-stage', '0'); // Home is remembered like any tab
   expect(errors).toEqual([]);
+});
+
+test('the Time report button sits in the same fixed spot on Write down and Prioritize, and nowhere else', async ({ page }) => {
+  await page.goto('/');
+  const fab = page.locator('.report-fab');
+  const steps = page.locator('#stepper .step');
+  await expect(fab).toBeHidden(); // calendar
+  const boxes = [];
+  for (const n of [2, 3]) {
+    await steps.nth(n - 1).click();
+    await expect(fab).toBeVisible();
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    boxes.push(await fab.boundingBox());
+  }
+  expect(boxes[1]).toEqual(boxes[0]);
+  const viewport = page.viewportSize();
+  expect(Math.round(boxes[0].x + boxes[0].width / 2)).toBe(Math.round(viewport.width / 2));
+  await fab.click();
+  await expect(page.getByRole('dialog', { name: 'Time spent per task' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await steps.nth(0).click();
+  await expect(fab).toBeHidden();
 });
 
 test('clicking each stepper step shows the right stage title', async ({ page }) => {

@@ -15,6 +15,7 @@ let els = {};
 let cols = 5;
 let flipped = false; // Manage mode: cells preview task titles and a tap opens the day popup
 let monthsShown = 1; // grows as the user reveals more months below
+let demoInvited = false; // the example link pulses only the first time the calendar shows after the site opens
 let unsubscribe = null;
 
 export function mount(container, context) {
@@ -40,7 +41,7 @@ export function mount(container, context) {
     ui.h(
       'div',
       { class: 'calendar__demo-row' },
-      ui.h('button', { class: 'calendar__demo', type: 'button', onClick: loadDemo }, ctx.i18n.t('calendar.demo')),
+      ui.h('button', { class: demoInvited ? 'calendar__demo' : ((demoInvited = true), 'calendar__demo is-inviting'), type: 'button', onClick: loadDemo }, ctx.i18n.t('calendar.demo')),
     ),
   );
   els.title = root.querySelector('.stage-title');

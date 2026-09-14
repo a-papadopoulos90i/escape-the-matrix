@@ -282,6 +282,30 @@
   color: var(--ink);
 }
 
+/* On arrival the example link breathes: slowly grows to a peak at 2s, back down at 4s, peaks again at
+   6s and 10s, then settles by 12s. */
+.calendar__demo.is-inviting {
+  animation: demo-invite 4s ease-in-out 3;
+}
+
+@keyframes demo-invite {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.14);
+    opacity: 1;
+    color: var(--ink);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .calendar__demo.is-inviting {
+    animation: none;
+  }
+}
+
 .calendar__legend-item {
   display: inline-flex;
   align-items: center;

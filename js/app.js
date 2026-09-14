@@ -6,6 +6,7 @@ import { createLocalAdapter } from './storage/local.js';
 import * as dates from './dates.js';
 import * as ui from './ui.js';
 import * as i18n from './i18n.js';
+import { openTimeReport } from './report.js';
 import * as home from './stages/home.js';
 import * as calendar from './stages/calendar.js';
 import * as dump from './stages/dump.js';
@@ -19,6 +20,7 @@ const STEP_ICONS = ['calendar', 'pencil', 'grid'];
 // Stage 0 is Home, opened from the logo; it is not one of the stepper tabs.
 const HOME = 0;
 const STAGE_MODULES = { [HOME]: home, 1: calendar, 2: dump, 3: board };
+const REPORT_STAGES = [2, 3]; // Write down + Prioritize show the fixed Time report button
 // Each stage's bubbles come from i18n.tips with their default tone/tail; a stage may override
 // those via data-tip-tone / data-tip-tail on its [data-tip-anchor] element. A bubble that is
 // not anchored sits under the stage header — which is also where every tip goes on narrow
@@ -62,6 +64,8 @@ function stageLabel(stage) {
 
 function renderBrand() {
   els.brand?.setAttribute('aria-current', state.stage === HOME ? 'page' : 'false');
+  // One app-level Time report button, so it sits in exactly the same fixed spot on both pages.
+  els.reportButton.hidden = !REPORT_STAGES.includes(state.stage);
 }
 
 function renderStepper() {
@@ -334,6 +338,12 @@ async function boot() {
     event.preventDefault();
     goTo(HOME);
   });
+  els.reportButton = ui.h(
+    'button',
+    { class: 'report-fab', type: 'button', hidden: true, 'aria-label': t('settings.timeReport'), title: t('settings.timeReport'), onClick: () => openTimeReport({ ui, store, i18n }) },
+    ui.icon('clock', { size: 22 }),
+  );
+  document.querySelector('.app').append(els.reportButton);
 
   renderStepper();
   renderBrand();

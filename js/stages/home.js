@@ -1,6 +1,5 @@
 // Home — what the planner is, its three steps (a screenshot beside each, alternating sides), the
 // purpose behind it and why it is free. The logo opens it; it is not one of the stepper tabs.
-import { openTimeReport } from '../report.js';
 
 const STEPS = [
   { stage: 1, icon: 'calendar', image: './assets/home/step-calendar.webp' },
@@ -22,7 +21,6 @@ export function mount(container, ctx) {
       'div',
       { class: 'home-hero__actions' },
       h('button', { class: 'btn btn-primary', type: 'button', onClick: () => ctx.goTo(1) }, ui.icon('calendar', { size: 16 }), t('home.open')),
-      h('button', { class: 'btn', type: 'button', onClick: () => openTimeReport({ ui, store, i18n }) }, ui.icon('clock', { size: 16 }), t('settings.timeReport')),
     ),
   );
 
