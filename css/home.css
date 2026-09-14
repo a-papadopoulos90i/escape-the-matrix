@@ -361,3 +361,115 @@
     gap: var(--space-7);
   }
 }
+
+/* Pricing — three plans side by side, the monthly Pro plan highlighted; stacked on phones. */
+.home-pricing {
+  text-align: center;
+}
+
+.home-pricing .home-section__title {
+  margin-bottom: var(--space-3);
+}
+
+.home-pricing__lead {
+  margin: 0 auto;
+  font-size: var(--text-md);
+  color: var(--muted);
+}
+
+.home-plans {
+  list-style: none;
+  margin: var(--space-6) 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+  align-items: stretch;
+  text-align: left;
+}
+
+.home-plan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.home-plan--featured {
+  border: 2px solid var(--primary);
+}
+
+.home-plan__name {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.home-plan__price {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
+.home-plan__amount {
+  font-family: var(--font-display);
+  font-size: 2.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.home-plan__period {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.home-plan__note {
+  min-height: 2.6em;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.home-plan--featured .home-plan__note {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.home-plan__features {
+  list-style: none;
+  margin: var(--space-2) 0 var(--space-4);
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+  flex: 1;
+}
+
+.home-plan__features li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.home-plan__features svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--primary);
+}
+
+.home-plan .btn {
+  justify-content: center;
+  width: 100%;
+}
+
+@media (max-width: 720px) {
+  .home-plans {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

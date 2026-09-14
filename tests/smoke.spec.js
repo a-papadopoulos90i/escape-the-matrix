@@ -33,7 +33,7 @@ function seed(page, { ui, doc } = {}) {
 test('loads with the title, a 3-step stepper and no console errors', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/');
-  await expect(page).toHaveTitle('Escape the Matrix');
+  await expect(page).toHaveTitle('Levelix — Escape the Matrix of your daily routine');
   await expect(page.locator('#stepper .step')).toHaveCount(3);
   await expect(page.locator('#stepper .step').nth(0)).toHaveAttribute('aria-current', 'step');
   await expect(activeTitle(page)).toHaveText(TITLES[1]);
@@ -49,14 +49,14 @@ test('the logo opens Home: three steps with screenshots, and its buttons lead in
   await expect(activePanel(page)).toHaveAttribute('data-stage', '0');
   await expect(page.locator('.brand')).toHaveAttribute('aria-current', 'page');
   await expect(page.locator('#stepper .step[aria-current]')).toHaveCount(0);
-  await expect(activeTitle(page)).toHaveText('Escape the Matrix');
+  await expect(activeTitle(page)).toHaveText('Escape the Matrix.');
   const shots = activePanel(page).locator('.home-step__shot img');
   await expect(shots).toHaveCount(3);
   for (const img of await shots.all()) {
     await img.scrollIntoViewIfNeeded();
     await expect.poll(() => img.evaluate((node) => node.complete && node.naturalWidth > 0)).toBe(true);
   }
-  await expect(activePanel(page).getByRole('heading', { name: 'Free, for everyone' })).toBeVisible();
+  await expect(activePanel(page).getByRole('heading', { name: 'Start free' })).toBeVisible();
 
   await expect(page.locator('.report-fab')).toBeHidden(); // the Time report lives on Write down + Prioritize
 

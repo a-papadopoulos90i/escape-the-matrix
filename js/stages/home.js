@@ -124,6 +124,33 @@ export function mount(container, ctx) {
     ),
   );
 
+  // Pricing: a free plan (up to 100 tasks) and Pro, monthly or yearly. Paid checkout is not live yet,
+  // so the Pro buttons say "Coming soon".
+  const plan = ({ key, featured, features, cta }) =>
+    h(
+      'li',
+      { class: `home-plan${featured ? ' home-plan--featured' : ''}` },
+      h('p', { class: 'home-plan__name' }, t(`home.pricing.${key}.name`)),
+      h('p', { class: 'home-plan__price' }, h('span', { class: 'home-plan__amount' }, t(`home.pricing.${key}.price`)), h('span', { class: 'home-plan__period' }, t(`home.pricing.${key}.period`))),
+      h('p', { class: 'home-plan__note' }, t(`home.pricing.${key}.note`)),
+      h('ul', { class: 'home-plan__features' }, ...features.map((feature) => h('li', null, ui.icon('check', { size: 16 }), t(`home.pricing.feature.${feature}`)))),
+      cta,
+    );
+  const proFeatures = ['unlimited', 'timer', 'aiReports', 'voice'];
+  const pricing = h(
+    'section',
+    { class: 'home-section home-pricing', 'aria-labelledby': 'home-pricing-title' },
+    h('h2', { class: 'home-section__title', id: 'home-pricing-title' }, t('home.pricing.title')),
+    h('p', { class: 'home-pricing__lead' }, t('home.pricing.lead')),
+    h(
+      'ul',
+      { class: 'home-plans' },
+      plan({ key: 'free', features: ['tasks100', 'stages', 'noCard'], cta: h('button', { class: 'btn', type: 'button', onClick: () => ctx.goTo(1) }, t('home.pricing.startFree')) }),
+      plan({ key: 'monthly', featured: true, features: proFeatures, cta: h('button', { class: 'btn btn-primary', type: 'button', disabled: true }, t('home.pricing.soon')) }),
+      plan({ key: 'yearly', features: proFeatures, cta: h('button', { class: 'btn', type: 'button', disabled: true }, t('home.pricing.soon')) }),
+    ),
+  );
+
   // "Free, for everyone" is said by the studio, as a quote: a short phrase, then what it means in practice.
   const free = h(
     'section',
@@ -160,6 +187,7 @@ export function mount(container, ctx) {
       hero,
       steps,
       story,
+      pricing,
       free,
       h('p', { class: 'home-disclaimer' }, t('home.disclaimer')),
     ),

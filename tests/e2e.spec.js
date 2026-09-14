@@ -679,7 +679,7 @@ test('18. no console errors on any stage and no network needed after the first l
 
 test('19. every asset URL is relative: the app boots unchanged under a /escape-the-matrix/ sub-path', async ({ page }) => {
   const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
-  for (const [, url] of html.matchAll(/\b(?:href|src)="([^"]+)"/g)) expect(url).toMatch(/^(\.\/|data:|#)/);
+  for (const [, url] of html.matchAll(/\b(?:href|src)="([^"]+)"/g)) expect(url).toMatch(/^(\.\/|data:|#|https:\/\/levelix\.eu\/)/); // only the SEO canonical link may be absolute
   for (const [, specifier] of fs.readFileSync(path.join(ROOT, 'js', 'app.js'), 'utf8').matchAll(/from '([^']+)'/g)) expect(specifier).toMatch(/^\.\//);
 
   const errors = collectErrors(page);
@@ -693,7 +693,7 @@ test('19. every asset URL is relative: the app boots unchanged under a /escape-t
     await route.fulfill({ response: await route.fetch({ url: url.toString() }) });
   });
   await page.goto('/escape-the-matrix/');
-  await expect(page).toHaveTitle('Escape the Matrix');
+  await expect(page).toHaveTitle('Levelix — Escape the Matrix of your daily routine');
   await expect(stageTitle(page)).toHaveText('Pick your day');
   await expect(page.locator('#stepper .step')).toHaveCount(3);
   await goToStage(page, 3);

@@ -3,32 +3,67 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Escape the Matrix</title>
-    <meta name="description" content="A daily planner built on the Eisenhower Matrix: write everything down, sort it by urgency and importance, then work the board." />
-    <meta name="theme-color" content="#ffffff" />
+    <title>Levelix — Escape the Matrix of your daily routine</title>
+    <meta name="description" content="Levelix is a minimal daily planner built on the Eisenhower Matrix. Start free: write it all down, set your priorities and win back time to escape your daily routine." />
+    <meta name="keywords" content="daily planner, Eisenhower Matrix, to-do list, priorities, time management, productivity, planner app, Levelix, Escape the Matrix" />
+    <meta name="application-name" content="Levelix" />
+    <meta name="theme-color" content="#f8f7f1" />
+    <link rel="canonical" href="https://levelix.eu/" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Escape the Matrix" />
-    <meta property="og:description" content="A daily planner built on the Eisenhower Matrix: write everything down, sort it by urgency and importance, then work the board." />
+    <meta property="og:site_name" content="Levelix" />
+    <meta property="og:url" content="https://levelix.eu/" />
+    <meta property="og:title" content="Levelix — Escape the Matrix of your daily routine" />
+    <meta property="og:description" content="A minimal daily planner — start free. Write it all down, set priorities by urgency and importance, and win back time to create, learn and grow." />
+    <meta property="og:image" content="https://levelix.eu/assets/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Levelix — Escape the Matrix. A minimal daily planner you can start for free." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Levelix — Escape the Matrix of your daily routine" />
+    <meta name="twitter:description" content="A minimal daily planner — start free. Write it all down, set priorities and win back time to create, learn and grow." />
+    <meta name="twitter:image" content="https://levelix.eu/assets/og-image.png" />
+    <link rel="manifest" href="./site.webmanifest" />
+    <link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Levelix",
+        "alternateName": "Escape the Matrix",
+        "url": "https://levelix.eu/",
+        "description": "A minimal daily planner built on the Eisenhower Matrix — start free: write it all down, set priorities and win back time to escape your daily routine.",
+        "applicationCategory": "ProductivityApplication",
+        "operatingSystem": "Web",
+        "inLanguage": "en",
+        "isAccessibleForFree": true,
+        "offers": [
+          { "@type": "Offer", "name": "Free", "price": "0", "priceCurrency": "EUR", "description": "Up to 100 tasks" },
+          { "@type": "Offer", "name": "Pro monthly", "price": "4.80", "priceCurrency": "EUR", "description": "Unlimited tasks, task timer and time report" },
+          { "@type": "Offer", "name": "Pro yearly", "price": "28.00", "priceCurrency": "EUR", "description": "Unlimited tasks, task timer and time report" }
+        ],
+        "publisher": { "@type": "Organization", "name": "PanTik" }
+      }
+    </script>
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='1' y='1' width='10' height='10' rx='2.5' fill='%23f24822'/%3E%3Crect x='13' y='1' width='10' height='10' rx='2.5' fill='%23ffcd29'/%3E%3Crect x='1' y='13' width='10' height='10' rx='2.5' fill='%233dadff'/%3E%3Crect x='13' y='13' width='10' height='10' rx='2.5' fill='%23a5a5a5'/%3E%3C/svg%3E"
     />
-    <link rel="stylesheet" href="./css/fonts.css?v=47" />
-    <link rel="stylesheet" href="./css/tokens.css?v=47" />
-    <link rel="stylesheet" href="./css/base.css?v=47" />
-    <link rel="stylesheet" href="./css/calendar.css?v=47" />
-    <link rel="stylesheet" href="./css/dump.css?v=47" />
-    <link rel="stylesheet" href="./css/sort.css?v=47" />
-    <link rel="stylesheet" href="./css/board.css?v=47" />
-    <link rel="stylesheet" href="./css/account.css?v=47" />
-    <link rel="stylesheet" href="./css/home.css?v=47" />
+    <link rel="stylesheet" href="./css/fonts.css?v=48" />
+    <link rel="stylesheet" href="./css/tokens.css?v=48" />
+    <link rel="stylesheet" href="./css/base.css?v=48" />
+    <link rel="stylesheet" href="./css/calendar.css?v=48" />
+    <link rel="stylesheet" href="./css/dump.css?v=48" />
+    <link rel="stylesheet" href="./css/sort.css?v=48" />
+    <link rel="stylesheet" href="./css/board.css?v=48" />
+    <link rel="stylesheet" href="./css/account.css?v=48" />
+    <link rel="stylesheet" href="./css/home.css?v=48" />
   </head>
   <body>
     <a id="skip-link" class="skip-link" href="#stage">Skip to content</a>
     <div class="app">
       <header class="app-header">
         <div class="app-header__inner">
-          <a class="brand" href="./" aria-label="Escape the Matrix">
+          <a class="brand" href="./" aria-label="Levelix — home">
             <svg class="brand__mark" viewBox="0 0 24 24" aria-hidden="true">
               <rect x="1" y="1" width="10" height="10" rx="2.5" fill="#f24822" />
               <rect x="13" y="1" width="10" height="10" rx="2.5" fill="#ffcd29" />
@@ -51,30 +86,34 @@
     <div id="toast-root" class="toast-root" aria-live="polite"></div>
     <div id="modal-root"></div>
     <div id="popover-root" class="popover-root"></div>
-    <noscript>Escape the Matrix needs JavaScript to run.</noscript>
+    <noscript>
+      <h1>Levelix — Escape the Matrix of your daily routine</h1>
+      <p>Levelix is a minimal daily planner built on the Eisenhower Matrix that you can start for free. Pick your day, write it all down, then place each task by priority — Do now, Schedule, Delegate or Drop — and win back time to create something new, learn and grow.</p>
+      <p>Levelix needs JavaScript to run.</p>
+    </noscript>
     <!-- Every module gets the release version too, so a new release never runs with stale cached modules. -->
     <script type="importmap">
       {
         "imports": {
-          "./js/auth.js": "./js/auth.js?v=47",
-          "./js/carry.js": "./js/carry.js?v=47",
-          "./js/dates.js": "./js/dates.js?v=47",
-          "./js/firebase-config.js": "./js/firebase-config.js?v=47",
-          "./js/i18n.js": "./js/i18n.js?v=47",
-          "./js/report.js": "./js/report.js?v=47",
-          "./js/stages/board.js": "./js/stages/board.js?v=47",
-          "./js/stages/calendar.js": "./js/stages/calendar.js?v=47",
-          "./js/stages/dump.js": "./js/stages/dump.js?v=47",
-          "./js/stages/home.js": "./js/stages/home.js?v=47",
-          "./js/storage/cloud.js": "./js/storage/cloud.js?v=47",
-          "./js/storage/local.js": "./js/storage/local.js?v=47",
-          "./js/store.js": "./js/store.js?v=47",
-          "./js/tags.js": "./js/tags.js?v=47",
-          "./js/timer.js": "./js/timer.js?v=47",
-          "./js/ui.js": "./js/ui.js?v=47"
+          "./js/auth.js": "./js/auth.js?v=48",
+          "./js/carry.js": "./js/carry.js?v=48",
+          "./js/dates.js": "./js/dates.js?v=48",
+          "./js/firebase-config.js": "./js/firebase-config.js?v=48",
+          "./js/i18n.js": "./js/i18n.js?v=48",
+          "./js/report.js": "./js/report.js?v=48",
+          "./js/stages/board.js": "./js/stages/board.js?v=48",
+          "./js/stages/calendar.js": "./js/stages/calendar.js?v=48",
+          "./js/stages/dump.js": "./js/stages/dump.js?v=48",
+          "./js/stages/home.js": "./js/stages/home.js?v=48",
+          "./js/storage/cloud.js": "./js/storage/cloud.js?v=48",
+          "./js/storage/local.js": "./js/storage/local.js?v=48",
+          "./js/store.js": "./js/store.js?v=48",
+          "./js/tags.js": "./js/tags.js?v=48",
+          "./js/timer.js": "./js/timer.js?v=48",
+          "./js/ui.js": "./js/ui.js?v=48"
         }
       }
     </script>
-    <script type="module" src="./js/app.js?v=47"></script>
+    <script type="module" src="./js/app.js?v=48"></script>
   </body>
 </html>

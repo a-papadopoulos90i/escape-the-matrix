@@ -1,0 +1,15 @@
+{
+  "name": "Levelix — Escape the Matrix",
+  "short_name": "Levelix",
+  "description": "A minimal daily planner — start free. Write it all down, set priorities and win back time.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f8f7f1",
+  "theme_color": "#f8f7f1",
+  "icons": [
+    { "src": "./assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "./assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "./assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

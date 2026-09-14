@@ -40,6 +40,16 @@ Deployment: static site, **no build step**, plain ES modules, served from **Fire
 (`https://katopsi-elite.web.app`, `firebase deploy --only hosting`; `firebase.json` excludes tests, design,
 docs and hidden folders, `index.html` is never cached) and from GitHub Pages under a sub-path (so all URLs must be relative: `./js/app.js`, `./css/base.css`). Every release bumps `?v=N` on the stylesheets, `app.js` and an **import map** listing every module, so no browser runs a new `app.js` against stale cached modules.
 
+**Brand (2026-09-15):** the product is **Levelix** (https://levelix.eu); **Escape the Matrix** is the idea it
+stands for — win back time from routine and habits to create, learn and grow. Home hero: "Escape the Matrix."
+SEO: title, description, canonical https://levelix.eu/, Open Graph/Twitter card (`assets/og-image.png`),
+WebApplication JSON-LD with the plans, `robots.txt`, `sitemap.xml`, `site.webmanifest` + icons, noscript summary.
+
+**Pricing (shown on Home, not enforced yet):** Free €0 — up to 100 tasks (delete old ones to add new);
+Pro monthly €4,80 (≈ €1,20 a week) and Pro yearly €28 — unlimited tasks, task timer & time report; AI analysis
+& reports and voice-to-task are "coming soon". Checkout is not live (Pro buttons say "Coming soon"); the
+100-task limit and timer gating still need a payment provider and feature checks.
+
 UI language: English (the design board is in English). All strings live in `js/i18n.js`.
 Product name is always written **Escape the Matrix**.
 
