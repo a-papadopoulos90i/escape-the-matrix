@@ -258,6 +258,8 @@ test('"Pull them here" is offered only on the real today, for unfinished work fr
   await expect(strip()).toHaveCount(0);
   await page.locator('#stepper .step').nth(1).click(); // Write down for that future day: no pull list either
   await expect(panel(page).locator('.dump__carry .carry-strip__pull')).toHaveCount(0);
+  await expect(panel(page).locator('.stage-nav__day-label')).toHaveText('Thu 12 Mar'); // Write down only names the day…
+  await expect(panel(page).locator('.stage-nav__day-arrow')).toHaveCount(0); // …no arrows to change it there
   await page.locator('#stepper .step').nth(2).click();
 
   await panel(page).locator('.stage-nav__day-arrow').first().click();
@@ -307,6 +309,9 @@ test('a card drags into another quadrant; the red ✕ deletes it with undo', asy
   await page.mouse.up();
   await expect(quadrant(page, 'plan').locator('.task-card')).toHaveText(['Make - Excel Report', 'Marketing Order A5']);
   await expect(quadrant(page, 'do').locator('.task-card')).toHaveCount(0);
+  // The dropped card takes the new quadrant's priority as its tag.
+  await expect(card(page, 'Marketing Order A5').locator('.task-card__priority')).toHaveClass(/priority-icon--plan/);
+  await waitForSaved(page, (doc) => taskById(doc, 't_1').quadrant === 'plan' && taskById(doc, 't_1').tag === 'plan');
 
   // A plain click on a title still opens the popover (drag did not swallow it).
   await openPopover(page, 'Invoice Send');

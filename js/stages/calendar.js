@@ -266,12 +266,12 @@ function dayCell(key, tabbable) {
 // ---------- Actions ----------
 
 function openDay(key, { fromFlip = false } = {}) {
-  const { markFlipReturn } = ctx; // goTo unmounts the calendar, which clears ctx
+  const { markCalendarReturn } = ctx; // goTo unmounts the calendar, which clears ctx
   ctx.setDate(key);
   // Today starts at Write down — you brain-dump it first, then move on to Prioritize. Every other
   // day (past or future) opens straight in Prioritize.
   ctx.goTo(key === ctx.dates.todayKey() ? 2 : 3);
-  if (fromFlip) markFlipReturn?.(); // its Back / Back to calendar then return to the flipped calendar
+  markCalendarReturn?.(fromFlip); // its Back / Back to calendar return to this calendar view (flipped or not)
 }
 
 /** Manage-mode popup: view / add / rename / tick / delete a single day's tasks, without leaving the

@@ -2,7 +2,7 @@
 // global backlog: a numbered list of every unplaced task (the same list on every day; each editable,
 // with a ✕), kept until an item is placed in a quadrant, ticked done, or deleted. At the bottom,
 // when earlier days still hold unfinished placed tasks, a "Pull them here" button and their list.
-import { attemptBadge, dayNav, pendingCarry } from '../carry.js';
+import { attemptBadge, pendingCarry } from '../carry.js';
 
 const PENCIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 
@@ -32,7 +32,8 @@ export function mount(container, ctx) {
   const listEl = ui.h('div', { class: 'dump__list' });
   const hintEl = ui.h('p', { class: 'dump__hint text-muted', hidden: true }, t('dump.needTask'));
   const carryEl = ui.h('div', { class: 'dump__carry' });
-  const nav = ui.stageNav({ onBack: () => ctx.goTo(1), onNext: () => ctx.goTo(3), nextDisabled: true, day: dayNav(ctx) });
+  // Write down only names the day — changing it happens on Prioritize (arrows) or the calendar.
+  const nav = ui.stageNav({ onBack: () => ctx.goTo(1), onNext: () => ctx.goTo(3), nextDisabled: true, day: { label: ctx.dates.formatShort(ctx.getDate()) } });
 
   const root = ui.h(
     'div',

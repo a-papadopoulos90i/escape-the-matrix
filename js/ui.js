@@ -493,13 +493,14 @@ export function stageNav({ onBack, onNext, backLabel = t('nav.back'), nextLabel 
   );
 }
 
-/** Centred current-day display with discreet ‹ › arrows to step the day, shown on every stage. */
+/** Centred current-day display; the discreet ‹ › arrows appear only when handlers are given (Prioritize
+ *  steps the day, Write down just names it). */
 function daySwitcher({ label, onPrev, onNext }) {
   return h(
     'div',
     { class: 'stage-nav__day' },
-    h('button', { class: 'btn-icon stage-nav__day-arrow', type: 'button', 'aria-label': t('day.prev'), onClick: onPrev }, icon('chevron-left', { size: 18 })),
+    onPrev && h('button', { class: 'btn-icon stage-nav__day-arrow', type: 'button', 'aria-label': t('day.prev'), onClick: onPrev }, icon('chevron-left', { size: 18 })),
     h('span', { class: 'stage-nav__day-label' }, label),
-    h('button', { class: 'btn-icon stage-nav__day-arrow', type: 'button', 'aria-label': t('day.next'), onClick: onNext }, icon('chevron-right', { size: 18 })),
+    onNext && h('button', { class: 'btn-icon stage-nav__day-arrow', type: 'button', 'aria-label': t('day.next'), onClick: onNext }, icon('chevron-right', { size: 18 })),
   );
 }

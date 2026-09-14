@@ -112,7 +112,7 @@ test('"See an example" sweeps the logo colours on arrival and is hidden for sign
   await expect(demo).toBeHidden();
 });
 
-test('a day opened from the flipped calendar returns there: Back and Back to calendar land on it flipped, day selected', async ({ page }) => {
+test('a day opened from the calendar returns there: Back lands on the same view (normal or flipped), day selected', async ({ page }) => {
   await page.clock.setFixedTime(new Date(2026, 2, 11, 9, 0, 0)); // today = Wed 11 Mar 2026
   const DAY = '2026-03-16';
   const task = { id: 't_1', title: 'Call the bank', date: DAY, quadrant: 'do', tag: 'do', order: 1, done: false, doneAt: null, createdAt: 'x', updatedAt: 'x', timer: null, attempt: 1, carriedTo: null };
@@ -136,6 +136,14 @@ test('a day opened from the flipped calendar returns there: Back and Back to cal
     await expect(activePanel(page).locator('.calendar__flip')).toHaveAttribute('aria-pressed', 'true');
     await expect(activePanel(page).locator(`.calendar__day[data-key="${DAY}"]`)).toHaveClass(/calendar__day--selected/);
   };
+
+  // From the normal calendar: a non-today day opens Prioritize, and Back returns to the normal calendar.
+  await activePanel(page).locator(`.calendar__day[data-key="${DAY}"]`).click();
+  await expect(activePanel(page)).toHaveAttribute('data-stage', '3');
+  await activePanel(page).getByRole('button', { name: '← Back' }).click();
+  await expect(activePanel(page)).toHaveAttribute('data-stage', '1');
+  await expect(calendar()).not.toHaveClass(/calendar--flipped/);
+  await expect(activePanel(page).locator(`.calendar__day[data-key="${DAY}"]`)).toHaveClass(/calendar__day--selected/);
 
   await openFromFlip();
   await activePanel(page).getByRole('button', { name: '← Back' }).click();

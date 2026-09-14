@@ -48,7 +48,7 @@ the owner's request; the tabs at the top are the only stage indicator.
 Bottom of each panel: `← Back` and `Next →` buttons (Stage 1 has no nav; Stage 3 has "Back to
 calendar" instead of Next), and **between them, centred, a day switcher** — the open day (e.g.
 "Wed 11 Mar") with discreet `‹` `›` arrows that step to the previous / next day in place (the shell
-re-mounts the stage for the new day). It shows on Stages 2, 3 and 4. The stepper at the top also
+re-mounts the stage for the new day). The arrows show **only on Prioritize**; Write down just names the day. The stepper at the top also
 allows direct jumps. On a narrow screen the day switcher sits on its own centred row above
 Back / Next.
 
@@ -80,7 +80,9 @@ Cell design (rounded square, ~1:1, number centred, bold):
 - Hover/focus: tooltip/`title` "3 of 5 done" (or "No tasks yet").
 - Click/Enter on a cell → selects that date, then: **today opens Stage 2 (Write down)** — you
   brain-dump the day first — and **every other day (past or future) opens Stage 3 (Prioritize)**
-  straight away, whether or not it has tasks. The tabs reach any stage from there.
+  straight away, whether or not it has tasks. The tabs reach any stage from there. A day opened from the
+  calendar (normal or flipped) has **Back** return straight to that same calendar view, day selected;
+  reached any other way (tab, Next), Prioritize's Back goes to Write down.
 
 The colour key (green = done tasks, one stripe each up to 10 · blue = today · gray = empty) is not
 printed under the grid: a discreet **ⓘ** in the toolbar opens it in a small popover. Beside the legend, a subtle **"demo version"** link fills this browser with a
@@ -175,14 +177,17 @@ live on this stage.) Every action is its own card control, each opening a small 
 Each picker shows the editable title at the top. Cards are **draggable between quadrants** with
 Pointer Events (mouse and touch; a plain click still opens a picker, a press-and-drag — or a touch
 long-press — lifts the card; dropping on a quadrant re-files it, dropping on the waiting list
-unplaces it). A wide waiting-list card shrinks, while dragged, to the width of a card inside a quadrant.
+unplaces it). A wide waiting-list card shrinks, while dragged, to the width of a card inside a quadrant. A card dropped into a
+quadrant (from the waiting list or another quadrant) takes that quadrant's priority as its **tag**; dropped back on the
+waiting list it keeps its tag.
 
 - **Timer start:** two choices: `Stopwatch` (count up) or `Countdown` with presets
   `5 · 15 · 25 · 45 · 60 min` and a custom minutes field. Starting sets the task's clock icon live and
   shows a **floating timer bar** at the bottom of the screen (task title, time, `Pause`/`Resume`,
   `Stop`, `Done ✓` which also ticks the task). Only one timer runs at a time — starting another asks
   to stop the current one. Timer state is persisted (`startedAt` + accumulated `elapsedSec`) so it
-  survives reloads. A countdown reaching 0 plays a short beep (WebAudio, no asset files), flashes
+  survives reloads. A countdown reaching 0 plays a soft, calm chime — C–E–G rung three times with long fades, about 7s, never
+  alarming (WebAudio, no asset files), flashes
   the bar, and, if Notification permission was granted, posts a browser notification.
 - **📅 Postpone:** a native `<input type="date">` (min = today) → sets `task.date`; the task leaves
   this day's board. Toast: "Moved to Tue 15 Sep" with **Undo**.
@@ -421,7 +426,7 @@ rising from the bottom (ten fill the cell). Buttons are pill-shaped; the primary
 5. A card's tag button labels the task (the glyph fills with the quadrant colour); the label never moves the card or changes its date.
 6. Stage 3 shows labels Do now / Schedule / Delegate / Drop (with icon tiles + count badges) and the tasks in their quadrants with checkbox + clock + red ✕.
 7. Ticking a task strikes it through and Stage 1 shows one green stripe per done task (ten fill the cell).
-8. Stage 3 popover: ▶️ starts a countdown (timer bar visible, clock icon live); reload → timer still running; countdown end beeps.
+8. Stage 3 popover: ▶️ starts a countdown (timer bar visible, clock icon live); reload → timer still running; countdown end plays the soft chime (5s+).
 9. 📅 moves the task to the chosen date (visible on that day, gone from this one) with Undo working.
 10. ⏩ moves the task to the next weekday, skipping weekends (Fri → Mon), Undo works.
 11. `…` menu actions work in each quadrant; "Delete all tasks here" only in gray quadrant.

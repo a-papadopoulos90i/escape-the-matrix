@@ -36,8 +36,8 @@ let suppressClick = false; // swallow the click that follows a completed drag
 export function mount(container, nextCtx) {
   ctx = nextCtx;
   const { ui, i18n } = ctx;
-  // Back leads to Write down — unless this day was opened from the flipped calendar, then back there.
-  const nav = ui.stageNav({ onBack: () => ctx.goTo(ctx.returnsToFlippedCalendar() ? 1 : 2), onNext: () => ctx.goTo(1), nextLabel: i18n.t('nav.backToCalendar'), day: dayNav(ctx) });
+  // Back leads to Write down — unless this day was opened from the calendar, then straight back there.
+  const nav = ui.stageNav({ onBack: () => ctx.goTo(ctx.returnsToCalendar() ? 1 : 2), onNext: () => ctx.goTo(1), nextLabel: i18n.t('nav.backToCalendar'), day: dayNav(ctx) });
   boardEl = ui.h('div', {
     class: 'board',
     onPointerdown: onPointerDown,
@@ -537,6 +537,9 @@ function moveToQuadrant(task, quadrant) {
   store.undoable(() => {
     store.setQuadrant(task.id, quadrant, ctx.getDate()); // placing a backlog task assigns it to this day
     store.reorderTask(task.id, last);
+    // Dropped into a quadrant, the card takes that priority as its tag (quadrant to quadrant too).
+    // Dropped back on the waiting list it keeps its tag, so one tap on the icon files it again.
+    if (quadrant) store.setTag(task.id, quadrant);
   });
 }
 

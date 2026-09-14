@@ -1,7 +1,7 @@
 // Timer engine for the board (SPEC §2 Stage 5). The persisted state lives in the store
 // (task.timer: startedAt + elapsedSec, so it survives reloads); this module ticks once a second,
 // keeps the task-card clocks and the floating bottom bar in sync, and raises the countdown alarm
-// (WebAudio beep, bar flash, browser notification when permission was granted). The alarm is
+// (a soft WebAudio chime, bar flash, browser notification when permission was granted). The alarm is
 // stamped on the timer (`alarmedAt`), so a countdown that ran out while the page was closed still
 // alarms once on the next load — and never twice.
 // Mounted once at document level by app.js at boot, so the bar shows on every stage after a reload.
@@ -11,8 +11,13 @@ import { t } from './i18n.js';
 
 const TICK_MS = 1000;
 const FLASH_MS = 3000;
-const BEEP_HZ = 880;
-const BEEP_OFFSETS = [0, 0.25, 0.5]; // three short beeps
+// The "time's up" chime: a soft C–E–G, rung three times with long, gentle decays — calm, not alarming,
+// and about 7 seconds long in all. Each ring is a little quieter than the one before.
+const CHIME_NOTES = [523.25, 659.25, 783.99]; // C5 · E5 · G5
+const CHIME_RINGS = [0, 2.2, 4.4]; // seconds after the alarm
+const CHIME_NOTE_GAP = 0.32; // between the notes of one ring
+const CHIME_DECAY = 2.2; // each note fades out over this long
+const CHIME_PEAK = 0.12; // quiet on purpose
 const TIMER_REASONS = new Set(['startTimer', 'pauseTimer', 'resumeTimer', 'stopTimer', 'alarmTimer']);
 
 let store = null;
@@ -221,7 +226,7 @@ function updateBarTime(task, now) {
 
 function raiseAlarm(task) {
   store.markTimerAlarmed(task.id); // first: the store change re-enters tick(), which must not alarm again
-  beep();
+  chime();
   flashBar();
   notify(task);
 }
@@ -243,7 +248,7 @@ function notify(task) {
   }
 }
 
-/** Creates (or resumes) the AudioContext during a user gesture so the later beep is allowed to play. */
+/** Creates (or resumes) the AudioContext during a user gesture so the later chime is allowed to play. */
 function unlockAudio() {
   try {
     const Context = window.AudioContext ?? window.webkitAudioContext;
@@ -256,28 +261,35 @@ function unlockAudio() {
 }
 
 /**
- * Three short sine beeps generated with an OscillatorNode — no audio files. Skipped while the
+ * The soft "time's up" chime, generated with OscillatorNodes — no audio files. Skipped while the
  * context is still suspended (no user gesture yet, e.g. an alarm raised right after a reload):
- * queued beeps would otherwise all fire at once on the user's next click.
+ * queued notes would otherwise all fire at once on the user's next click.
  */
-function beep() {
+function chime() {
   unlockAudio();
   if (!audio || audio.state !== 'running') return;
   try {
     const at = audio.currentTime;
-    for (const offset of BEEP_OFFSETS) {
-      const osc = audio.createOscillator();
-      const gain = audio.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = BEEP_HZ;
-      gain.gain.setValueAtTime(0.0001, at + offset);
-      gain.gain.exponentialRampToValueAtTime(0.3, at + offset + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, at + offset + 0.18);
-      osc.connect(gain).connect(audio.destination);
-      osc.start(at + offset);
-      osc.stop(at + offset + 0.2);
-    }
+    CHIME_RINGS.forEach((ring, r) =>
+      CHIME_NOTES.forEach((hz, n) => bell(hz, at + ring + n * CHIME_NOTE_GAP, CHIME_PEAK * (1 - r * 0.2))),
+    );
   } catch {
     /* audio blocked — the bar flash and notification still fire */
+  }
+}
+
+/** One bell-like note: a sine with a faint octave above it, a gentle attack and a long fade. */
+function bell(hz, start, peak) {
+  for (const [ratio, level] of [[1, 1], [2, 0.18]]) {
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = hz * ratio;
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(peak * level, start + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + CHIME_DECAY);
+    osc.connect(gain).connect(audio.destination);
+    osc.start(start);
+    osc.stop(start + CHIME_DECAY + 0.05);
   }
 }

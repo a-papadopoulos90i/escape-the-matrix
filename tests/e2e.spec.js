@@ -372,15 +372,16 @@ test('7. ticking a task strikes it through and Stage 1 shows one green stripe pe
 
 // ---------- 8–10: fast organize ----------
 
-/** Fake WebAudio: counts oscillator starts so the countdown beep can be asserted without a sound device. */
+/** Fake WebAudio: counts oscillator starts and the latest scheduled stop, so the countdown chime can be asserted without a sound device. */
 function fakeAudio(page) {
   return page.addInitScript(() => {
     window.__beeps = 0;
+    window.__soundEnds = 0;
     class FakeAudioContext {
       constructor() { this.state = 'running'; this.currentTime = 0; this.destination = {}; }
       resume() { return Promise.resolve(); }
       createGain() { const gain = { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect: () => gain }; return gain; }
-      createOscillator() { return { type: '', frequency: { value: 0 }, connect: (node) => node, start: () => { window.__beeps += 1; }, stop() {} }; }
+      createOscillator() { return { type: '', frequency: { value: 0 }, connect: (node) => node, start: () => { window.__beeps += 1; }, stop: (at) => { window.__soundEnds = Math.max(window.__soundEnds, at); } }; }
     }
     window.AudioContext = FakeAudioContext;
     window.webkitAudioContext = FakeAudioContext;
@@ -424,7 +425,7 @@ test('8. ▶ starts a countdown: timer bar + live clock icon, still running afte
   expect(errors).toEqual([]);
 });
 
-test('8b. a countdown reaching 0 beeps (WebAudio), flashes the bar and says "Time\'s up!"', async ({ page }) => {
+test('8b. a countdown reaching 0 plays the soft chime (WebAudio, 5s+), flashes the bar and says "Time\'s up!"', async ({ page }) => {
   const errors = collectErrors(page);
   const today = toKey(new Date());
   const timer = { mode: 'countdown', durationSec: 2, startedAt: new Date().toISOString(), elapsedSec: 0, running: true, stoppedAt: null };
@@ -437,7 +438,8 @@ test('8b. a countdown reaching 0 beeps (WebAudio), flashes the bar and says "Tim
   await expect(bar(page).locator('.timer-bar__status')).toHaveText("Time's up!");
   await expect(bar(page).locator('.timer-bar__time')).toHaveText('00:00');
   await expect(card(page, TITLES[0]).locator('.task-card__clock')).toHaveClass(/task-card__clock--finished/);
-  await expect.poll(() => page.evaluate(() => window.__beeps)).toBe(3);
+  await expect.poll(() => page.evaluate(() => window.__beeps)).toBe(18); // 3 rings × 3 notes × (tone + octave)
+  expect(await page.evaluate(() => window.__soundEnds)).toBeGreaterThanOrEqual(5); // lasts at least 5 seconds
   await bar(page).locator('.timer-bar__done').click();
   await expect(card(page, TITLES[0])).toHaveClass(/task-card--done/);
   await expect(bar(page)).toBeHidden();
