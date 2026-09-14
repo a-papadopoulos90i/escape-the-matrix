@@ -15,7 +15,7 @@
 // Firebase project "Escape the Matrix" (project ID katopsi-elite — the ID is permanent).
 export const firebaseConfig = {
   apiKey: 'AIzaSyBohjbgd-ehrSxRDZi-GaalzhNxNBa2bkQ',
-  authDomain: 'katopsi-elite.firebaseapp.com',
+  authDomain: 'levelix.eu', // the site's own domain, so Google's sign-in window names levelix.eu
   projectId: 'katopsi-elite',
   storageBucket: 'katopsi-elite.firebasestorage.app',
   messagingSenderId: '542908804568',
