@@ -105,14 +105,6 @@ export function mount(container, ctx) {
     ),
   );
 
-  const prose = (key, paragraphs) =>
-    h(
-      'section',
-      { class: 'home-section home-prose', 'aria-labelledby': `home-${key}-title` },
-      h('h2', { class: 'home-section__title', id: `home-${key}-title` }, t(`home.${key}.title`)),
-      ...paragraphs.map((n) => h('p', null, t(`home.${key}.${n}`))),
-    );
-
   const story = h(
     'section',
     { class: 'home-section home-purpose', 'aria-labelledby': 'home-purpose-title' },
@@ -133,9 +125,22 @@ export function mount(container, ctx) {
     ),
   );
 
-  const free = prose('free', [1, 2]);
-  free.append(
-    h('a', { class: 'home-prose__link', href: t('home.free.url'), target: '_blank', rel: 'noopener' }, t('home.free.link'), ui.icon('chevron-right', { size: 16 })),
+  // "Free, for everyone" reads as a quote signed by PanTik.io (its logo box stays empty until there is one).
+  const free = h(
+    'section',
+    { class: 'home-section home-quote', 'aria-labelledby': 'home-free-title' },
+    h('h2', { class: 'home-section__title', id: 'home-free-title' }, t('home.free.title')),
+    h(
+      'figure',
+      { class: 'home-quote__figure' },
+      h('blockquote', { class: 'home-quote__text' }, h('p', null, t('home.free.1')), h('p', null, t('home.free.2'))),
+      h(
+        'figcaption',
+        { class: 'home-quote__by' },
+        h('span', { class: 'home-quote__logo', 'aria-hidden': 'true' }),
+        h('a', { class: 'home-quote__name', href: t('home.free.url'), target: '_blank', rel: 'noopener' }, t('home.free.by')),
+      ),
+    ),
   );
 
   container.append(
