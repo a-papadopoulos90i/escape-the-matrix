@@ -37,6 +37,7 @@ function collectErrors(page) {
 
 const storedIds = (page) => page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? '{"tasks":[]}').tasks.map((t) => t.id).sort(), DOC_KEY);
 const storeIds = (page) => page.evaluate(() => window.__store.get().tasks.map((t) => t.id).sort());
+const liveIds = (page) => page.evaluate(() => window.__store.get().tasks.filter((t) => !t.deleted).map((t) => t.id).sort());
 const fakeValue = (page, expression) => page.evaluate((expr) => new Function('fake', `return ${expr}`)(window.__fake), expression);
 
 /** The signed-out header shows a compact account icon; sign-in runs from the chooser it opens. */
@@ -266,8 +267,10 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await expect(menu.locator('.account-menu__name')).toHaveText('Andreas Papadopoulos');
     await expect(menu.locator('.account-menu__email')).toHaveText('andreas@example.com');
     await expect(menu.locator('.account-menu__status')).toHaveText('Synced ✓');
-    await expect(menu.locator('[role="menuitem"]')).toHaveText(['Sign out', 'Sign out & clear this device']);
+    await expect(menu.locator('[role="menuitem"]')).toHaveText(['Sign out', 'Clear account', 'Sign out & clear this device']);
     await expect(menu.getByRole('menuitem', { name: 'Sign out', exact: true })).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(menu.getByRole('menuitem', { name: 'Clear account' })).toBeFocused();
     await page.keyboard.press('ArrowDown');
     await expect(menu.getByRole('menuitem', { name: 'Sign out & clear this device' })).toBeFocused();
     await expect(menu).toHaveCSS('opacity', '1');
@@ -302,6 +305,22 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await expect.poll(() => storedIds(page).then((list) => list.length)).toBe(4);
     await expect.poll(() => fakeValue(page, 'fake.writes.at(-1).doc.tasks.length')).toBe(4);
     await expect(status).toHaveText('Synced ✓');
+
+    // --- Clear account: confirm first; every task is tombstoned here and in Firestore, still signed in, Undo restores ---
+    await accountBtn.click();
+    await menu.getByRole('menuitem', { name: 'Clear account' }).click();
+    const clearDialog = page.locator('[role="dialog"]');
+    await expect(clearDialog).toContainText('Delete all tasks in your account?');
+    await clearDialog.getByRole('button', { name: 'Cancel' }).click();
+    expect(await liveIds(page)).toHaveLength(4);
+    await accountBtn.click();
+    await menu.getByRole('menuitem', { name: 'Clear account' }).click();
+    await clearDialog.getByRole('button', { name: 'Delete all tasks' }).click();
+    await expect.poll(() => liveIds(page)).toEqual([]);
+    await expect(accountBtn).toBeVisible();
+    await expect.poll(() => fakeValue(page, 'fake.writes.at(-1).doc.tasks.every((t) => t.deleted)')).toBe(true);
+    await page.locator('.toast', { hasText: 'All tasks deleted' }).getByRole('button', { name: 'Undo' }).click();
+    await expect.poll(() => liveIds(page).then((ids) => ids.length)).toBe(4);
 
     // --- Offline / online ---
     await context.setOffline(true);

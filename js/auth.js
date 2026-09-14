@@ -52,7 +52,7 @@ function firstName(user) {
  * Renders the account slot. showSignedOut() → Google button; showSignedIn(user, status) → avatar,
  * first name and a status dot that opens the account menu. setStatus() updates in place.
  */
-export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignOutClear, providers = ['google', 'apple', 'email'] }) {
+export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignOutClear, onClearAccount, providers = ['google', 'apple', 'email'] }) {
   const { t } = i18n;
   let user = null;
   let status = 'syncing';
@@ -95,6 +95,7 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignO
     if (menu) return closeMenu();
     const list = ui.h('div', { class: 'menu account-menu__actions', role: 'menu', 'aria-label': t('account.menu') },
       menuItem(t('account.signOut'), onSignOut),
+      menuItem(t('account.clearAccount'), onClearAccount, true),
       menuItem(t('account.signOutClear'), onSignOutClear, true),
     );
     list.addEventListener('keydown', (event) => {
@@ -371,6 +372,14 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
     });
   }
 
+  /** Deletes every task in the account (tombstones, so every signed-in device follows); stays signed in. */
+  async function clearAccount() {
+    const ok = await ui.confirm(t('account.clearAccountConfirm'), { title: t('account.clearAccount'), okLabel: t('account.clearAccountOk'), danger: true });
+    if (!ok) return;
+    const token = store.clearAll();
+    ui.toast(t('account.cleared'), { action: { label: t('toast.undo'), onClick: () => store.undo(token) } });
+  }
+
   async function signOut({ clear = false } = {}) {
     if (clear) {
       const ok = await ui.confirm(t('account.clearConfirm'), { title: t('account.signOutClear'), okLabel: t('account.signOutClear'), danger: true });
@@ -388,7 +397,7 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
   sdk.onAuthStateChanged(auth, (user) => (user ? connect(user) : disconnect()).catch(reportError));
   sdk.getRedirectResult(auth).catch((error) => !CANCELLED_CODES.has(error?.code) && reportError());
   completeEmailLink().catch(reportError);
-  return { signIn, signOut };
+  return { signIn, signOut, clearAccount };
 }
 
 // ---------- Entry point ----------
@@ -430,6 +439,7 @@ export async function initAuth({ store, ui, i18n, slot, setSignedIn, config = fi
     },
     onSignOut: () => run(async () => (await session()).signOut()),
     onSignOutClear: () => run(async () => (await session()).signOut({ clear: true })),
+    onClearAccount: () => run(async () => (await session()).clearAccount()),
   });
 
   view.showSignedOut();

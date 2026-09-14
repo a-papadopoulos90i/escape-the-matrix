@@ -449,6 +449,29 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
       });
     },
 
+    /** Tombstones every live task at once (stopping running timers), so the wipe syncs to every
+     *  device instead of being merged back. One undo token restores them all. */
+    clearAll() {
+      return undoable(() => {
+        if (!doc.tasks.some(live)) return;
+        const ms = now();
+        commit(
+          doc.tasks.map((task) =>
+            live(task)
+              ? {
+                  ...task,
+                  timer: task.timer && !task.timer.stoppedAt ? stoppedTimer(task.timer, ms) : task.timer,
+                  deleted: true,
+                  deletedAt: isoAt(ms),
+                  updatedAt: isoAt(ms),
+                }
+              : task,
+          ),
+          { reason: 'clearAll' },
+        );
+      });
+    },
+
     // Placing a task in a quadrant also stamps it with the day it was placed on (the waiting list is
     // a global backlog, so an item can be placed from any day). Sending it back to the list
     // (quadrant null) leaves its date untouched.

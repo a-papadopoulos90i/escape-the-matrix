@@ -245,8 +245,8 @@ the header): **"Organize them by priority:"** then bullets `start the timer or t
   the Time report menu) and the **account area**: signed out, an account icon that opens the **sign-in chooser** (`Continue with
   Google`, `Continue with Apple`, an email field + `Continue with email` — only the providers listed in
   `authProviders` in `js/firebase-config.js`; currently Google + email, Apple added once configured);
-  when signed in, avatar + first name + a menu (`Synced ✓ / Syncing… / Offline` status, `Sign out`,
-  `Sign out & clear this device`). A `?` icon button re-opens the current stage's tip bubble.
+  when signed in, avatar + first name + a menu (`Synced ✓ / Syncing… / Offline` status, `Sign out`, `Clear account` — confirm, then every task in the account is deleted on all devices with an Undo toast, still signed in —
+  and `Sign out & clear this device`). A `?` icon button re-opens the current stage's tip bubble.
 - There is **no day bar** (removed at the owner's request): the day is chosen on the calendar.
   Stage panels show no date line.
 - **Home** (the logo; not a stepper tab, no tab highlighted, remembered like a tab): a short hero

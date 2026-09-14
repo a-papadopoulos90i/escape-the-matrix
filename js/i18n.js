@@ -90,6 +90,10 @@ export const strings = {
   'account.offline': 'Offline',
   'account.signOut': 'Sign out',
   'account.signOutClear': 'Sign out & clear this device',
+  'account.clearAccount': 'Clear account',
+  'account.clearAccountConfirm': 'Delete all tasks in your account? They are removed from every device where you are signed in.',
+  'account.clearAccountOk': 'Delete all tasks',
+  'account.cleared': 'All tasks deleted',
   'account.signInError': 'Sign-in failed. Please try again.',
   'account.notConnected.title': 'Sign-in is not connected yet',
   'account.notConnected.body':
