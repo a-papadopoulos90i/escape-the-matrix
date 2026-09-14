@@ -8,6 +8,36 @@ export const strings = {
   'app.stageAnnounce': 'Stage {n} of 3: {label}',
   'app.stageLabel': 'Stage {n}: {label}',
 
+  'home.label': 'Home',
+  'home.title': 'Escape the Matrix',
+  'home.lead': 'A minimal daily planner. Clear your head, set your priorities, and keep your focus on what matters.',
+  'home.open': 'Open the calendar',
+  'home.openStep': 'Open {label}',
+  'home.stepsTitle': 'How it works',
+  'home.step.1.title': 'Pick your day',
+  'home.step.1.body': 'See the whole month at a glance. Every finished task adds a green stripe to its day.',
+  'home.step.1.alt': 'The calendar: a month of days, each filled with green stripes for finished tasks',
+  'home.step.2.title': 'Write it all down',
+  'home.step.2.body': 'Empty your mind onto the page. No sorting, no judging — just get everything out.',
+  'home.step.2.alt': 'The Write down page: one field to add a task and the list of everything written so far',
+  'home.step.3.title': 'Place them by priority',
+  'home.step.3.body': 'Put each task where it belongs — Do now, Schedule, Delegate or Drop — then start from the top.',
+  'home.step.3.alt': 'The Prioritize page: four boxes for Do now, Schedule, Delegate and Drop',
+  'home.purpose.title': 'Our purpose',
+  'home.purpose.1':
+    'Every day brings a lot to keep track of: what to remember, what to do, how to do it and when. Escape the Matrix aims to make that simple, with a minimal and structured way to organise daily tasks.',
+  'home.purpose.2':
+    'It is made for anyone who wants a clearer day: to hand the list over to a simple system, keep attention on a few top priorities instead of everything at once, and leave more of the day for life itself.',
+  'home.free.title': 'Free, for everyone',
+  'home.free.1':
+    'Escape the Matrix is free to use. We believe progress goes further when it is shared, so this is the first of a series of software projects offered and maintained at no cost to their users.',
+  'home.free.2':
+    'Keeping these tools online has real costs. For now they are maintained on a voluntary, non-profit basis; as related projects begin to generate revenue, that income is intended to fund their upkeep, so they can stay free.',
+  'home.free.link': 'Learn more at PantingPantik.io',
+  'home.free.url': 'https://pantingpantik.io',
+  'home.disclaimer':
+    'Escape the Matrix is a personal organisation tool, provided as is and without warranty of any kind. It does not provide medical, psychological, legal or other professional advice.',
+
   'stepper.label': 'Stages',
   'stepper.1': 'Calendar',
   'stepper.2': 'Write down',

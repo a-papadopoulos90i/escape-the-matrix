@@ -85,8 +85,8 @@ two-month sample (mostly-done past days → a green calendar, plus a few backlog
 confirm — local only, nothing uploaded; it replaces what's saved in this browser. The **"Demo
 Version"** label (title case, no underline) sits on its own line below the legend, low on the page.
 
-The **Time report** lives in the **logo's Settings menu** (click the brand mark) — reachable from
-every stage, signed in or not (the account/login settings will join it there later). It opens a modal that sums each
+The **Time report** is a button on **Home** (the logo opens Home) — reachable from every stage,
+signed in or not. It opens a modal that sums each
 task's tracked timer time across every day it appeared and lists them most-time-first with a running
 total. Tasks carried forward under the same title are aggregated (each day's copy keeps its own
 elapsed seconds) and badged **×N** for the number of days tracked. Tasks with no timer, or zero
@@ -226,8 +226,14 @@ the header): **"Organize them by priority:"** then bullets `start the timer or t
   the Time report menu) and the **account area**: `Sign in with Google` button (white, Google "G" glyph, "Sign in with Google") or, when
   signed in, avatar + first name + a menu (`Synced ✓ / Syncing… / Offline` status, `Sign out`,
   `Sign out & clear this device`). A `?` icon button re-opens the current stage's tip bubble.
-- There is **no day bar** (removed at the owner's request): the day is chosen on the calendar, and
-  the logo returns there. Stage panels show no date line.
+- There is **no day bar** (removed at the owner's request): the day is chosen on the calendar.
+  Stage panels show no date line.
+- **Home** (the logo; not a stepper tab, no tab highlighted, remembered like a tab): a short hero
+  ("A minimal daily planner…", `Open the calendar` + `Time report`), **How it works** — the three
+  steps, each a title + one sentence beside a real screenshot (`assets/home/*.webp`), sides
+  alternating, stacked on phones; clicking a screenshot opens that step — then **Our purpose**,
+  **Free, for everyone** (non-profit upkeep for now, future revenue funds it; link to
+  PantingPantik.io) and a small as-is / no-professional-advice disclaimer. Wording stays neutral.
 - **Free-mode banner** (only when not signed in, dismissible, remembered): "You're in free mode —
   tasks are saved only in this browser. Clearing cookies/site data erases them. Sign in with Google
   to keep them everywhere."

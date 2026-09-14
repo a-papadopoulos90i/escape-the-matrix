@@ -1,0 +1,183 @@
+/* home.css — the Home page the logo opens: hero, the three steps with alternating screenshots,
+   purpose and "free for everyone". Reads tokens only. */
+.home {
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.home-hero {
+  text-align: center;
+  padding-block: var(--space-6) var(--space-7);
+}
+
+.home-hero__lead {
+  max-width: 34rem;
+  margin: var(--space-3) auto 0;
+  font-size: var(--text-lg);
+  line-height: 1.5;
+  color: var(--muted);
+  text-wrap: balance;
+}
+
+.home-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+}
+
+.home-section {
+  padding-block: var(--space-7);
+  border-top: 1px solid var(--line);
+}
+
+.home-section__title {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-align: center;
+  margin-bottom: var(--space-6);
+}
+
+.home-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-8);
+}
+
+/* Text beside the screenshot; every other step swaps sides. */
+.home-step {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  align-items: center;
+  gap: var(--space-7);
+}
+
+.home-step:nth-child(even) {
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); /* the screenshot keeps the wide column */
+}
+
+.home-step:nth-child(even) .home-step__text {
+  order: 2;
+}
+
+.home-step__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 4px 10px 4px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--accent);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.home-step__title {
+  margin-top: var(--space-3);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.home-step__body {
+  margin-top: var(--space-2);
+  font-size: var(--text-md);
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.home-step__shot {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.home-step__shot:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.home-step__shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.home-prose {
+  max-width: 40rem;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.home-prose p {
+  font-size: var(--text-md);
+  line-height: 1.65;
+  color: var(--ink);
+}
+
+.home-prose p + p {
+  margin-top: var(--space-3);
+}
+
+.home-prose .home-section__title {
+  margin-bottom: var(--space-4);
+}
+
+.home-prose__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: var(--space-4);
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.home-prose__link:hover {
+  text-decoration: underline;
+}
+
+.home-disclaimer {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding-block: var(--space-5) 0;
+  border-top: 1px solid var(--line);
+  text-align: center;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+@media (max-width: 720px) {
+  .home-hero {
+    padding-block: var(--space-4) var(--space-6);
+  }
+  .home-step {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+    text-align: center;
+  }
+  .home-step:nth-child(even) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .home-step:nth-child(even) .home-step__text {
+    order: 0;
+  }
+  .home-steps {
+    gap: var(--space-7);
+  }
+}

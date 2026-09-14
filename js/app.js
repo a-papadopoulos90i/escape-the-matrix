@@ -6,7 +6,7 @@ import { createLocalAdapter } from './storage/local.js';
 import * as dates from './dates.js';
 import * as ui from './ui.js';
 import * as i18n from './i18n.js';
-import { openTimeReport } from './report.js';
+import * as home from './stages/home.js';
 import * as calendar from './stages/calendar.js';
 import * as dump from './stages/dump.js';
 import * as board from './stages/board.js';
@@ -16,7 +16,9 @@ const { t } = i18n;
 const STAGE_COUNT = 3;
 // One themed icon per stage: calendar → note-keeping → organizing (the 2×2 matrix).
 const STEP_ICONS = ['calendar', 'pencil', 'grid'];
-const STAGE_MODULES = { 1: calendar, 2: dump, 3: board };
+// Stage 0 is Home, opened from the logo; it is not one of the stepper tabs.
+const HOME = 0;
+const STAGE_MODULES = { [HOME]: home, 1: calendar, 2: dump, 3: board };
 // Each stage's bubbles come from i18n.tips with their default tone/tail; a stage may override
 // those via data-tip-tone / data-tip-tail on its [data-tip-anchor] element. A bubble that is
 // not anchored sits under the stage header — which is also where every tip goes on narrow
@@ -43,7 +45,7 @@ const state = {
 function restoreUiState() {
   const saved = local.loadUi();
   const stage = Number(saved.stage);
-  if (Number.isInteger(stage) && stage >= 1) state.stage = Math.min(stage, STAGE_COUNT); // older saves may point at a stage that no longer exists
+  if (Number.isInteger(stage) && stage >= HOME) state.stage = Math.min(stage, STAGE_COUNT); // older saves may point at a stage that no longer exists
   if (dates.isValidKey(saved.selectedDate)) state.selectedDate = saved.selectedDate;
   state.calendarMonth = dates.isValidMonthKey(saved.calendarMonth) ? saved.calendarMonth : dates.monthOfKey(state.selectedDate);
 }
@@ -55,7 +57,11 @@ function persistUiState() {
 // ---------- Header ----------
 
 function stageLabel(stage) {
-  return t('app.stageLabel', { n: stage, label: i18n.stepperLabel(stage) });
+  return stage === HOME ? t('home.label') : t('app.stageLabel', { n: stage, label: i18n.stepperLabel(stage) });
+}
+
+function renderBrand() {
+  els.brand?.setAttribute('aria-current', state.stage === HOME ? 'page' : 'false');
 }
 
 function renderStepper() {
@@ -244,17 +250,18 @@ function mountStage(stage, direction) {
 
 function goTo(stage) {
   const next = Number(stage);
-  if (!Number.isInteger(next) || next < 1 || next > STAGE_COUNT || next === state.stage) return;
+  if (!Number.isInteger(next) || next < HOME || next > STAGE_COUNT || next === state.stage) return;
   const direction = next > state.stage ? 'forward' : 'back';
   state.stage = next;
   persistUiState();
   renderStepper();
+  renderBrand();
   mountStage(next, direction);
   // The user was at the bottom of the previous stage ("Next →"): start the new one at its top,
   // and move keyboard focus to its title so Tab continues inside the stage, not from the header.
   window.scrollTo({ top: 0, behavior: 'auto' });
   state.mounted.panel.querySelector('.stage-title')?.focus({ preventScroll: true });
-  els.announcer.textContent = t('app.stageAnnounce', { n: next, label: i18n.stepperLabel(next) });
+  els.announcer.textContent = next === HOME ? t('home.label') : t('app.stageAnnounce', { n: next, label: i18n.stepperLabel(next) });
 }
 
 // ---------- Keyboard ----------
@@ -297,24 +304,6 @@ async function initAuth() {
   }
 }
 
-// ---------- Settings (gear menu in the header) ----------
-
-/** Clicking the logo opens the settings menu — Time report now, more options later. (There is no
- *  separate gear button; the logo is the entry point.) */
-let settingsMenu = null;
-function openSettingsMenu(anchor) {
-  if (settingsMenu) return settingsMenu.close();
-  anchor.setAttribute('aria-expanded', 'true');
-  settingsMenu = ui.menu({
-    anchor,
-    items: [{ label: t('settings.timeReport'), icon: 'clock', onSelect: () => openTimeReport({ ui, store, i18n }) }],
-    onClose: () => {
-      settingsMenu = null;
-      anchor.setAttribute('aria-expanded', 'false');
-    },
-  });
-}
-
 // ---------- Boot ----------
 
 async function boot() {
@@ -340,17 +329,14 @@ async function boot() {
   restoreUiState();
   els.stepperNav.setAttribute('aria-label', t('stepper.label'));
   els.skipLink.textContent = t('app.skip');
-  // The logo opens the settings menu (Time report, and more later) instead of navigating.
-  if (els.brand) {
-    els.brand.setAttribute('aria-haspopup', 'menu');
-    els.brand.setAttribute('aria-expanded', 'false');
-    els.brand.addEventListener('click', (event) => {
-      event.preventDefault();
-      openSettingsMenu(els.brand);
-    });
-  }
+  // The logo opens Home (what the planner is, its steps, and the Time report) in place.
+  els.brand?.addEventListener('click', (event) => {
+    event.preventDefault();
+    goTo(HOME);
+  });
 
   renderStepper();
+  renderBrand();
   renderBanner();
   mountStage(state.stage, null);
   bindKeyboard();

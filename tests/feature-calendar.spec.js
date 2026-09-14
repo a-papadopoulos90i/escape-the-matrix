@@ -74,10 +74,10 @@ const onAWeekday = (page) => page.clock.setFixedTime(new Date(2026, 2, 11, 9, 0,
 
 const panel = (page) => page.locator('#stage .panel:not(.panel--ghost)');
 
-/** Opens the Time report from the logo's settings menu (it moved out of the calendar footer). */
+/** Opens the Time report from Home (the logo opens Home, which carries the Time report button). */
 async function openReport(page) {
   await page.locator('.brand').click();
-  await page.getByRole('menuitem', { name: 'Time report' }).click();
+  await panel(page).getByRole('button', { name: 'Time report' }).click();
 }
 const cells = (page) => panel(page).locator('.calendar__day');
 const cell = (page, key) => panel(page).locator(`.calendar__day[data-key="${key}"]`);

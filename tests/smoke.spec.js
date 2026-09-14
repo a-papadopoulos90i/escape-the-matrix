@@ -42,10 +42,34 @@ test('loads with the title, a 3-step stepper and no console errors', async ({ pa
   expect(errors).toEqual([]);
 });
 
-test('clicking the logo opens the settings menu (Time report)', async ({ page }) => {
+test('the logo opens Home: three steps with screenshots, and its buttons lead into the app', async ({ page }) => {
+  const errors = collectErrors(page);
   await page.goto('/');
   await page.locator('.brand').click();
-  await expect(page.getByRole('menuitem', { name: 'Time report' })).toBeVisible();
+  await expect(activePanel(page)).toHaveAttribute('data-stage', '0');
+  await expect(page.locator('.brand')).toHaveAttribute('aria-current', 'page');
+  await expect(page.locator('#stepper .step[aria-current]')).toHaveCount(0);
+  await expect(activeTitle(page)).toHaveText('Escape the Matrix');
+  const shots = activePanel(page).locator('.home-step__shot img');
+  await expect(shots).toHaveCount(3);
+  for (const img of await shots.all()) {
+    await img.scrollIntoViewIfNeeded();
+    await expect.poll(() => img.evaluate((node) => node.complete && node.naturalWidth > 0)).toBe(true);
+  }
+  await expect(activePanel(page).getByRole('heading', { name: 'Free, for everyone' })).toBeVisible();
+
+  await activePanel(page).getByRole('button', { name: 'Time report' }).click();
+  await expect(page.getByRole('dialog', { name: 'Time spent per task' })).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await activePanel(page).getByRole('button', { name: 'Open the calendar' }).click();
+  await expect(activeTitle(page)).toHaveText(TITLES[1]);
+  await expect(page.locator('.brand')).toHaveAttribute('aria-current', 'false');
+
+  await page.locator('.brand').click();
+  await page.reload();
+  await expect(activePanel(page)).toHaveAttribute('data-stage', '0'); // Home is remembered like any tab
+  expect(errors).toEqual([]);
 });
 
 test('clicking each stepper step shows the right stage title', async ({ page }) => {
