@@ -152,7 +152,6 @@ export function mount(container, ctx) {
             'span',
             { class: 'home-quote__who' },
             h('a', { class: 'home-quote__name', href: t('home.free.url'), target: '_blank', rel: 'noopener' }, t('home.free.by')),
-            h('span', { class: 'home-quote__role' }, t('home.free.role')),
           ),
         ),
       ),

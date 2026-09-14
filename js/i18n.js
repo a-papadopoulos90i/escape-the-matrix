@@ -37,9 +37,8 @@ export const strings = {
   'home.free.title': 'Free, for everyone',
   'home.quote.shared.phrase': 'Progress goes further when it is shared.',
   'home.quote.shared.body':
-    'That is why Escape the Matrix is free — the first of a series of tools we offer and maintain at no cost. For now we keep them online on a voluntary, non-profit basis; as our other projects earn, that income is meant to keep them free.',
+    'That is why Escape the Matrix is free — the first of a series of tools we offer and maintain at no cost. We keep them online on a voluntary, non-profit basis.',
   'home.free.by': 'PanTik.io',
-  'home.free.role': 'A studio for minimal games & apps',
   'home.free.url': 'https://pantik.io',
   'home.disclaimer':
     'Escape the Matrix is a personal organisation tool, provided as is and without warranty of any kind. It does not provide medical, psychological, legal or other professional advice.',

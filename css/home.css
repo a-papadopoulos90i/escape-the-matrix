@@ -309,10 +309,6 @@
   line-height: 1.3;
 }
 
-.home-quote__role {
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
 
 .home-quote__name {
   font-family: var(--font-display);
