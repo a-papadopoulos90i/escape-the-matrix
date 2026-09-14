@@ -47,8 +47,9 @@
 }
 
 .account-btn .account-name,
-.account-btn .icon--chevron-down {
-  display: none;
+.account-btn .icon--chevron-down,
+.account-btn .account-dot {
+  display: none; /* the sync status stays in the account menu (and for screen readers) */
 }
 
 .account-btn .account-avatar {
