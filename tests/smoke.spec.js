@@ -70,21 +70,33 @@ test('the logo opens Home: three steps with screenshots, and its buttons lead in
   expect(errors).toEqual([]);
 });
 
-test('the Time report button sits in the same fixed spot on Write down and Prioritize, and nowhere else', async ({ page }) => {
+test('the Time report button is always last, under every task, on Write down and Prioritize only', async ({ page }) => {
   await page.goto('/');
   const fab = page.locator('.report-fab');
   const steps = page.locator('#stepper .step');
   await expect(fab).toBeHidden(); // calendar
-  const boxes = [];
+  const belowContent = () =>
+    page.evaluate(() => {
+      const panel = document.querySelector('#stage .panel:not(.panel--ghost)').getBoundingClientRect();
+      const button = document.querySelector('.report-fab').getBoundingClientRect();
+      return { gap: Math.round(button.top - panel.bottom), centre: Math.round(button.left + button.width / 2 - innerWidth / 2) };
+    });
+  await steps.nth(1).click();
+  await expect(fab).toBeVisible();
+  const input = page.locator('.dump__input');
+  for (let i = 1; i <= 12; i += 1) {
+    await input.fill(`Task ${i}`);
+    await input.press('Enter');
+  }
+  await expect(page.locator('#stage .panel:not(.panel--ghost) .dump-row')).toHaveCount(12);
   for (const n of [2, 3]) {
     await steps.nth(n - 1).click();
     await expect(fab).toBeVisible();
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    boxes.push(await fab.boundingBox());
+    await page.waitForTimeout(400); // cross-fade
+    const { gap, centre } = await belowContent();
+    expect(gap).toBeGreaterThanOrEqual(0); // never over a task
+    expect(Math.abs(centre)).toBeLessThanOrEqual(8); // centred (scrollbar gutter allowed)
   }
-  expect(boxes[1]).toEqual(boxes[0]);
-  const viewport = page.viewportSize();
-  expect(Math.round(boxes[0].x + boxes[0].width / 2)).toBe(Math.round(viewport.width / 2));
   await fab.click();
   await expect(page.getByRole('dialog', { name: 'Time spent per task' })).toBeVisible();
   await page.keyboard.press('Escape');

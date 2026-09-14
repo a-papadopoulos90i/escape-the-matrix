@@ -64,7 +64,7 @@ function stageLabel(stage) {
 
 function renderBrand() {
   els.brand?.setAttribute('aria-current', state.stage === HOME ? 'page' : 'false');
-  // One app-level Time report button, so it sits in exactly the same fixed spot on both pages.
+  // One app-level Time report button after the stage: always last, under every task, on both pages.
   els.reportButton.hidden = !REPORT_STAGES.includes(state.stage);
 }
 

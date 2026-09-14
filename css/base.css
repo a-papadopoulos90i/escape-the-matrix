@@ -1296,12 +1296,11 @@ body.has-modal {
 }
 
 /* ---------- Time report button (Write down + Prioritize) ---------- */
-/* Fixed at the bottom centre of the window, the same spot on both pages. */
+/* Always the last thing on the page, centred under every task: the stage grows (flex: 1), so on a
+   short page it rests at the bottom and it moves down as tasks are added — it never covers one. */
 .report-fab {
-  position: fixed;
-  left: 50%;
-  bottom: var(--space-5);
-  z-index: 34; /* under the timer bar, popovers, modals and toasts */
+  flex: none;
+  margin: 0 auto var(--space-5);
   display: grid;
   place-items: center;
   width: 48px;
@@ -1311,22 +1310,10 @@ body.has-modal {
   background: var(--surface);
   color: var(--ink);
   box-shadow: var(--shadow-md);
-  transform: translateX(-50%);
   transition: box-shadow var(--dur-fast), color var(--dur-fast);
 }
 
 .report-fab:hover {
   color: var(--accent);
   box-shadow: var(--shadow-lg);
-}
-
-/* While a timer runs its bar takes the bottom centre; the button sits just above it. */
-body.has-timer-bar .report-fab {
-  bottom: calc(var(--space-4) + var(--timer-bar-height, 64px) + var(--space-3));
-}
-
-/* Room below the last row, so the button never covers content. */
-.stage:has(> .panel[data-stage="2"]:not(.panel--ghost)),
-.stage:has(> .panel[data-stage="3"]:not(.panel--ghost)) {
-  padding-bottom: calc(48px + var(--space-5) * 2);
 }

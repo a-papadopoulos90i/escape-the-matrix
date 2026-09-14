@@ -87,9 +87,10 @@ example"** label (small, muted, no underline) sits on its own line low on the pa
 the calendar shows after the site opens it breathes slowly — scale peaks at 2s, 6s and 10s, back
 down at 4s and 8s, settled by 12s (off with reduced motion).
 
-The **Time report** is a round clock button fixed at the **bottom centre of the window on Write
-down and Prioritize** — the identical spot on both (one app-level button; it moves up above the timer
-bar while a timer runs; hidden on Home and the calendar). It opens a modal that sums each
+The **Time report** is a round clock button on **Write down and Prioritize**, always the **last
+thing on the page, centred under every task** (one app-level button after the stage; on a short page
+it rests at the bottom, and it moves down as tasks are added, so it never covers one; hidden on Home
+and the calendar). It opens a modal that sums each
 task's tracked timer time across every day it appeared and lists them most-time-first with a running
 total. Tasks carried forward under the same title are aggregated (each day's copy keeps its own
 elapsed seconds) and badged **×N** for the number of days tracked. Tasks with no timer, or zero
