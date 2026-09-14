@@ -53,21 +53,22 @@ export function dayNav(ctx) {
   };
 }
 
-/** Month grid under the day label: flip months, pick any day, or jump back to today. Arrow keys move
- *  the focused day (a week with ↑ ↓), Enter picks it. */
-export function openDayPicker(ctx, anchor) {
+/** Month grid under the day label (Prioritize) or the month title (Calendar): flip months, pick any day,
+ *  or jump back to today. Arrow keys move the focused day (a week with ↑ ↓), Enter picks it. `month`
+ *  is the month it opens on (default: the selected day's); `onPick` receives the chosen day key. */
+export function openDayPicker(ctx, anchor, { month: startMonth, onPick = (key) => ctx.setDate(key) } = {}) {
   const { ui, dates } = ctx;
   const { h } = ui;
   const { t } = ctx.i18n;
   const selected = ctx.getDate();
   const today = dates.todayKey();
-  let focusKey = selected;
-  let month = dates.monthOfKey(selected);
+  let month = startMonth ?? dates.monthOfKey(selected);
+  let focusKey = dates.monthOfKey(selected) === month ? selected : `${month}-01`;
   let api = null;
 
   const pick = (key) => {
     api.close();
-    if (key !== selected) ctx.setDate(key);
+    onPick(key);
   };
   const title = h('span', { class: 'day-picker__title', 'aria-live': 'polite' });
   const grid = h('div', { class: 'day-picker__grid' });

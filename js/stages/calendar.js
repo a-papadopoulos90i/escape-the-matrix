@@ -7,7 +7,7 @@
 // A "Manage" toggle flips the calendar over: each cell then previews the day's task titles, and
 // tapping a day opens a popup to add / edit / tick / delete that day's tasks without leaving.
 import { isRecord, QUADRANTS } from '../store.js';
-import { QUAD_ICON, quadrantGlyph, quadrantAxes } from '../carry.js';
+import { QUAD_ICON, openDayPicker, quadrantGlyph, quadrantAxes } from '../carry.js';
 
 let ctx = null;
 let root = null;
@@ -24,7 +24,8 @@ export function mount(container, context) {
   flipped = ctx.takeFlipReturn?.() ?? false; // back from a day opened in the flipped view: stay flipped
 
   els.months = ui.h('div', { class: 'calendar__months', role: 'group', onKeydown: onGridKeydown });
-  els.month = ui.h('p', { class: 'calendar__month', 'aria-live': 'polite' });
+  // The month title opens the same date picker as Prioritize's day label.
+  els.month = ui.h('button', { class: 'calendar__month stage-nav__day-pick', type: 'button', 'aria-haspopup': 'dialog', 'aria-live': 'polite', title: ctx.i18n.t('day.pick'), onClick: (event) => pickDay(event.currentTarget) });
   els.more = ui.h(
     'button',
     { class: 'btn btn-sm calendar__more', type: 'button', onClick: showNextMonth },
@@ -382,6 +383,19 @@ function showNextMonth() {
   render();
   const blocks = els.months.querySelectorAll('.calendar__month-block');
   blocks[blocks.length - 1]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/** Picking a day selects it and shows its month. */
+function pickDay(anchor) {
+  openDayPicker(ctx, anchor, {
+    month: ctx.getCalendarMonth(),
+    onPick: (key) => {
+      ctx.setDate(key);
+      monthsShown = 1;
+      ctx.setCalendarMonth(ctx.dates.monthOfKey(key));
+      render();
+    },
+  });
 }
 
 function shiftMonth(delta) {

@@ -223,6 +223,27 @@ test('‹ › change the displayed month, update the title and persist the month
   await expect(panel(page).locator('.calendar__month')).toHaveText('February 2026');
 });
 
+test('the month title opens the same date picker: pick a day to select it and jump to its month', async ({ page }) => {
+  await onAWeekday(page);
+  await seed(page);
+  await page.goto('/');
+  const title = panel(page).locator('.calendar__month');
+  const picker = page.getByRole('dialog', { name: 'Choose a date' });
+
+  await title.click();
+  await expect(picker.locator('.day-picker__title')).toHaveText('March 2026');
+  await expect(picker.getByRole('button', { name: 'Wednesday, 11 March 2026' })).toHaveAttribute('aria-pressed', 'true');
+  await picker.screenshot({ path: path.join(OUT, 'calendar-day-picker.png') });
+  await picker.getByRole('button', { name: 'Next month' }).click();
+  await picker.getByRole('button', { name: 'Next month' }).click();
+  await picker.getByRole('button', { name: 'Tuesday, 12 May 2026' }).click();
+
+  await expect(picker).toHaveCount(0);
+  await expect(title).toHaveText('May 2026');
+  await expect(panel(page).locator('.calendar__day--selected')).toHaveAttribute('data-key', '2026-05-12');
+  await expect(page.locator('#stepper .step.is-current')).toHaveAttribute('aria-label', /Calendar/); // nothing opened
+});
+
 test('routing: today opens Write down; every other day opens Prioritize', async ({ page }) => {
   await onAWeekday(page); // today = 2026-03-11
   await seed(page);
