@@ -15,8 +15,9 @@ careful product engineer would choose and note it in your report.
 3. works the board — Prioritize: files tasks into DO / PLAN / DELEGATE / DELETE, ticks them done,
    and fast-organizes each with a timer, a postpone, or a "send to next day" action (Stage 3).
 
-A task can also carry a **tag** — a priority label set from the card's own tag button. It is only a
-label: it never files the task into a quadrant and never changes its date.
+A task can also carry a **tag** — a priority label. On a waiting card the tag glyphs only label the
+task. On a card already placed in a quadrant, the tag menu files it: another priority moves it
+there, and "No priority" returns it to the waiting list.
 
 The 3 stages are shown as **panels ("little windows") that alternate** with a slide/fade
 transition, driven by a 3-tab stepper (the board's original stages 4 and 5 were identical, so the
