@@ -428,6 +428,36 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     expect(await fakeValue(page, 'fake.linkEmail')).toBe('andreas@example.com');
   });
 
+  test('Sync with Reminders (personal Mac bridge, opt-in with ?reminders=on): sends tasks, imports, ticks, links', async ({ page }) => {
+    await seed(page, { ui: UI_STATE, doc: LOCAL_DOC });
+    const calls = [];
+    await page.route('http://127.0.0.1:47827/**', async (route) => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      calls.push({ pathname, body: JSON.parse(request.postData() || '{}') });
+      const body = pathname === '/sync'
+        ? { created: 1, updated: 0, deleted: 0, completedInReminders: ['t_local'], imports: [{ reminderId: 'x-apple-reminder://R1', title: 'Buy milk', date: '2026-03-12' }] }
+        : { linked: 1 };
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(body) });
+    });
+    await page.goto('/?reminders=on');
+    await expect.poll(() => page.evaluate(() => location.search)).toBe('');
+    await startFakeSession(page, { signedIn: true });
+    const accountBtn = page.locator('#account .account-btn');
+    await expect(accountBtn).toBeVisible();
+    await accountBtn.click();
+    await page.getByRole('menuitem', { name: 'Sync with Reminders' }).click();
+    await expect(page.locator('.toast', { hasText: 'Reminders synced' })).toBeVisible();
+
+    expect(calls[0].pathname).toBe('/sync');
+    expect(calls[0].body.tasks.map((task) => task.id)).toContain('t_local');
+    const tasks = await page.evaluate(() => window.__store.get().tasks);
+    const imported = tasks.find((task) => task.title === 'Buy milk');
+    expect(imported).toMatchObject({ date: '2026-03-12', quadrant: null, done: false });
+    expect(tasks.find((task) => task.id === 't_local').done).toBe(true);
+    expect(calls[1]).toEqual({ pathname: '/link', body: { links: [{ reminderId: 'x-apple-reminder://R1', taskId: imported.id }] } });
+  });
+
   test('when the SDK cannot load, free mode stays usable and the button retries on click', async ({ page }) => {
     await page.goto('/');
     await startFakeSession(page, { failLoads: 1 });

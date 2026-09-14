@@ -8,6 +8,7 @@ import { firebaseConfig, authProviders } from './firebase-config.js';
 import { createEmptyDoc } from './store.js';
 import { createLocalAdapter } from './storage/local.js';
 import { createCloudAdapter } from './storage/cloud.js';
+import { remindersEnabled, syncWithReminders } from './reminders.js';
 
 const SDK_BASE = 'https://www.gstatic.com/firebasejs/10.14.1/';
 const SDK_MODULES = ['firebase-app.js', 'firebase-auth.js', 'firebase-firestore.js'];
@@ -52,7 +53,7 @@ function firstName(user) {
  * Renders the account slot. showSignedOut() → Google button; showSignedIn(user, status) → avatar,
  * first name and a status dot that opens the account menu. setStatus() updates in place.
  */
-export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignOutClear, onClearAccount, providers = ['google', 'apple', 'email'] }) {
+export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignOutClear, onClearAccount, onSyncReminders, providers = ['google', 'apple', 'email'] }) {
   const { t } = i18n;
   let user = null;
   let status = 'syncing';
@@ -94,6 +95,7 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignO
   function openMenu(anchor) {
     if (menu) return closeMenu();
     const list = ui.h('div', { class: 'menu account-menu__actions', role: 'menu', 'aria-label': t('account.menu') },
+      remindersEnabled() && menuItem(t('reminders.sync'), onSyncReminders), // personal Mac bridge, opt-in only
       menuItem(t('account.signOut'), onSignOut),
       menuItem(t('account.clearAccount'), onClearAccount, true),
       menuItem(t('account.signOutClear'), onSignOutClear, true),
@@ -440,6 +442,7 @@ export async function initAuth({ store, ui, i18n, slot, setSignedIn, config = fi
     onSignOut: () => run(async () => (await session()).signOut()),
     onSignOutClear: () => run(async () => (await session()).signOut({ clear: true })),
     onClearAccount: () => run(async () => (await session()).clearAccount()),
+    onSyncReminders: () => syncWithReminders({ store, ui, i18n }),
   });
 
   view.showSignedOut();

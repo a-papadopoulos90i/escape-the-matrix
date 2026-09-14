@@ -280,6 +280,15 @@ the header): **"Organize them by priority:"** then bullets `start the timer or t
 - Favicon: inline SVG data-URI of the 2×2 matrix glyph. `<title>Escape the Matrix</title>`.
   Add `<meta name="viewport">`, `theme-color`, Open Graph title/description.
 
+### Personal Apple Reminders bridge (owner's Mac only)
+
+Not a product feature. `tools/reminders-bridge/` (never deployed) is a local Node server on 127.0.0.1:47827
+that syncs with one Reminders list, "Levelix". The account-menu item "Sync with Reminders" appears only in a
+browser opened once with `?reminders=on` (`js/reminders.js`). On each press: open tasks (and those done in the
+last 14 days) go to the list, with the day as due date when placed; Levelix wins on title and date; ticks merge both
+ways; tasks deleted in Levelix delete their reminder; new reminders in the list are imported into Write down and linked
+with a `levelix:<id>` line in the notes. See `tools/reminders-bridge/README.md`.
+
 ## 4. Data model
 
 ```js

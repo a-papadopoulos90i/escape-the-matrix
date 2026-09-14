@@ -7,6 +7,7 @@ import * as dates from './dates.js';
 import * as ui from './ui.js';
 import * as i18n from './i18n.js';
 import { openTimeReport } from './report.js';
+import { captureRemindersFlag } from './reminders.js';
 import * as home from './stages/home.js';
 import * as calendar from './stages/calendar.js';
 import * as dump from './stages/dump.js';
@@ -342,6 +343,7 @@ async function boot() {
   store.subscribe(() => renderBanner());
   window.addEventListener('pagehide', () => store.flush({ immediate: true })); // no timer fires after this
 
+  captureRemindersFlag(); // ?reminders=on|off — the owner's personal Reminders bridge
   restoreUiState();
   els.stepperNav.setAttribute('aria-label', t('stepper.label'));
   els.skipLink.textContent = t('app.skip');
