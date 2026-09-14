@@ -544,7 +544,10 @@ a {
 }
 
 .day-picker__day {
+  display: grid;
+  place-items: center;
   height: 38px;
+  padding: 0;
   border: 1.5px solid transparent;
   border-radius: 50%;
   background: none;
