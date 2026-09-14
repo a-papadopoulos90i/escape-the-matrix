@@ -54,8 +54,11 @@ export async function syncWithReminders({ store, ui, i18n }) {
     return;
   }
 
-  // An older bridge still running answers without the newer lists.
-  result = { completedInReminders: [], changedInReminders: [], deletedInReminders: [], imports: [], created: 0, updated: 0, deleted: 0, ...result };
+  // A bridge started before an update answers without the newer lists: say so instead of pretending it synced.
+  if (!Array.isArray(result.changedInReminders) || !Array.isArray(result.deletedInReminders)) {
+    ui.toast(t('reminders.outdated'), { duration: 12000 });
+    return;
+  }
   const links = [];
   store.undoable(() => {
     for (const id of result.completedInReminders) store.toggleDone(id, true);

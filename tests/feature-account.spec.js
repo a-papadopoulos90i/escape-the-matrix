@@ -459,6 +459,19 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     expect(calls[1]).toEqual({ pathname: '/link', body: { links: [{ reminderId: 'x-apple-reminder://R1', taskId: imported.id, title: 'Buy milk', rDate: '2026-03-12', lDate: '2026-03-12' }] } });
   });
 
+  test('Sync with Reminders tells you to restart an out-of-date bridge instead of claiming success', async ({ page }) => {
+    await seed(page, { ui: UI_STATE, doc: LOCAL_DOC });
+    await page.route('http://127.0.0.1:47827/**', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ created: 0, updated: 0, deleted: 0, completedInReminders: [], imports: [] }) }),
+    );
+    await page.goto('/?reminders=on');
+    await startFakeSession(page, { signedIn: true });
+    await page.locator('#account .account-btn').click();
+    await page.getByRole('menuitem', { name: 'Sync with Reminders' }).click();
+    await expect(page.locator('.toast', { hasText: 'older version' })).toBeVisible();
+    await expect(page.locator('.toast', { hasText: 'Reminders synced' })).toHaveCount(0);
+  });
+
   test('when the SDK cannot load, free mode stays usable and the button retries on click', async ({ page }) => {
     await page.goto('/');
     await startFakeSession(page, { failLoads: 1 });
