@@ -234,7 +234,7 @@ the header): **"Organize them by priority:"** then bullets `start the timer or t
 - **Home** (the logo; not a stepper tab, no tab highlighted, remembered like a tab): a short hero
   ("A minimal daily planner…", `Open the calendar`), **How it works** — the three
   steps, each a title + one sentence beside a real screenshot (`assets/home/*.webp`), sides
-  alternating, stacked on phones; clicking a screenshot opens that step — then **Our purpose**,
+  alternating, stacked on phones; clicking a screenshot opens that step — then **Our purpose** as a four-panel illustrated mini story (A full head → Write it down → Focus on the few → Room for life),
   **Free, for everyone** (non-profit upkeep for now, future revenue funds it; link to
   PanTik.io) and a small as-is / no-professional-advice disclaimer. Wording stays neutral.
 - **Free-mode banner** (only when not signed in, dismissible, remembered): "You're in free mode —

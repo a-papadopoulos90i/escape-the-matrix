@@ -25,10 +25,15 @@ export const strings = {
   'home.step.3.outro': 'then start from the top.',
   'home.step.3.alt': 'The Prioritize page: four boxes for Do now, Schedule, Delegate and Drop',
   'home.purpose.title': 'Our purpose',
-  'home.purpose.1':
-    'Every day brings a lot to keep track of: what to remember, what to do, how to do it and when. Escape the Matrix aims to make that simple, with a minimal and structured way to organise daily tasks.',
-  'home.purpose.2':
-    'It is made for anyone who wants a clearer day: to hand the list over to a simple system, keep attention on a few top priorities instead of everything at once, and leave more of the day for life itself.',
+  'home.purpose.lead': 'Escape the Matrix aims to make organising the day simple. The idea, in four moments:',
+  'home.story.1.title': 'A full head',
+  'home.story.1.body': 'What to remember, what to do, how to do it and when.',
+  'home.story.2.title': 'Write it down',
+  'home.story.2.body': 'Hand the list over to a simple system that keeps it for you.',
+  'home.story.3.title': 'Focus on the few',
+  'home.story.3.body': 'Keep attention on the top priorities, not everything at once.',
+  'home.story.4.title': 'Room for life',
+  'home.story.4.body': 'Leave more of the day for the moments that matter.',
   'home.free.title': 'Free, for everyone',
   'home.free.1':
     'Escape the Matrix is free to use. We believe progress goes further when it is shared, so this is the first of a series of software projects offered and maintained at no cost to their users.',
