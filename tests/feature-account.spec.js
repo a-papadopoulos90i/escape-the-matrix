@@ -436,7 +436,7 @@ test.describe('Google mode (fake Firebase SDK)', () => {
       const pathname = new URL(request.url()).pathname;
       calls.push({ pathname, body: JSON.parse(request.postData() || '{}') });
       const body = pathname === '/sync'
-        ? { created: 1, updated: 0, deleted: 0, completedInReminders: ['t_local'], imports: [{ reminderId: 'x-apple-reminder://R1', title: 'Buy milk', date: '2026-03-12' }] }
+        ? { created: 1, updated: 0, deleted: 0, completedInReminders: ['t_local'], changedInReminders: [{ id: 't_local', title: 'Renamed in Reminders', date: '2026-03-20' }], deletedInReminders: [], imports: [{ reminderId: 'x-apple-reminder://R1', title: 'Buy milk', date: '2026-03-12' }] }
         : { linked: 1 };
       await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(body) });
     });
@@ -450,12 +450,13 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await expect(page.locator('.toast', { hasText: 'Reminders synced' })).toBeVisible();
 
     expect(calls[0].pathname).toBe('/sync');
-    expect(calls[0].body.tasks.map((task) => task.id)).toContain('t_local');
+    expect(calls[0].body.tasks.find((task) => task.id === 't_local')).toMatchObject({ placed: expect.any(Boolean), updatedAt: expect.any(String) });
+    expect(calls[0].body.today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     const tasks = await page.evaluate(() => window.__store.get().tasks);
     const imported = tasks.find((task) => task.title === 'Buy milk');
     expect(imported).toMatchObject({ date: '2026-03-12', quadrant: null, done: false });
-    expect(tasks.find((task) => task.id === 't_local').done).toBe(true);
-    expect(calls[1]).toEqual({ pathname: '/link', body: { links: [{ reminderId: 'x-apple-reminder://R1', taskId: imported.id }] } });
+    expect(tasks.find((task) => task.id === 't_local')).toMatchObject({ done: true, title: 'Renamed in Reminders', date: '2026-03-20' });
+    expect(calls[1]).toEqual({ pathname: '/link', body: { links: [{ reminderId: 'x-apple-reminder://R1', taskId: imported.id, title: 'Buy milk', rDate: '2026-03-12', lDate: '2026-03-12' }] } });
   });
 
   test('when the SDK cannot load, free mode stays usable and the button retries on click', async ({ page }) => {

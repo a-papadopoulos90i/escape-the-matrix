@@ -43,23 +43,33 @@ export async function syncWithReminders({ store, ui, i18n }) {
   const all = store.get().tasks;
   const tasks = all
     .filter((task) => !task.deleted && task.carriedTo === null && (!task.done || Date.parse(task.doneAt ?? '') >= cutoff))
-    .map((task) => ({ id: task.id, title: task.title, date: task.quadrant ? task.date : null, done: task.done }));
+    .map((task) => ({ id: task.id, title: task.title, date: task.date, placed: task.quadrant !== null, done: task.done, updatedAt: task.updatedAt }));
   const deleted = all.filter((task) => task.deleted).map((task) => task.id);
 
   let result;
   try {
-    result = await call('/sync', { tasks, deleted });
+    result = await call('/sync', { tasks, deleted, today: todayKey() });
   } catch {
     ui.toast(t('reminders.offline'), { duration: 10000 });
     return;
   }
 
+  // An older bridge still running answers without the newer lists.
+  result = { completedInReminders: [], changedInReminders: [], deletedInReminders: [], imports: [], created: 0, updated: 0, deleted: 0, ...result };
   const links = [];
   store.undoable(() => {
     for (const id of result.completedInReminders) store.toggleDone(id, true);
+    // Edited in Reminders since the last sync: a new title or day (no day = back to today's waiting list).
+    for (const change of result.changedInReminders) {
+      if (!store.findTask(change.id)) continue;
+      if (change.title !== undefined) store.updateTask(change.id, { title: change.title });
+      if (change.unplace) store.setQuadrant(change.id, null);
+      if (change.date) store.moveTaskToDate(change.id, change.date);
+    }
+    for (const id of result.deletedInReminders) store.removeTask(id); // deleted in Reminders
     for (const item of result.imports) {
       const task = store.addTask({ title: item.title, date: item.date ?? todayKey() });
-      links.push({ reminderId: item.reminderId, taskId: task.id });
+      links.push({ reminderId: item.reminderId, taskId: task.id, title: task.title, rDate: item.date, lDate: task.date });
     }
   });
   if (links.length) {
@@ -74,8 +84,9 @@ export async function syncWithReminders({ store, ui, i18n }) {
     t('reminders.done', {
       sent: result.created + result.updated,
       imported: result.imports.length,
+      changed: result.changedInReminders.length,
       completed: result.completedInReminders.length,
-      deleted: result.deleted,
+      deleted: result.deleted + result.deletedInReminders.length,
     }),
     { duration: 6000 },
   );

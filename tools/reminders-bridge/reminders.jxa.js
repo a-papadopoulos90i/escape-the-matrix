@@ -1,8 +1,9 @@
 // Apple Reminders side of the personal Levelix bridge (run by server.mjs through `osascript -l JavaScript`).
-// It only ever touches one Reminders list, "Levelix". A reminder is linked to a Levelix task by a
-// `levelix:<taskId>` line in its notes.
-//   sync <file>  — file holds { tasks: [{ id, title, date|null, done }], deleted: [taskId] }
-//   link <file>  — file holds { links: [{ reminderId, taskId }] }
+// It only ever touches one Reminders list, "Levelix". All merge decisions live in plan.mjs; this script
+// only reads the list and carries out the operations it is given.
+//   read  <file>  — prints [{ id, title, body, completed, date, created, modified }]
+//   apply <file>  — file holds { ops: [{ op: 'create', taskId, title, date } | { op: 'update', id, title?, date?, completed? } | { op: 'delete', id }] }
+//   link  <file>  — file holds { links: [{ reminderId, taskId }] }
 ObjC.import('Foundation');
 
 const LIST_NAME = 'Levelix';
@@ -13,7 +14,8 @@ function run(argv) {
   const input = JSON.parse(readFile(argv[1]));
   const app = Application('Reminders');
   const list = ensureList(app);
-  if (command === 'sync') return JSON.stringify(sync(app, list, input));
+  if (command === 'read') return JSON.stringify(read(list));
+  if (command === 'apply') return JSON.stringify(apply(app, list, input.ops || []));
   if (command === 'link') return JSON.stringify(link(list, input.links || []));
   throw new Error(`Unknown command: ${command}`);
 }
@@ -36,62 +38,44 @@ function toDate(key) {
   return new Date(y, m - 1, d, 12, 0, 0); // midday, so no time zone moves it to another day
 }
 
-function sync(app, list, { tasks = [], deleted = [] }) {
+function read(list) {
+  const r = list.reminders;
+  const ids = r.id();
+  const names = r.name();
+  const bodies = r.body();
+  const completed = r.completed();
+  const allday = r.alldayDueDate();
+  const due = r.dueDate();
+  const created = r.creationDate();
+  const modified = r.modificationDate();
+  return ids.map((id, i) => ({
+    id,
+    title: names[i] || '',
+    body: bodies[i] || '',
+    completed: completed[i],
+    date: toKey(allday[i] || due[i]),
+    created: created[i] ? created[i].getTime() : 0,
+    modified: modified[i] ? modified[i].getTime() : 0,
+  }));
+}
+
+function apply(app, list, ops) {
   const reminders = list.reminders;
-  const ids = reminders.id();
-  const names = reminders.name();
-  const bodies = reminders.body();
-  const completed = reminders.completed();
-  const dues = reminders.alldayDueDate();
-  const byTask = new Map();
-  ids.forEach((id, i) => {
-    const match = TAG.exec(bodies[i] || '');
-    if (match) byTask.set(match[1], i);
-  });
-
-  const result = { created: 0, updated: 0, deleted: 0, completedInReminders: [], imports: [] };
-
-  for (const task of tasks) {
-    const i = byTask.get(task.id);
-    if (i === undefined) {
-      if (task.done) continue; // history that was already finished stays out of Reminders
-      const props = { name: task.title, body: `levelix:${task.id}` };
-      if (task.date) props.alldayDueDate = toDate(task.date);
+  for (const op of ops) {
+    if (op.op === 'create') {
+      const props = { name: op.title, body: `levelix:${op.taskId}` };
+      if (op.date) props.alldayDueDate = toDate(op.date);
       reminders.push(app.Reminder(props));
-      result.created += 1;
-      continue;
+    } else if (op.op === 'update') {
+      const reminder = reminders.byId(op.id);
+      if (op.title !== undefined) reminder.name = op.title;
+      if (op.date) reminder.alldayDueDate = toDate(op.date);
+      if (op.completed) reminder.completed = true;
+    } else if (op.op === 'delete') {
+      app.delete(reminders.byId(op.id));
     }
-    const reminder = reminders.byId(ids[i]);
-    let changed = false;
-    if (names[i] !== task.title) {
-      reminder.name = task.title;
-      changed = true;
-    }
-    if (task.date && toKey(dues[i]) !== task.date) {
-      reminder.alldayDueDate = toDate(task.date);
-      changed = true;
-    }
-    if (task.done && !completed[i]) {
-      reminder.completed = true;
-      changed = true;
-    } else if (!task.done && completed[i]) {
-      result.completedInReminders.push(task.id); // ticked in Reminders → tick it in Levelix
-    }
-    if (changed) result.updated += 1;
   }
-
-  const gone = new Set(deleted);
-  for (const [taskId, i] of byTask) {
-    if (!gone.has(taskId)) continue;
-    app.delete(reminders.byId(ids[i]));
-    result.deleted += 1;
-  }
-
-  ids.forEach((id, i) => {
-    if (completed[i] || TAG.test(bodies[i] || '') || !String(names[i] || '').trim()) return;
-    result.imports.push({ reminderId: id, title: String(names[i]).trim(), date: toKey(dues[i]) });
-  });
-  return result;
+  return { applied: ops.length };
 }
 
 function link(list, links) {
