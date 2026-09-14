@@ -31,9 +31,9 @@ for reference only; they are not rendered.)
 Persistence:
 - **Free mode (no login):** everything is saved in the browser (`localStorage`). If the user clears
   site data / cookies, the history is gone. A small dismissible banner explains this.
-- **Google mode:** one-click "Sign in with Google" (Firebase Auth popup). Data is stored per user in
-  Firestore and live-synced across devices. Signing in merges the local free-mode data into the
-  account.
+- **Account mode:** sign in with **Google** or **Apple** (Firebase Auth popup) or a **passwordless email
+  link**. Data is stored per user in Firestore and live-synced across devices. Signing in merges the
+  local free-mode data into the account.
 
 Deployment: static site, **no build step**, plain ES modules, served from GitHub Pages under a
 sub-path (so all URLs must be relative: `./js/app.js`, `./css/base.css`). Every release bumps `?v=N` on the stylesheets, `app.js` and an **import map** listing every module, so no browser runs a new `app.js` against stale cached modules.
@@ -240,8 +240,8 @@ the header): **"Organize them by priority:"** then bullets `start the timer or t
   centre — the **stepper**: 4 icon dots with short labels `Calendar · Write down · Prioritize ·
   Ready` — one themed icon per stage (calendar, pencil/note-keeping, 2×2 grid/organizing,
   play/executing), current step highlighted, clickable; right — a **gear (Settings)** button (opens
-  the Time report menu) and the **account area**: `Sign in with Google` button (white, Google "G" glyph, "Sign in with Google") or, when
-  signed in, avatar + first name + a menu (`Synced ✓ / Syncing… / Offline` status, `Sign out`,
+  the Time report menu) and the **account area**: signed out, an account icon that opens the **sign-in chooser** (`Continue with
+  Google`, `Continue with Apple`, an email field + `Continue with email`); when signed in, avatar + first name + a menu (`Synced ✓ / Syncing… / Offline` status, `Sign out`,
   `Sign out & clear this device`). A `?` icon button re-opens the current stage's tip bubble.
 - There is **no day bar** (removed at the owner's request): the day is chosen on the calendar.
   Stage panels show no date line.
@@ -363,12 +363,16 @@ only when `firebaseConfig` is non-null. Firestore doc path `users/{uid}` holding
 email }`. `onSnapshot` → `store.replace(mergeDocs(local, remote))` (ignore echoes of our own writes
 via `hasPendingWrites`). On sign-in: `load()` remote, merge with local, save merged to both. While
 signed in, saves go to Firestore **and** localStorage (offline cache). Auth: `GoogleAuthProvider`
-with `prompt: 'select_account'`, `signInWithPopup`; if the popup is blocked (`auth/popup-blocked`)
-fall back to `signInWithRedirect`. `browserLocalPersistence` so the session persists.
+with `prompt: 'select_account'`, or `OAuthProvider('apple.com')` with the `email` and `name` scopes,
+via `signInWithPopup`; if the popup is blocked (`auth/popup-blocked`) fall back to
+`signInWithRedirect`. Email: `sendSignInLinkToEmail` with `{ url: this page, handleCodeInApp: true }`
+(the address is remembered in localStorage); on load, `isSignInWithEmailLink` → `signInWithEmailLink`
+(asking for the address when the link is opened on another device), then the one-time code is
+removed from the address bar. `browserLocalPersistence` so the session persists.
 
 `js/firebase-config.js`: `export const firebaseConfig = null;` with a commented template of the
-web-app config object. When null, the "Sign in with Google" button is still rendered; clicking it
-opens a modal explaining that Google sign-in is not connected on this deployment yet and that tasks
+web-app config object. When null, the account icon and chooser are still rendered; any sign-in
+option opens a modal explaining that sign-in is not connected on this deployment yet and that tasks
 stay saved in this browser, with a link to `SETUP.md`.
 
 `firestore.rules` (ship it): only `request.auth.uid == uid` may read/write `users/{uid}`.
@@ -433,7 +437,7 @@ rising from the bottom (ten fill the cell). Buttons are pill-shaped; the primary
 12. No speech-bubble tips appear on any stage, and there is no "?" button (tips were removed).
 13. Stepper and ←/→ keys navigate; transitions animate; reduced-motion disables animation.
 14. Free-mode banner shows when signed out, dismisses and stays dismissed.
-15. "Sign in with Google" button present; with `firebaseConfig = null` it opens the explanatory modal.
+15. Account icon + sign-in chooser (Google, Apple, email) present; with `firebaseConfig = null` any option opens the explanatory modal.
 16. With a real config (code review): popup sign-in, merge, live sync, sign-out paths are correct and rules restrict access to the owner.
 17. Mobile 375px: no horizontal scroll, matrix stacks, everything reachable; touch drag works.
 18. No console errors on any stage; works offline after first load (no network needed in free mode).

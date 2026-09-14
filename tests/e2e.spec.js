@@ -609,7 +609,7 @@ test('15. the account icon opens a sign-in chooser; Continue with Google shows t
   await expect(chooser.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
   await chooser.getByRole('button', { name: 'Continue with Google' }).click();
   const dialog = page.locator('[role="dialog"].modal');
-  await expect(dialog.locator('.modal__title')).toHaveText('Google sign-in is not connected yet');
+  await expect(dialog.locator('.modal__title')).toHaveText('Sign-in is not connected yet');
   await expect(dialog).toContainText('Your tasks stay saved in this browser.');
   await expect(dialog.locator('a[href="https://github.com/a-papadopoulos90i/escape-the-matrix/blob/main/SETUP.md"]')).toBeVisible();
   await dialog.locator('button', { hasText: 'OK' }).click();

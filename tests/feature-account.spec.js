@@ -90,7 +90,27 @@ async function startFakeSession(page, { remote = REMOTE_ENVELOPE, signedIn = fal
             fake.providerParams = params;
           }
         },
-        signInWithPopup: async () => {
+        OAuthProvider: class {
+          constructor(providerId) {
+            this.providerId = providerId;
+            this.scopes = [];
+          }
+          addScope(scope) {
+            this.scopes.push(scope);
+          }
+        },
+        sendSignInLinkToEmail: async (auth, email, settings) => {
+          fake.linkSent = { email, settings };
+        },
+        isSignInWithEmailLink: (auth, href) => href.includes('mode=signIn'),
+        signInWithEmailLink: async (auth, email) => {
+          fake.linkEmail = email;
+          fake.current = user;
+          fake.authListeners.forEach((callback) => callback(user));
+        },
+        signInWithPopup: async (auth, provider) => {
+          fake.lastProvider = provider?.providerId ?? 'google.com';
+          fake.lastScopes = provider?.scopes ?? [];
           if (fake.popupError) throw Object.assign(new Error('popup'), { code: fake.popupError });
           fake.current = user;
           fake.authListeners.forEach((callback) => callback(user));
@@ -170,7 +190,7 @@ test.describe('free mode (firebaseConfig = null)', () => {
     const open = async () => {
       await signInGoogle(page);
       await expect(dialog).toBeVisible();
-      await expect(dialog.locator('.modal__title')).toHaveText('Google sign-in is not connected yet');
+      await expect(dialog.locator('.modal__title')).toHaveText('Sign-in is not connected yet');
       await expect(dialog).toContainText('Your tasks stay saved in this browser');
       // GitHub Pages would serve ./SETUP.md as raw Markdown, so the link opens the rendered guide.
       await expect(dialog.locator('a[href="https://github.com/a-papadopoulos90i/escape-the-matrix/blob/main/SETUP.md"]')).toHaveText('How to connect it (SETUP.md)');
@@ -337,6 +357,55 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await signInGoogle(page);
     await expect(page.locator('.toast')).toContainText('Sign-in failed');
     await expect(button).toBeVisible();
+  });
+
+  test('Continue with Apple signs in through the apple.com provider, asking for email and name', async ({ page }) => {
+    await seed(page, { ui: UI_STATE, doc: LOCAL_DOC });
+    await page.goto('/');
+    await startFakeSession(page);
+    await signInBtn(page).click();
+    await page.getByRole('button', { name: 'Continue with Apple' }).click();
+    await expect(page.locator('#account .account-btn')).toBeVisible();
+    expect(await fakeValue(page, 'fake.lastProvider')).toBe('apple.com');
+    expect(await fakeValue(page, 'fake.lastScopes')).toEqual(['email', 'name']);
+  });
+
+  test('Continue with email mails a sign-in link; opening the link signs in and cleans the address bar', async ({ page }) => {
+    await seed(page, { ui: UI_STATE, doc: LOCAL_DOC });
+    await page.goto('/');
+    await startFakeSession(page);
+    await signInBtn(page).click();
+    const dialog = page.locator('[role="dialog"]');
+    await dialog.getByRole('button', { name: 'Continue with email' }).click(); // nothing typed yet
+    await expect(page.locator('.toast', { hasText: 'Enter a valid email address.' })).toBeVisible();
+    await expect(dialog).toBeVisible(); // stays open to fix the address
+    await dialog.getByRole('textbox').fill('andreas@example.com');
+    await dialog.getByRole('textbox').press('Enter');
+    await expect(page.locator('.toast', { hasText: 'Check andreas@example.com' })).toBeVisible();
+    expect(await fakeValue(page, 'fake.linkSent.email')).toBe('andreas@example.com');
+    expect(await fakeValue(page, 'fake.linkSent.settings.handleCodeInApp')).toBe(true);
+    expect(await page.evaluate(() => localStorage.getItem('escape-the-matrix:emailForSignIn'))).toBe('andreas@example.com');
+
+    // The emailed link brings the user back to the site with a one-time code.
+    await page.goto('/?mode=signIn&oobCode=abc123&apiKey=fake');
+    await startFakeSession(page);
+    await expect(page.locator('#account .account-btn')).toBeVisible();
+    expect(await fakeValue(page, 'fake.linkEmail')).toBe('andreas@example.com');
+    await expect.poll(() => page.evaluate(() => location.search)).toBe('');
+    expect(await page.evaluate(() => localStorage.getItem('escape-the-matrix:emailForSignIn'))).toBeNull();
+  });
+
+  test('a sign-in link opened on another device asks for the email first', async ({ page }) => {
+    await seed(page, { ui: UI_STATE, doc: LOCAL_DOC });
+    await page.goto('/?mode=signIn&oobCode=abc123&apiKey=fake');
+    const session = startFakeSession(page);
+    const dialog = page.getByRole('dialog', { name: 'Confirm your email' });
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('textbox').fill('andreas@example.com');
+    await dialog.getByRole('button', { name: 'Confirm' }).click();
+    await session;
+    await expect(page.locator('#account .account-btn')).toBeVisible();
+    expect(await fakeValue(page, 'fake.linkEmail')).toBe('andreas@example.com');
   });
 
   test('when the SDK cannot load, free mode stays usable and the button retries on click', async ({ page }) => {

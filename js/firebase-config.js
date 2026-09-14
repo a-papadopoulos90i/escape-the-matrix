@@ -1,5 +1,5 @@
 // Firebase web-app configuration. Leave `null` to run in free mode (localStorage only).
-// To enable Google sign-in + Firestore sync, paste the config object from
+// To enable accounts (Google, Apple, email link) + Firestore sync, paste the config object from
 // Firebase console → Project settings → Your apps → Web app, e.g.:
 //
 // export const firebaseConfig = {
@@ -11,5 +11,5 @@
 //   appId: '1:1234567890:web:abcdef123456',
 // };
 //
-// See SETUP.md for the full walkthrough (authorized domains, Firestore rules).
+// See SETUP.md for the full walkthrough (providers, authorized domains, Firestore rules).
 export const firebaseConfig = null;

@@ -256,7 +256,7 @@ test('the sign-in chooser → Continue with Google opens the not-connected modal
   await page.locator('#account button').click();
   await page.getByRole('button', { name: 'Continue with Google' }).click();
   const dialog = page.locator('[role="dialog"]');
-  await expect(dialog).toContainText('Google sign-in is not connected yet');
+  await expect(dialog).toContainText('Sign-in is not connected yet');
   await expect(dialog.locator('a[href="https://github.com/a-papadopoulos90i/escape-the-matrix/blob/main/SETUP.md"]')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);

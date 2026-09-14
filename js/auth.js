@@ -1,4 +1,5 @@
-// Account area (SPEC §3, §5). Free mode renders "Sign in with Google"; Google mode renders the
+// Account area (SPEC §3, §5). Signed out: an account icon that opens the sign-in chooser (Google,
+// Apple, or a passwordless email link). Signed in: the
 // avatar + first name + menu (sync status, Sign out, Sign out & clear this device) and wires the
 // Firebase session: on sign-in the local document is merged into the account, then every save is
 // written to Firestore *and* localStorage while Firestore snapshots flow back into the store.
@@ -12,6 +13,8 @@ const SDK_BASE = 'https://www.gstatic.com/firebasejs/10.14.1/';
 const SDK_MODULES = ['firebase-app.js', 'firebase-auth.js', 'firebase-firestore.js'];
 const CANCELLED_CODES = new Set(['auth/popup-closed-by-user', 'auth/cancelled-popup-request', 'auth/user-cancelled']);
 const STATUS_KEYS = { synced: 'account.synced', syncing: 'account.syncing', offline: 'account.offline', error: 'account.syncError' };
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const EMAIL_FOR_LINK_KEY = 'escape-the-matrix:emailForSignIn'; // remembered until the emailed link is opened
 const FLUSH_TIMEOUT_MS = 3000; // a save stuck offline must not block signing out (localStorage has the data)
 
 /** Firestore rejects a document over 1 MiB with invalid-argument; retrying cannot fix that, so the user is told. */
@@ -27,6 +30,15 @@ export async function loadFirebase() {
 
 function withTimeout(promise, ms) {
   return Promise.race([promise, new Promise((resolve) => setTimeout(resolve, ms))]);
+}
+
+/** Runs a localStorage call, returning null when storage is unavailable (private mode, blocked site data). */
+function storage(action) {
+  try {
+    return action();
+  } catch {
+    return null;
+  }
 }
 
 function firstName(user) {
@@ -173,7 +185,7 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignO
     },
   };
 
-  /** Rough sign-in chooser (placeholder): Google works; Apple + email land later. */
+  /** Sign-in chooser: Google, Apple, or a passwordless link sent to the typed email address. */
   function openSignInModal() {
     const option = (iconName, labelKey, onSelect, variant) =>
       ui.h(
@@ -182,15 +194,36 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignO
         ui.icon(iconName, { size: 18 }),
         ui.h('span', null, t(labelKey)),
       );
+    const choose = (method) => {
+      handle.close();
+      onSignIn(method);
+    };
+    const email = ui.h('input', {
+      class: 'signin__email',
+      type: 'email',
+      autocomplete: 'email',
+      enterkeyhint: 'send',
+      placeholder: t('account.emailPlaceholder'),
+      'aria-label': t('account.continueEmail'),
+      onKeydown: (event) => event.key === 'Enter' && sendLink(),
+    });
+    const sendLink = () => {
+      const address = email.value.trim();
+      if (!EMAIL_PATTERN.test(address)) {
+        ui.toast(t('account.emailInvalid'));
+        return email.focus();
+      }
+      choose({ provider: 'email', email: address });
+    };
     const content = ui.h(
       'div',
       { class: 'signin' },
       ui.h('p', { class: 'signin__subtitle text-muted' }, t('account.signInSubtitle')),
-      option('google', 'account.continueGoogle', () => { handle.close(); onSignIn(); }, 'google'),
-      option('apple', 'account.continueApple', () => ui.toast(t('account.soon')), 'apple'),
+      option('google', 'account.continueGoogle', () => choose({ provider: 'google' }), 'google'),
+      option('apple', 'account.continueApple', () => choose({ provider: 'apple' }), 'apple'),
       ui.h('div', { class: 'signin__sep' }, ui.h('span', null, t('account.or'))),
-      ui.h('input', { class: 'signin__email', type: 'email', placeholder: t('account.emailPlaceholder'), 'aria-label': t('account.continueEmail') }),
-      option('mail', 'account.continueEmail', () => ui.toast(t('account.soon')), 'email'),
+      email,
+      option('mail', 'account.continueEmail', sendLink, 'email'),
     );
     const handle = ui.modal({ title: t('account.signInTitle'), content, actions: [{ label: t('common.cancel') }], className: 'modal--signin' });
   }
@@ -276,15 +309,63 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
     setSignedIn(false);
   }
 
-  async function signIn() {
-    const provider = new sdk.GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
+  /** `{ provider: 'google' | 'apple' }` opens that provider's popup; `{ provider: 'email', email }` mails a sign-in link. */
+  async function signIn({ provider = 'google', email } = {}) {
+    if (provider === 'email') return sendEmailLink(email);
+    const authProvider = provider === 'apple' ? appleProvider() : googleProvider();
     try {
-      await sdk.signInWithPopup(auth, provider);
+      await sdk.signInWithPopup(auth, authProvider);
     } catch (error) {
-      if (error?.code === 'auth/popup-blocked') return sdk.signInWithRedirect(auth, provider);
+      if (error?.code === 'auth/popup-blocked') return sdk.signInWithRedirect(auth, authProvider);
       if (!CANCELLED_CODES.has(error?.code)) throw error;
     }
+  }
+
+  function googleProvider() {
+    const provider = new sdk.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    return provider;
+  }
+
+  function appleProvider() {
+    const provider = new sdk.OAuthProvider('apple.com');
+    provider.addScope('email');
+    provider.addScope('name');
+    return provider;
+  }
+
+  /** Passwordless email: Firebase mails a one-time link back to this page; the address is remembered here. */
+  async function sendEmailLink(email) {
+    await sdk.sendSignInLinkToEmail(auth, email, { url: window.location.origin + window.location.pathname, handleCodeInApp: true });
+    storage(() => localStorage.setItem(EMAIL_FOR_LINK_KEY, email));
+    ui.toast(t('account.linkSent', { email }), { duration: 8000 });
+  }
+
+  /** Opening the emailed link lands here with a one-time code: finish signing in, then clean the address bar. */
+  async function completeEmailLink() {
+    const href = window.location.href;
+    if (!sdk.isSignInWithEmailLink?.(auth, href)) return;
+    const email = storage(() => localStorage.getItem(EMAIL_FOR_LINK_KEY)) || (await askEmail()); // another device asks
+    try {
+      if (email) await sdk.signInWithEmailLink(auth, email, href);
+      storage(() => localStorage.removeItem(EMAIL_FOR_LINK_KEY));
+    } finally {
+      window.history.replaceState(null, '', window.location.pathname); // the code is single-use: drop it
+    }
+  }
+
+  function askEmail() {
+    return new Promise((resolve) => {
+      let value = null;
+      const input = ui.h('input', { class: 'signin__email', type: 'email', autocomplete: 'email', placeholder: t('account.emailPlaceholder'), 'aria-label': t('account.continueEmail') });
+      ui.modal({
+        title: t('account.confirmEmailTitle'),
+        content: ui.h('div', { class: 'signin' }, ui.h('p', { class: 'signin__subtitle text-muted' }, t('account.confirmEmailBody')), input),
+        actions: [{ label: t('common.cancel') }, { label: t('common.confirm'), primary: true, onClick: () => { value = input.value.trim() || null; } }],
+        className: 'modal--signin',
+        onClose: () => resolve(value),
+      });
+    });
   }
 
   async function signOut({ clear = false } = {}) {
@@ -303,6 +384,7 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
   const reportError = () => ui.toast(t('account.signInError'));
   sdk.onAuthStateChanged(auth, (user) => (user ? connect(user) : disconnect()).catch(reportError));
   sdk.getRedirectResult(auth).catch((error) => !CANCELLED_CODES.has(error?.code) && reportError());
+  completeEmailLink().catch(reportError);
   return { signIn, signOut };
 }
 
@@ -337,10 +419,10 @@ export async function initAuth({ store, ui, i18n, slot, setSignedIn, config = fi
     slot,
     ui,
     i18n,
-    onSignIn: () => {
+    onSignIn: (method) => {
       if (!config) return showNotConnected(ui, i18n);
       view.setBusy(true);
-      run(async () => (await session()).signIn()).finally(() => view.setBusy(false));
+      run(async () => (await session()).signIn(method)).finally(() => view.setBusy(false));
     },
     onSignOut: () => run(async () => (await session()).signOut()),
     onSignOutClear: () => run(async () => (await session()).signOut({ clear: true })),
