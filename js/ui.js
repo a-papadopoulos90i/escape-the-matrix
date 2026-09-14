@@ -494,13 +494,15 @@ export function stageNav({ onBack, onNext, backLabel = t('nav.back'), nextLabel 
 }
 
 /** Centred current-day display; the discreet ‹ › arrows appear only when handlers are given (Prioritize
- *  steps the day, Write down just names it). */
-function daySwitcher({ label, onPrev, onNext }) {
+ *  steps the day, Write down just names it). With `onPick` the label opens a date picker. */
+function daySwitcher({ label, onPrev, onNext, onPick }) {
   return h(
     'div',
     { class: 'stage-nav__day' },
     onPrev && h('button', { class: 'btn-icon stage-nav__day-arrow', type: 'button', 'aria-label': t('day.prev'), onClick: onPrev }, icon('chevron-left', { size: 18 })),
-    h('span', { class: 'stage-nav__day-label' }, label),
+    onPick
+      ? h('button', { class: 'stage-nav__day-label stage-nav__day-pick', type: 'button', 'aria-haspopup': 'dialog', title: t('day.pick'), onClick: (event) => onPick(event.currentTarget) }, label)
+      : h('span', { class: 'stage-nav__day-label' }, label),
     onNext && h('button', { class: 'btn-icon stage-nav__day-arrow', type: 'button', 'aria-label': t('day.next'), onClick: onNext }, icon('chevron-right', { size: 18 })),
   );
 }

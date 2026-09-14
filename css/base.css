@@ -496,6 +496,93 @@ a {
   color: var(--muted);
 }
 
+/* Prioritize: the day label opens the date picker. */
+.stage-nav__day-pick {
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--dur-fast);
+}
+
+.stage-nav__day-pick:hover,
+.stage-nav__day-pick[aria-expanded='true'] {
+  background: var(--hover);
+}
+
+.popover--day-picker {
+  max-width: calc(100vw - 16px);
+}
+
+.day-picker__head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+
+.day-picker__title {
+  text-align: center;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.day-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 38px);
+  gap: 2px;
+}
+
+.day-picker__weekday {
+  padding-bottom: 4px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.day-picker__day {
+  height: 38px;
+  border: 1.5px solid transparent;
+  border-radius: 50%;
+  background: none;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.day-picker__day:hover {
+  background: var(--hover);
+}
+
+.day-picker__day.is-outside {
+  color: var(--muted);
+  opacity: 0.55;
+}
+
+.day-picker__day.is-today {
+  border-color: var(--today);
+  color: var(--today);
+  font-weight: 600;
+}
+
+.day-picker__day.is-selected {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-fg);
+  font-weight: 600;
+  opacity: 1;
+}
+
+.day-picker__foot {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-2);
+}
+
 .stage-nav__day-arrow:hover {
   color: var(--ink);
 }

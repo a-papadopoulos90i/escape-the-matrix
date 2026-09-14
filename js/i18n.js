@@ -86,6 +86,7 @@ export const strings = {
   'day.goToToday': 'Go to today',
   'day.prev': 'Previous day',
   'day.next': 'Next day',
+  'day.pick': 'Choose a date',
   'day.progress': '{done}/{total} done',
   'day.doneOf': '{done} of {total} done',
   'day.waiting': '{n} waiting',

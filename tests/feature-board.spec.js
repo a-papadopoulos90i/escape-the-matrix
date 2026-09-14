@@ -271,6 +271,43 @@ test('"Pull them here" is offered only on the real today, for unfinished work fr
   await expect(strip()).toHaveCount(1);
 });
 
+test('clicking the day label opens a month picker: flip months, pick a day, jump back to today, use the keyboard', async ({ page }) => {
+  await page.clock.setFixedTime(new Date(2026, 2, 11, 9, 0, 0)); // today = Wed 11 Mar 2026 (= DAY)
+  await seed(page, { tasks: SORTED() });
+  await page.goto('/');
+  const dayLabel = () => panel(page).locator('.stage-nav__day-label');
+  const picker = page.getByRole('dialog', { name: 'Choose a date' });
+
+  await dayLabel().click();
+  await expect(picker).toBeVisible();
+  await expect(picker.locator('.day-picker__title')).toHaveText('March 2026');
+  await expect(picker.getByRole('button', { name: 'Wednesday, 11 March 2026' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(picker.getByRole('button', { name: 'Wednesday, 11 March 2026' })).toBeFocused();
+  await picker.screenshot({ path: path.join(SHOTS, 'day-picker.png') });
+
+  await picker.getByRole('button', { name: 'Next month' }).click();
+  await expect(picker.locator('.day-picker__title')).toHaveText('April 2026');
+  await picker.getByRole('button', { name: 'Friday, 17 April 2026' }).click();
+  await expect(picker).toHaveCount(0);
+  await expect(dayLabel()).toHaveText('Fri 17 Apr');
+
+  await dayLabel().click();
+  await expect(picker.locator('.day-picker__title')).toHaveText('April 2026');
+  await picker.getByRole('button', { name: 'Today' }).click();
+  await expect(dayLabel()).toHaveText('Wed 11 Mar');
+
+  await dayLabel().click();
+  await page.keyboard.press('ArrowDown'); // a week later
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Enter');
+  await expect(dayLabel()).toHaveText('Thu 19 Mar');
+
+  await dayLabel().click();
+  await page.keyboard.press('Escape');
+  await expect(picker).toHaveCount(0);
+  await expect(dayLabel()).toHaveText('Thu 19 Mar');
+});
+
 test('dragging a waiting-list card shrinks it to the size of a card inside a quadrant', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 1000 });
   await seed(page, { tasks: [...SORTED(), task('t_wait', 'Book the venue', null, { tag: 'delegate' })] });

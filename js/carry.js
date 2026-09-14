@@ -49,7 +49,84 @@ export function dayNav(ctx) {
     label: ctx.dates.formatShort(ctx.getDate()),
     onPrev: () => ctx.setDate(ctx.dates.addDays(ctx.getDate(), -1)),
     onNext: () => ctx.setDate(ctx.dates.addDays(ctx.getDate(), 1)),
+    onPick: (anchor) => openDayPicker(ctx, anchor),
   };
+}
+
+/** Month grid under the day label: flip months, pick any day, or jump back to today. Arrow keys move
+ *  the focused day (a week with ↑ ↓), Enter picks it. */
+export function openDayPicker(ctx, anchor) {
+  const { ui, dates } = ctx;
+  const { h } = ui;
+  const { t } = ctx.i18n;
+  const selected = ctx.getDate();
+  const today = dates.todayKey();
+  let focusKey = selected;
+  let month = dates.monthOfKey(selected);
+  let api = null;
+
+  const pick = (key) => {
+    api.close();
+    if (key !== selected) ctx.setDate(key);
+  };
+  const title = h('span', { class: 'day-picker__title', 'aria-live': 'polite' });
+  const grid = h('div', { class: 'day-picker__grid' });
+  const render = ({ focus = false } = {}) => {
+    const { year, month: m } = dates.fromMonthKey(month);
+    title.textContent = `${dates.monthName(m)} ${year}`;
+    grid.replaceChildren(
+      ...dates.WEEKDAY_SHORT.map((day) => h('span', { class: 'day-picker__weekday', 'aria-hidden': 'true' }, day.slice(0, 2))),
+      ...dates.monthGrid(year, m, true).flat().map((key) => {
+        const classes = ['day-picker__day', dates.monthOfKey(key) !== month && 'is-outside', key === today && 'is-today', key === selected && 'is-selected'];
+        return h(
+          'button',
+          {
+            class: classes.filter(Boolean).join(' '),
+            type: 'button',
+            tabindex: key === focusKey ? 0 : -1,
+            'aria-label': dates.formatLong(key),
+            'aria-current': key === today ? 'date' : null,
+            'aria-pressed': String(key === selected),
+            dataset: { day: key },
+            onClick: () => pick(key),
+          },
+          String(Number(key.slice(8))),
+        );
+      }),
+    );
+    if (focus) grid.querySelector(`[data-day="${focusKey}"]`)?.focus();
+  };
+  const showMonth = (step) => {
+    month = dates.addMonths(month, step);
+    if (dates.monthOfKey(focusKey) !== month) focusKey = `${month}-01`;
+    render();
+  };
+  const STEPS = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
+  grid.addEventListener('keydown', (event) => {
+    if (!(event.key in STEPS)) return;
+    event.preventDefault();
+    focusKey = dates.addDays(focusKey, STEPS[event.key]);
+    month = dates.monthOfKey(focusKey);
+    render({ focus: true });
+  });
+
+  render();
+  const content = h(
+    'div',
+    { class: 'day-picker' },
+    h(
+      'div',
+      { class: 'day-picker__head' },
+      h('button', { class: 'btn-icon day-picker__month', type: 'button', 'aria-label': t('calendar.prevMonth'), onClick: () => showMonth(-1) }, ui.icon('chevron-left', { size: 18 })),
+      title,
+      h('button', { class: 'btn-icon day-picker__month', type: 'button', 'aria-label': t('calendar.nextMonth'), onClick: () => showMonth(1) }, ui.icon('chevron-right', { size: 18 })),
+    ),
+    grid,
+    h('div', { class: 'day-picker__foot' }, h('button', { class: 'btn btn-sm', type: 'button', onClick: () => pick(today) }, t('calendar.today'))),
+  );
+  api = ui.popover({ anchor, content, className: 'popover--day-picker', label: t('day.pick') });
+  grid.querySelector(`[data-day="${focusKey}"]`)?.focus();
+  return api;
 }
 
 /** "×3" badge for a task that is on the plan for the 3rd time; null for a first attempt. */
