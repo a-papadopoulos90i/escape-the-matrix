@@ -2,7 +2,7 @@
 // It only ever touches one Reminders list, "Levelix". All merge decisions live in plan.mjs; this script
 // only reads the list and carries out the operations it is given.
 //   read  <file>  — prints [{ id, title, body, completed, date, created, modified }]
-//   apply <file>  — file holds { ops: [{ op: 'create', taskId, title, date } | { op: 'update', id, title?, date?, completed? } | { op: 'delete', id }] }
+//   apply <file>  — file holds { ops: [{ op: 'create', taskId, title, date } | { op: 'update', id, title?, date?, completed?: boolean } | { op: 'delete', id }] }
 //   link  <file>  — file holds { links: [{ reminderId, taskId }] }
 ObjC.import('Foundation');
 
@@ -70,7 +70,7 @@ function apply(app, list, ops) {
       const reminder = reminders.byId(op.id);
       if (op.title !== undefined) reminder.name = op.title;
       if (op.date) reminder.alldayDueDate = toDate(op.date);
-      if (op.completed) reminder.completed = true;
+      if (op.completed !== undefined) reminder.completed = op.completed;
     } else if (op.op === 'delete') {
       app.delete(reminders.byId(op.id));
     }

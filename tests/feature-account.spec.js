@@ -436,7 +436,7 @@ test.describe('Google mode (fake Firebase SDK)', () => {
       const pathname = new URL(request.url()).pathname;
       calls.push({ pathname, body: JSON.parse(request.postData() || '{}') });
       const body = pathname === '/sync'
-        ? { created: 1, updated: 0, deleted: 0, completedInReminders: ['t_local'], changedInReminders: [{ id: 't_local', title: 'Renamed in Reminders', date: '2026-03-20' }], deletedInReminders: [], imports: [{ reminderId: 'x-apple-reminder://R1', title: 'Buy milk', date: '2026-03-12' }] }
+        ? { created: 1, updated: 0, deleted: 0, completedInReminders: ['t_local'], reopenedInReminders: [], changedInReminders: [{ id: 't_local', title: 'Renamed in Reminders', date: '2026-03-20' }], deletedInReminders: [], imports: [{ reminderId: 'x-apple-reminder://R1', title: 'Buy milk', date: '2026-03-12' }] }
         : { linked: 1 };
       await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(body) });
     });

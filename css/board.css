@@ -94,7 +94,7 @@
 .waiting__head {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-1) var(--space-3);
   margin-bottom: var(--space-3);
 }
@@ -109,6 +109,36 @@
   margin: 0;
   color: var(--muted);
   font-size: var(--text-xs);
+}
+
+/* The heading is the fold button: the chevron points right while the list is folded. */
+.waiting__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px 2px 2px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.waiting__toggle:hover {
+  background: var(--surface-2);
+}
+
+.waiting__toggle .icon {
+  transition: transform var(--dur-fast);
+}
+
+.waiting.is-collapsed .waiting__toggle .icon {
+  transform: rotate(-90deg);
+}
+
+.waiting.is-collapsed .waiting__head {
+  margin-bottom: 0;
 }
 
 /* Sort control, pushed to the right end of the heading row. */
@@ -472,6 +502,32 @@
 }
 
 /* Priority tag before the title: the quadrant's coloured glyph; click to change the priority. */
+/* Insert arrow on waiting cards: in the tag's colour, muted when untagged. */
+.task-card__insert {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background var(--dur-fast);
+}
+
+.task-card__insert:hover,
+.task-card__insert:focus-visible {
+  background: var(--surface-2);
+}
+
+.task-card__insert--none {
+  color: var(--muted);
+}
+
+.task-card__insert--none:hover,
+.task-card__insert--none:focus-visible {
+  color: var(--ink);
+}
+
 .task-card__priority {
   flex-shrink: 0;
   width: 26px;

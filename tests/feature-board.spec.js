@@ -217,30 +217,64 @@ test('on the board the tag menu files the card: a priority moves it there, "No p
   expect(errors).toEqual([]);
 });
 
-test('in the waiting list, a tagged card\'s priority icon activates the tag: the card goes straight into that quadrant', async ({ page }) => {
+test('in the waiting list, the insert arrow puts a card on the day in its tag\'s quadrant; untagged ones ask which', async ({ page }) => {
   const errors = collectErrors(page);
   await seed(page, { tasks: [...SORTED(), task('t_wait', 'Book the venue', null, { tag: 'delegate' }), task('t_bare', 'Loose idea', null, { tag: null })] });
   await page.goto('/');
   const waiting = (title) => panel(page).locator('.waiting-card', { hasText: title });
 
-  await expect(waiting('Book the venue').locator('.task-card__priority')).toHaveAttribute('aria-label', 'Move to Delegate');
-  await waiting('Book the venue').locator('.task-card__priority').click();
+  // The arrow sits right after the tick, before the tag icon and the title.
+  const order = await waiting('Book the venue').evaluate((card) => [...card.children].map((el) => el.className.split(' ')[0]));
+  expect(order.slice(0, 4)).toEqual(['task-card__done', 'task-card__insert', 'task-card__priority', 'task-card__title']);
+
+  await expect(waiting('Book the venue').locator('.task-card__insert')).toHaveAttribute('aria-label', 'Put on this day in Delegate');
+  await waiting('Book the venue').locator('.task-card__insert').click();
   await expect(quadrant(page, 'delegate').locator('.task-card', { hasText: 'Book the venue' })).toHaveCount(1);
   await expect(waiting('Book the venue')).toHaveCount(0);
   await expect(page.getByRole('menu')).toHaveCount(0); // no menu — it moved at once
   await waitForSaved(page, (doc) => taskById(doc, 't_wait').quadrant === 'delegate' && taskById(doc, 't_wait').tag === 'delegate');
 
-  // Once placed, the same icon opens the menu again (that behaviour is unchanged).
-  await quadrant(page, 'delegate').locator('.task-card', { hasText: 'Book the venue' }).locator('.task-card__priority').click();
-  await expect(page.getByRole('menuitem', { name: 'No priority' })).toBeVisible();
-  await page.keyboard.press('Escape');
-
-  // An untagged waiting card has nothing to activate: its icon opens the menu.
+  // The tag icon only opens the menu, and nothing in it is disabled: picking the current label just closes it.
   await waiting('Loose idea').locator('.task-card__priority').click();
-  await expect(page.getByRole('menuitem', { name: 'Urgent / Important', exact: true })).toBeVisible();
-  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menuitem', { name: 'No priority' })).toBeEnabled();
+  await page.getByRole('menuitem', { name: 'No priority' }).click();
+  await expect(page.getByRole('menu')).toHaveCount(0);
   await expect(waiting('Loose idea')).toHaveCount(1);
+
+  // An untagged card's arrow asks for a priority, then puts the task there.
+  await waiting('Loose idea').locator('.task-card__insert').click();
+  await page.getByRole('menuitem', { name: 'Urgent / Important', exact: true }).click();
+  await expect(quadrant(page, 'do').locator('.task-card', { hasText: 'Loose idea' })).toHaveCount(1);
+  await waitForSaved(page, (doc) => taskById(doc, 't_bare').quadrant === 'do' && taskById(doc, 't_bare').tag === 'do');
   expect(errors).toEqual([]);
+});
+
+test('the waiting list starts folded behind its heading and opens on click (remembered per browser)', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('levelix:keepWaitingDefault')) return;
+    sessionStorage.setItem('levelix:keepWaitingDefault', '1');
+    localStorage.removeItem('levelix:waitingOpen');
+  });
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await seed(page, { tasks: [...SORTED(), task('t_wait', 'Book the venue', null, { tag: 'delegate' })] });
+  await page.goto('/');
+  const toggle = () => panel(page).locator('.waiting__toggle');
+
+  await expect(toggle()).toHaveAttribute('aria-expanded', 'false');
+  await expect(toggle()).toHaveText('Waiting list (1)');
+  await expect(panel(page).locator('.waiting-card')).toHaveCount(0);
+  await expect(panel(page).locator('.waiting__sort')).toHaveCount(0);
+  await panel(page).locator('.waiting').screenshot({ path: path.join(SHOTS, 'waiting-folded.png') });
+
+  await toggle().click();
+  await expect(toggle()).toHaveAttribute('aria-expanded', 'true');
+  await expect(panel(page).locator('.waiting-card', { hasText: 'Book the venue' })).toHaveCount(1);
+  await panel(page).locator('.waiting').screenshot({ path: path.join(SHOTS, 'waiting-open.png') });
+
+  await page.reload();
+  await expect(toggle()).toHaveAttribute('aria-expanded', 'true');
+  await toggle().click();
+  await expect(panel(page).locator('.waiting-card')).toHaveCount(0);
 });
 
 test('"Pull them here" is offered only on the real today, for unfinished work from the days before it', async ({ page }) => {

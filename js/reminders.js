@@ -55,13 +55,14 @@ export async function syncWithReminders({ store, ui, i18n }) {
   }
 
   // A bridge started before an update answers without the newer lists: say so instead of pretending it synced.
-  if (!Array.isArray(result.changedInReminders) || !Array.isArray(result.deletedInReminders)) {
+  if (!['changedInReminders', 'deletedInReminders', 'reopenedInReminders'].every((key) => Array.isArray(result[key]))) {
     ui.toast(t('reminders.outdated'), { duration: 12000 });
     return;
   }
   const links = [];
   store.undoable(() => {
     for (const id of result.completedInReminders) store.toggleDone(id, true);
+    for (const id of result.reopenedInReminders) store.toggleDone(id, false); // unticked in Reminders
     // Edited in Reminders since the last sync: a new title or day (no day = back to today's waiting list).
     for (const change of result.changedInReminders) {
       if (!store.findTask(change.id)) continue;
@@ -88,7 +89,7 @@ export async function syncWithReminders({ store, ui, i18n }) {
       sent: result.created + result.updated,
       imported: result.imports.length,
       changed: result.changedInReminders.length,
-      completed: result.completedInReminders.length,
+      completed: result.completedInReminders.length + result.reopenedInReminders.length,
       deleted: result.deleted + result.deletedInReminders.length,
     }),
     { duration: 6000 },

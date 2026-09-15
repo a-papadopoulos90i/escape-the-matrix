@@ -1,7 +1,7 @@
 // Pure merge between Levelix tasks and the "Levelix" Reminders list — no I/O, unit-tested.
 //
 // `state[taskId]` is what both sides agreed on at the end of the previous sync:
-//   { title, rDate, lDate, placed }  (rDate = the reminder's day or null, lDate = the task's day)
+//   { title, rDate, lDate, placed, done }  (rDate = the reminder's day or null, lDate = the task's day)
 // With it every field is a three-way merge: a side that changed since then wins; when both changed,
 // Levelix wins. Without it (links made before the state existed) the reminder wins only when it was
 // edited after the task and after it was created.
@@ -25,7 +25,7 @@ export function planSync({ tasks = [], deleted = [], reminders = [], state = {},
     if (match && !byTask.has(match[1])) byTask.set(match[1], reminder);
   }
   const ops = [];
-  const result = { created: 0, updated: 0, deleted: 0, completedInReminders: [], changedInReminders: [], deletedInReminders: [], imports: [] };
+  const result = { created: 0, updated: 0, deleted: 0, completedInReminders: [], reopenedInReminders: [], changedInReminders: [], deletedInReminders: [], imports: [] };
   const next = { ...state };
   const gone = new Set(deleted);
 
@@ -36,15 +36,15 @@ export function planSync({ tasks = [], deleted = [], reminders = [], state = {},
 
     if (!reminder) {
       if (base) {
-        // It was linked, so the reminder was deleted (or moved out of the list) in Reminders.
+        // It was linked, so the reminder was deleted (or moved out of the list) in Reminders: delete the task too.
         delete next[task.id];
-        if (!task.done) result.deletedInReminders.push(task.id); // finished history stays in Levelix
+        result.deletedInReminders.push(task.id);
         continue;
       }
       if (task.done) continue;
       const date = task.placed ? task.date : null;
       ops.push({ op: 'create', taskId: task.id, title: task.title, date });
-      next[task.id] = { title: task.title, rDate: date, lDate: task.date, placed: task.placed };
+      next[task.id] = { title: task.title, rDate: date, lDate: task.date, placed: task.placed, done: false };
       result.created += 1;
       continue;
     }
@@ -84,15 +84,26 @@ export function planSync({ tasks = [], deleted = [], reminders = [], state = {},
       }
     }
 
-    if (task.done && !reminder.completed) patch.completed = true;
-    else if (!task.done && reminder.completed) result.completedInReminders.push(task.id);
+    // Ticks: a side that changed since the last sync wins; when both changed, Levelix wins. Without a record
+    // (older links), the reminder wins only when it was edited after the task.
+    let done = task.done;
+    if (task.done !== reminder.completed) {
+      const reminderWins =
+        base?.done === undefined ? reminder.modified > Date.parse(task.updatedAt) : reminder.completed !== base.done && task.done === base.done;
+      if (reminderWins) {
+        done = reminder.completed;
+        (done ? result.completedInReminders : result.reopenedInReminders).push(task.id);
+      } else {
+        patch.completed = task.done;
+      }
+    }
 
     if (Object.keys(patch).length) {
       ops.push({ op: 'update', id: reminder.id, ...patch });
       result.updated += 1;
     }
     if (Object.keys(change).length) result.changedInReminders.push({ id: task.id, ...change });
-    next[task.id] = { title, rDate, lDate, placed };
+    next[task.id] = { title, rDate, lDate, placed, done };
   }
 
   for (const id of gone) {

@@ -4,8 +4,8 @@
 // (timer / postpone / next day) opened from a task title or its clock.
 import * as timer from '../timer.js';
 import { QUADRANTS, isRecord } from '../store.js';
-import { carryStrip, attemptBadge, recordLabel, dayNav, QUAD_ICON } from '../carry.js';
-import { priorityButton, tagPlaces } from '../tags.js';
+import { carryStrip, attemptBadge, recordLabel, dayNav, QUAD_ICON, quadrantAxes, quadrantGlyph } from '../carry.js';
+import { fileWithTag, priorityButton, tagPlaces } from '../tags.js';
 
 const PRESET_MINUTES = [5, 15, 25, 45, 60];
 const TIP_ROOM = 150; // px free beside the matrix needed to put the "Done mark" bubble on the left
@@ -376,45 +376,108 @@ function openSortMenu(anchor) {
   });
 }
 
+// The waiting list follows you on every day, so it stays folded behind its button until opened (remembered per browser).
+const OPEN_KEY = 'levelix:waitingOpen';
+let openChoice = null; // this session's choice, for when storage is blocked
+
+function waitingOpen() {
+  if (openChoice !== null) return openChoice;
+  try {
+    return localStorage.getItem(OPEN_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function toggleWaiting() {
+  openChoice = !waitingOpen();
+  try {
+    localStorage.setItem(OPEN_KEY, openChoice ? '1' : '0');
+  } catch {
+    /* storage blocked — the choice lasts for this visit */
+  }
+  render();
+}
+
 function waitingPanel(tasks) {
   const { ui, i18n } = ctx;
   const active = tasks.filter((task) => !isRecord(task));
+  const open = waitingOpen();
   return ui.h(
     'section',
-    { class: 'waiting', 'aria-labelledby': 'waiting-label' },
+    { class: `waiting ${open ? '' : 'is-collapsed'}`.trim(), 'aria-labelledby': 'waiting-label' },
     ui.h(
       'div',
       { class: 'waiting__head' },
-      ui.h('h3', { class: 'waiting__label', id: 'waiting-label' }, i18n.t('board.waiting', { n: active.length })),
-      ui.h('p', { class: 'waiting__hint' }, i18n.t('board.waitingHint')),
       ui.h(
-        'button',
-        {
-          class: 'btn btn-sm waiting__sort',
-          type: 'button',
-          'aria-haspopup': 'menu',
-          'aria-label': i18n.t('board.sort.label', { current: i18n.t(`board.sort.${waitingSort()}`) }),
-          dataset: { focusKey: 'waiting-sort' },
-          onClick: (event) => openSortMenu(event.currentTarget),
-        },
-        i18n.t(`board.sort.${waitingSort()}`),
-        ui.icon('chevron-down', { size: 14 }),
+        'h3',
+        { class: 'waiting__label', id: 'waiting-label' },
+        ui.h(
+          'button',
+          { class: 'waiting__toggle', type: 'button', 'aria-expanded': String(open), 'aria-controls': 'waiting-list', dataset: { focusKey: 'waiting-toggle' }, onClick: toggleWaiting },
+          ui.icon('chevron-down', { size: 16 }),
+          i18n.t('board.waiting', { n: active.length }),
+        ),
       ),
+      ui.h('p', { class: 'waiting__hint' }, i18n.t('board.waitingHint')),
+      open &&
+        ui.h(
+          'button',
+          {
+            class: 'btn btn-sm waiting__sort',
+            type: 'button',
+            'aria-haspopup': 'menu',
+            'aria-label': i18n.t('board.sort.label', { current: i18n.t(`board.sort.${waitingSort()}`) }),
+            dataset: { focusKey: 'waiting-sort' },
+            onClick: (event) => openSortMenu(event.currentTarget),
+          },
+          i18n.t(`board.sort.${waitingSort()}`),
+          ui.icon('chevron-down', { size: 14 }),
+        ),
     ),
-    ui.h('div', { class: 'waiting__list' }, tasks.map(waitingCard)),
+    open ? ui.h('div', { class: 'waiting__list', id: 'waiting-list' }, tasks.map(waitingCard)) : null,
   );
+}
+
+const INSERT_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M5 3h14"/><path d="m18 13-6-6-6 6"/><path d="M12 7v14"/></svg>';
+
+/** The insert arrow: puts the waiting task on the open day, in its tag's quadrant — or, untagged, asks which. */
+function insertButton(task) {
+  const { ui, i18n } = ctx;
+  const label = task.tag ? i18n.t('board.insertAs', { label: i18n.quadrantLabel(task.tag) }) : i18n.t('board.insertPick');
+  return ui.h(
+    'button',
+    {
+      class: `task-card__insert ${task.tag ? `priority-icon--${task.tag}` : 'task-card__insert--none'}`,
+      type: 'button',
+      'aria-haspopup': task.tag ? null : 'menu',
+      'aria-label': label,
+      title: label,
+      dataset: { focusKey: `insert:${task.id}` },
+      onClick: (event) => (task.tag ? fileWithTag(ctx, task, task.tag) : openInsertMenu(task, event.currentTarget)),
+    },
+    ui.h('span', { 'aria-hidden': 'true', html: INSERT_ICON }),
+  );
+}
+
+function openInsertMenu(task, anchor) {
+  ctx.ui.menu({
+    anchor,
+    items: QUADRANTS.map((quadrant) => ({ label: quadrantAxes(ctx, quadrant), iconEl: quadrantGlyph(ctx, quadrant), onSelect: () => fileWithTag(ctx, task, quadrant) })),
+  });
 }
 
 function waitingCard(task) {
   if (isRecord(task)) return recordCard(task);
   const { ui } = ctx;
-  // A waiting task is completed like any other (its own checkbox), and the four small glyphs TAG it
-  // (Do now / Schedule / Delegate / Drop). Tagging is a label: it never files the task into a day's
-  // quadrant — drag the card onto one for that. The chosen tag shows right after the done tick.
+  // A waiting task is completed like any other (its own checkbox). The insert arrow right after it puts the
+  // task on this day in its tag's quadrant; the tag icon and the four small glyphs only change the label.
   return ui.h(
     'div',
     { class: `task-card waiting-card ${task.done ? 'task-card--done' : ''}`.trim(), dataset: { id: task.id } },
     doneControl(task),
+    insertButton(task),
     priorityButton(ctx, task),
     titleButton(task),
     tagPlaces(ctx, task),
@@ -568,7 +631,7 @@ function onClickCapture(event) {
 function draggableCardAt(target) {
   const card = target.closest('.task-card');
   if (!card || card.classList.contains('task-card--new') || card.classList.contains('task-card--record')) return null;
-  if (target.closest('.task-card__check, .task-card__priority, .task-card__clock, .task-card__forward, .task-card__delete, .quadrant__add, .waiting-place')) return null;
+  if (target.closest('.task-card__check, .task-card__priority, .task-card__insert, .task-card__clock, .task-card__forward, .task-card__delete, .quadrant__add, .waiting-place, .waiting__toggle')) return null;
   return card;
 }
 

@@ -148,7 +148,7 @@ for (const [label, viewport] of Object.entries({ desktop: { width: 1280, height:
   });
 }
 
-test('Write down rows carry the waiting list\'s priority controls: glyphs tag, the priority icon files a tagged task', async ({ page }) => {
+test('Write down rows carry the waiting list\'s priority controls: glyphs tag, the priority icon opens the menu', async ({ page }) => {
   const errors = collectErrors(page);
   await seed(page, { stage: 2, tasks: TITLES.slice(0, 2) });
   await page.goto('/');
@@ -171,9 +171,10 @@ test('Write down rows carry the waiting list\'s priority controls: glyphs tag, t
   await page.getByRole('menuitem', { name: 'Urgent / Important', exact: true }).click();
   await expect(rows.nth(1).locator('.task-card__priority')).toHaveClass(/priority-icon--do/);
 
-  // A tagged row's icon activates the tag: the task goes into that quadrant for the open day.
+  // A tagged row's icon opens the menu too: another label re-tags it and the row stays (placing happens on Prioritize).
   await rows.nth(0).locator('.task-card__priority').click();
-  await expect(rows).toHaveCount(1);
-  await expect.poll(async () => { const task = await stored('t_0'); return `${task.quadrant}/${task.tag}/${task.date}`; }).toBe(`plan/plan/${DATE}`);
+  await page.getByRole('menuitem', { name: 'Urgent / Not Important', exact: true }).click();
+  await expect(rows).toHaveCount(2);
+  await expect.poll(async () => { const task = await stored('t_0'); return `${task.quadrant}/${task.tag}`; }).toBe('null/delegate');
   expect(errors).toEqual([]);
 });

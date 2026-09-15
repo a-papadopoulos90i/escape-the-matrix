@@ -7,26 +7,24 @@ import { QUAD_ICON, quadrantGlyph, quadrantAxes } from './carry.js';
 const TAG_OUTLINE =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M3.5 11.6V4.6a1 1 0 0 1 1-1h7l8.4 8.4-8 8z"/><circle cx="7.6" cy="7.6" r="1.3"/></svg>';
 
-/** The task's priority TAG, shown right before the title. A tagged task that is not placed yet goes
- *  straight into its tag's quadrant for the open day ("activate the tag"); an untagged one, or a
- *  card already placed, opens the priority menu. Untagged tasks show a muted tag glyph. */
+/** The task's priority TAG, shown right before the title. It always opens the priority menu (placing a
+ *  waiting task on the day is the separate insert icon on Prioritize). Untagged tasks show a muted tag glyph. */
 export function priorityButton(ctx, task) {
   const { ui, i18n } = ctx;
   const glyph = task.tag
     ? `<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">${QUAD_ICON[task.tag]}</svg>`
     : TAG_OUTLINE;
-  const activates = task.quadrant === null && Boolean(task.tag);
-  const label = activates ? i18n.t('board.activateTag', { label: i18n.quadrantLabel(task.tag) }) : i18n.t('board.changePriority');
+  const label = i18n.t('board.changePriority');
   return ui.h(
     'button',
     {
       class: `task-card__priority ${task.tag ? `priority-icon--${task.tag}` : 'task-card__priority--none'}`,
       type: 'button',
-      'aria-haspopup': activates ? null : 'menu',
+      'aria-haspopup': 'menu',
       'aria-label': label,
       title: label,
       dataset: { focusKey: `priority:${task.id}` },
-      onClick: (event) => (activates ? fileWithTag(ctx, task, task.tag) : openPriorityMenu(ctx, task, event.currentTarget)),
+      onClick: (event) => openPriorityMenu(ctx, task, event.currentTarget),
     },
     ui.h('span', { 'aria-hidden': 'true', html: glyph }),
   );
@@ -60,20 +58,18 @@ function tagIconButton(ctx, task, quadrant) {
 
 /** The five-option priority menu. On a placed card it FILES the card: another priority moves it there
  *  (labelled to match), "No priority" sends it back to the waiting list. On an unplaced task it only
- *  sets the label, like the glyphs. */
+ *  sets the label, like the glyphs. No option is disabled: picking the current one simply closes the menu. */
 export function openPriorityMenu(ctx, task, anchor) {
   const { ui, i18n, store } = ctx;
   const placed = task.quadrant !== null;
   const items = QUADRANTS.map((quadrant) => ({
     label: quadrantAxes(ctx, quadrant),
     iconEl: quadrantGlyph(ctx, quadrant),
-    disabled: placed ? task.quadrant === quadrant && task.tag === quadrant : task.tag === quadrant,
     onSelect: () => (placed ? fileWithTag(ctx, task, quadrant) : store.setTag(task.id, quadrant)),
   }));
   items.push('-', {
     label: i18n.t('board.noTag'),
     icon: 'tag',
-    disabled: !placed && !task.tag,
     onSelect: () => (placed ? fileWithTag(ctx, task, null) : store.setTag(task.id, null)),
   });
   ui.menu({ anchor, items });
