@@ -389,6 +389,27 @@ test('the time report sums tracked time per task, most first', async ({ page }) 
   await expect(dialog.locator('.analysis__total')).toContainText('1:40:00'); // + 600 s
 });
 
+test('flipped cells preview only prioritised tasks, each with a dot in its priority colour', async ({ page }) => {
+  await onAWeekday(page);
+  const doc = makeDoc();
+  const base = { ...doc.tasks[0], date: '2026-03-17', timer: null, done: false };
+  doc.tasks.push(
+    { ...base, id: 't_plan', title: 'Plan the trip', quadrant: 'plan', order: 1 },
+    { ...base, id: 't_wait', title: 'Still waiting', quadrant: null, order: 2 },
+    { ...base, id: 't_deleg', title: 'Ask Maria', quadrant: 'delegate', order: 3, done: true },
+  );
+  await seed(page, { doc });
+  await page.goto('/');
+  await panel(page).locator('.calendar__flip').click();
+  const items = cell(page, '2026-03-17').locator('.calendar__preview-item');
+  await expect(items).toHaveCount(2); // the waiting-list task stays off the day
+  await expect(items.locator('.calendar__preview-text')).toHaveText(['Plan the trip', 'Ask Maria']);
+  const dotColour = (i) => items.nth(i).locator('.calendar__preview-dot').evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(await dotColour(0)).toBe('rgb(225, 144, 31)'); // Schedule — yellow
+  expect(await dotColour(1)).toBe('rgb(35, 130, 186)'); // Delegate — blue
+  await cell(page, '2026-03-17').screenshot({ path: path.join(OUT, 'flip-cell-dots.png') });
+});
+
 test('Manage mode: flip the calendar, then a day popup adds and deletes tasks', async ({ page }) => {
   await onAWeekday(page);
   await seed(page); // DAYS puts 5 tasks on 2026-03-02

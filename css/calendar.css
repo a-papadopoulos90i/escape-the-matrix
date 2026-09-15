@@ -445,14 +445,34 @@ body.is-signed-in .calendar__demo-row {
 }
 
 .calendar__preview-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+/* The task's priority as a small dot in that priority's colour (colour comes from .priority-icon--*). */
+.calendar__preview-dot {
+  flex-shrink: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.calendar__preview-text {
+  min-width: 0;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
 .calendar__preview-item.is-done {
-  text-decoration: line-through;
   opacity: 0.55;
+}
+
+.calendar__preview-item.is-done .calendar__preview-text {
+  text-decoration: line-through;
 }
 
 .calendar--flipped .calendar__day {

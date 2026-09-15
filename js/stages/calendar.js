@@ -4,7 +4,8 @@
 // task) when planned, a blue border for today and a soft ring on the selected day. Clicking a day
 // opens Stage 2 for today, Stage 3 (the board) for any other day.
 //
-// A "Manage" toggle flips the calendar over: each cell then previews the day's task titles, and
+// A "Manage" toggle flips the calendar over: each cell then previews the day's prioritised tasks (a dot in
+// each priority's colour), and
 // tapping a day opens a popup to add / edit / tick / delete that day's tasks without leaving.
 import { isRecord, QUADRANTS } from '../store.js';
 import { QUAD_ICON, openDayPicker, quadrantGlyph, quadrantAxes } from '../carry.js';
@@ -232,16 +233,24 @@ function dayCell(key, tabbable) {
     key === ctx.getDate() && 'calendar__day--selected',
   ];
 
-  // Manage mode: show a trimmed preview of the day's task titles on the flipped cell.
+  // Manage mode: a trimmed preview of the day's PRIORITISED tasks, each with a dot in its priority's
+  // colour. Waiting-list tasks belong to no day yet, so they stay off the cell.
   const preview = flipped
     ? ui.h(
         'span',
         { class: 'calendar__preview', 'aria-hidden': 'true' },
         store
           .tasksForDate(key)
-          .filter((task) => !isRecord(task))
+          .filter((task) => !isRecord(task) && task.quadrant !== null)
           .slice(0, 4)
-          .map((task) => ui.h('span', { class: `calendar__preview-item ${task.done ? 'is-done' : ''}`.trim() }, task.title)),
+          .map((task) =>
+            ui.h(
+              'span',
+              { class: `calendar__preview-item ${task.done ? 'is-done' : ''}`.trim(), dataset: { quadrant: task.quadrant } },
+              ui.h('span', { class: `calendar__preview-dot priority-icon--${task.quadrant}` }),
+              ui.h('span', { class: 'calendar__preview-text' }, task.title),
+            ),
+          ),
       )
     : null;
 
