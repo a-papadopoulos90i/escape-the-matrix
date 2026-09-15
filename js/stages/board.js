@@ -90,7 +90,7 @@ function render() {
   endDrag(); // a remote change mid-drag would detach the dragged card
   const focusKey = focusedKey();
   const tasks = currentTasks();
-  const waiting = ctx.store.waitingTasks().reverse(); // the global backlog, shared by every day — latest entry first
+  const waiting = sortWaiting(ctx.store.waitingTasks()); // the global backlog, shared by every day
   boardEl.replaceChildren(
     ...[carryStrip(ctx, ctx.getDate()), matrix(tasks.filter((task) => task.quadrant !== null)), quickAdd, waiting.length ? waitingPanel(waiting) : null].filter(Boolean),
   );
@@ -333,6 +333,49 @@ function addRow(quadrant) {
  * day's essentials on the board and the rest in reserve. Each can be placed, or organised from
  * its popover, at any time. Records of tasks pulled forward from here are listed too.
  */
+// ---------- Waiting list order (remembered per browser) ----------
+
+const SORT_KEY = 'levelix:waitingSort';
+const SORTS = ['newest', 'oldest', 'priority'];
+
+function waitingSort() {
+  try {
+    const saved = localStorage.getItem(SORT_KEY);
+    return SORTS.includes(saved) ? saved : 'newest';
+  } catch {
+    return 'newest';
+  }
+}
+
+/** Newest / oldest by creation date, or by priority label (Do now → Drop, unlabelled last; newest first within). */
+function sortWaiting(tasks) {
+  const newest = (a, b) => b.createdAt.localeCompare(a.createdAt) || b.order - a.order;
+  const rank = (task) => (task.tag ? QUADRANTS.indexOf(task.tag) : QUADRANTS.length);
+  const sort = waitingSort();
+  const compare = sort === 'oldest' ? (a, b) => -newest(a, b) : sort === 'priority' ? (a, b) => rank(a) - rank(b) || newest(a, b) : newest;
+  return [...tasks].sort(compare);
+}
+
+function openSortMenu(anchor) {
+  const { ui, i18n } = ctx;
+  const current = waitingSort();
+  ui.menu({
+    anchor,
+    items: SORTS.map((sort) => ({
+      label: i18n.t(`board.sort.${sort}`),
+      iconEl: ui.h('span', { class: 'menu__check', 'aria-hidden': 'true' }, sort === current ? ui.icon('check', { size: 16 }) : null),
+      onSelect: () => {
+        try {
+          localStorage.setItem(SORT_KEY, sort);
+        } catch {
+          /* storage blocked — the order applies until the next render */
+        }
+        render();
+      },
+    })),
+  });
+}
+
 function waitingPanel(tasks) {
   const { ui, i18n } = ctx;
   const active = tasks.filter((task) => !isRecord(task));
@@ -344,6 +387,19 @@ function waitingPanel(tasks) {
       { class: 'waiting__head' },
       ui.h('h3', { class: 'waiting__label', id: 'waiting-label' }, i18n.t('board.waiting', { n: active.length })),
       ui.h('p', { class: 'waiting__hint' }, i18n.t('board.waitingHint')),
+      ui.h(
+        'button',
+        {
+          class: 'btn btn-sm waiting__sort',
+          type: 'button',
+          'aria-haspopup': 'menu',
+          'aria-label': i18n.t('board.sort.label', { current: i18n.t(`board.sort.${waitingSort()}`) }),
+          dataset: { focusKey: 'waiting-sort' },
+          onClick: (event) => openSortMenu(event.currentTarget),
+        },
+        i18n.t(`board.sort.${waitingSort()}`),
+        ui.icon('chevron-down', { size: 14 }),
+      ),
     ),
     ui.h('div', { class: 'waiting__list' }, tasks.map(waitingCard)),
   );

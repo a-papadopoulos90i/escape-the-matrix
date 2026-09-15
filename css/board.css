@@ -111,6 +111,20 @@
   font-size: var(--text-xs);
 }
 
+/* Sort control, pushed to the right end of the heading row. */
+.waiting__sort {
+  align-self: center;
+  margin-left: auto;
+  gap: 4px;
+}
+
+.menu__check {
+  display: inline-flex;
+  width: 16px;
+  flex-shrink: 0;
+  color: var(--primary);
+}
+
 .waiting__list {
   display: flex;
   flex-direction: column;

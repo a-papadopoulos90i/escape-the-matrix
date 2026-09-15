@@ -334,6 +334,38 @@ test('quick add between the matrix and the waiting list: typed tasks land in the
   await panel(page).locator('.board').screenshot({ path: path.join(SHOTS, 'quick-add.png') });
 });
 
+test('the waiting list sorts newest first, oldest first or by priority, and remembers the choice', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  const waitingTask = (id, title, tag, createdAt) => task(id, title, null, { tag, createdAt, updatedAt: createdAt });
+  await seed(page, {
+    tasks: [
+      waitingTask('w_old', 'Old idea', null, '2026-03-01T08:00:00.000Z'),
+      waitingTask('w_mid', 'Book dentist', 'plan', '2026-03-05T08:00:00.000Z'),
+      waitingTask('w_new', 'Pay the bill', 'do', '2026-03-10T08:00:00.000Z'),
+      waitingTask('w_drop', 'Sort old mail', 'delete', '2026-03-08T08:00:00.000Z'),
+    ],
+  });
+  await page.goto('/');
+  const titles = () => panel(page).locator('.waiting .task-card__title');
+  const sortButton = panel(page).locator('.waiting__sort');
+
+  await expect(sortButton).toHaveText('Newest first');
+  await expect(titles()).toHaveText(['Pay the bill', 'Sort old mail', 'Book dentist', 'Old idea']);
+
+  await sortButton.click();
+  await page.getByRole('menuitem', { name: 'Oldest first' }).click();
+  await expect(titles()).toHaveText(['Old idea', 'Book dentist', 'Sort old mail', 'Pay the bill']);
+
+  await sortButton.click();
+  await page.getByRole('menuitem', { name: 'By priority' }).click();
+  await expect(sortButton).toHaveText('By priority');
+  await expect(titles()).toHaveText(['Pay the bill', 'Book dentist', 'Sort old mail', 'Old idea']); // Do now, Schedule, Drop, no label
+  await panel(page).locator('.waiting__head').screenshot({ path: path.join(SHOTS, 'waiting-sort.png') });
+
+  await page.reload();
+  await expect(panel(page).locator('.waiting__sort')).toHaveText('By priority');
+});
+
 test('dragging a waiting-list card shrinks it to the size of a card inside a quadrant', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 1000 });
   await seed(page, { tasks: [...SORTED(), task('t_wait', 'Book the venue', null, { tag: 'delegate' })] });
