@@ -8,15 +8,28 @@ list called **Levelix**, when you press **Sync with Reminders** in Levelix's acc
 1. In Levelix (https://levelix.eu), open the site once with `?reminders=on` at the end of the address:
    `https://levelix.eu/?reminders=on`. The menu item appears only in that browser.
    (`?reminders=off` hides it again.)
-2. Start the bridge on the Mac and leave the Terminal window open:
+2. The bridge starts by itself with the Mac, through the launch agent
+   `~/Library/LaunchAgents/eu.levelix.reminders-bridge.plist` (it restarts on its own if it ever stops).
+   The first run asks macOS for permission to control **Reminders** — press **OK**.
+
+   To run it by hand instead (the agent must be stopped first), use:
 
    ```bash
    node "tools/reminders-bridge/server.mjs"
    ```
 
-   The first run asks macOS for permission to control **Reminders** — press **OK**.
+   Handy commands:
 
-## What one press of "Sync with Reminders" does
+   ```bash
+   launchctl kickstart -k gui/$UID/eu.levelix.reminders-bridge   # restart it after a code change
+   launchctl bootout gui/$UID/eu.levelix.reminders-bridge        # stop it until the next login
+   rm ~/Library/LaunchAgents/eu.levelix.reminders-bridge.plist   # stop it starting with the Mac
+   ```
+
+## What a sync does
+
+It runs on its own: shortly after the site opens, every three minutes, when the tab comes back, and a
+little after each change you make in Levelix. "Sync with Reminders" in the account menu forces one.
 
 - Every open Levelix task (and tasks finished in the last 14 days) is written to the **Levelix** list.
   A task placed on a day gets that day as the reminder's due date, so it also shows in **Calendar**
