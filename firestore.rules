@@ -22,6 +22,12 @@ service cloud.firestore {
       allow create, update: if isOwner(uid) && isEnvelope();
     }
 
+    // What the user pays for. Only the Stripe webhook (Admin SDK) writes here; the app may read its own.
+    match /billing/{uid} {
+      allow read: if isOwner(uid);
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
