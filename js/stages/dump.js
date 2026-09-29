@@ -4,6 +4,7 @@
 // when earlier days still hold unfinished placed tasks, a "Pull them here" button and their list.
 import { attemptBadge, pendingCarry } from '../carry.js';
 import { priorityButton, tagPlaces } from '../tags.js';
+import { canAddTask } from '../plan.js';
 
 const PENCIL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 
@@ -73,9 +74,15 @@ function onAdd(event) {
   event.preventDefault();
   const title = state.addInput.value.trim();
   if (!title) return;
+  if (!roomForTask(state.ctx)) return;
   state.ctx.store.addTask({ title, date: state.date });
   state.addInput.value = '';
   state.addInput.focus();
+}
+
+/** The free plan holds 100 open tasks; past that, adding says so and points at the plans. */
+function roomForTask(ctx) {
+  return canAddTask({ store: ctx.store, ui: ctx.ui, i18n: ctx.i18n, onSeePlans: () => ctx.goTo(0) });
 }
 
 // ---------- Rendering ----------

@@ -301,6 +301,26 @@ test('Repeat: a copy left unfinished on a day that has passed counts a miss and 
   await waitForSaved(page, (doc) => taskById(doc, 't_read').misses === 1 && taskById(doc, 't_copy').deleted === true);
 });
 
+test('the free plan stops at 100 open tasks: adding says so, deleting makes room again', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  const many = Array.from({ length: 100 }, (_, i) => task(`t_f${i}`, `Task ${i + 1}`, null, {}));
+  await seed(page, { tasks: many });
+  await page.goto('/');
+  const input = panel(page).locator('.quick-add .dump__input');
+
+  await input.fill('One too many');
+  await input.press('Enter');
+  await expect(page.locator('.toast', { hasText: 'The free plan holds 100 open tasks' })).toBeVisible();
+  await expect(panel(page).locator('.waiting .task-card__title', { hasText: 'One too many' })).toHaveCount(0);
+
+  // Tick one off — it leaves the open list — and there is room again.
+  await panel(page).locator('.waiting .task-card[data-id="t_f0"] .task-card__check').click();
+  await expect(panel(page).locator('.waiting .task-card')).toHaveCount(99);
+  await input.fill('Now it fits');
+  await input.press('Enter');
+  await expect(panel(page).locator('.waiting .task-card__title', { hasText: 'Now it fits' })).toHaveCount(1);
+});
+
 test('the waiting list starts folded behind its heading and opens on click (remembered per browser)', async ({ page }) => {
   await page.addInitScript(() => {
     if (sessionStorage.getItem('levelix:keepWaitingDefault')) return;

@@ -10,6 +10,7 @@
 // tapping a day opens a popup to add / edit / tick / delete that day's tasks without leaving.
 import { isRecord, QUADRANTS } from '../store.js';
 import { QUAD_ICON, openDayPicker, quadrantGlyph, quadrantAxes } from '../carry.js';
+import { canAddTask } from '../plan.js';
 
 const WEEKS_PER_MONTH = 6; // a month view, and what each "Show more" adds
 
@@ -385,6 +386,7 @@ function openDayPopup(key) {
         event.preventDefault();
         const value = input.value.trim();
         if (!value) return;
+        if (!canAddTask({ store, ui, i18n, onSeePlans: () => ctx.goTo(0) })) return;
         store.addTask({ title: value, date: key });
         input.value = '';
         input.focus();

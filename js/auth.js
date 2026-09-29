@@ -9,6 +9,7 @@ import { createEmptyDoc } from './store.js';
 import { createLocalAdapter } from './storage/local.js';
 import { createCloudAdapter } from './storage/cloud.js';
 import { remindersEnabled, syncWithReminders } from './reminders.js';
+import { createBilling, VoucherError } from './billing.js';
 
 const SDK_BASE = 'https://www.gstatic.com/firebasejs/10.14.1/';
 const SDK_MODULES = ['firebase-app.js', 'firebase-auth.js', 'firebase-firestore.js'];
@@ -53,7 +54,8 @@ function firstName(user) {
  * Renders the account slot. showSignedOut() → Google button; showSignedIn(user, status) → avatar,
  * first name and a status dot that opens the account menu. setStatus() updates in place.
  */
-export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignOutClear, onClearAccount, onSyncReminders, providers = ['google', 'apple', 'email'] }) {
+export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignOutClear, onClearAccount, onSyncReminders, onRedeem, providers = ['google', 'apple', 'email'] }) {
+  let plan = 'free'; // shown in the menu; the real answer lives in Firestore
   const { t } = i18n;
   let user = null;
   let status = 'syncing';
@@ -96,6 +98,7 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignO
     if (menu) return closeMenu();
     const list = ui.h('div', { class: 'menu account-menu__actions', role: 'menu', 'aria-label': t('account.menu') },
       remindersEnabled() && menuItem(t('reminders.sync'), onSyncReminders), // personal Mac bridge, opt-in only
+      plan !== 'pro' && menuItem(t('plan.enterCode'), onRedeem),
       menuItem(t('account.signOut'), onSignOut),
       menuItem(t('account.clearAccount'), onClearAccount, true),
       menuItem(t('account.signOutClear'), onSignOutClear, true),
@@ -117,7 +120,12 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignO
         ui.h(
           'div',
           { class: 'account-menu__who' },
-          ui.h('p', { class: 'account-menu__name' }, user.displayName || firstName(user)),
+          ui.h(
+            'p',
+            { class: 'account-menu__name' },
+            user.displayName || firstName(user),
+            plan === 'pro' ? ui.h('span', { class: 'account-menu__pro' }, t('plan.pro')) : null,
+          ),
           user.email && ui.h('p', { class: 'account-menu__email' }, user.email),
         ),
       ),
@@ -176,6 +184,15 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignO
       for (const [dot, label] of statusNodes) {
         dot.className = `account-dot account-dot--${status}`;
         label.textContent = statusLabel();
+      }
+    },
+
+    /** Free or Pro, as Firestore reports it: the menu shows it and hides the code entry once Pro. */
+    setPlan(next) {
+      plan = next === 'pro' ? 'pro' : 'free';
+      if (menu) {
+        closeMenu();
+        if (user) openMenu(slot.querySelector('.account-btn'));
       }
     },
 
@@ -268,6 +285,7 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
   const db = sdk.getFirestore(app);
   const local = createLocalAdapter();
   let link = null; // { cloud, detach, unsubscribe } while a cloud adapter is attached
+  let billing = null; // watches billing/{uid} while signed in
   let generation = 0; // bumps on every connect/disconnect so stale async work bails out
   let warnedTooLarge = false;
 
@@ -298,11 +316,14 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
     // Whatever a merge adds on top of the server copy is written back so every device converges.
     const unsubscribe = store.subscribe((doc, meta) => meta.reason === 'replace' && cloud.reconcile(doc));
     link = { cloud, detach, unsubscribe };
+    billing = createBilling({ db, uid: user.uid, firestore: sdk, onPlan: (plan) => view.setPlan(plan) });
     cloud.reconcile(store.get());
   }
 
   async function disconnect() {
     generation += 1;
+    billing?.dispose();
+    billing = null;
     const active = link;
     link = null;
     if (active) {
@@ -399,7 +420,49 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
   sdk.onAuthStateChanged(auth, (user) => (user ? connect(user) : disconnect()).catch(reportError));
   sdk.getRedirectResult(auth).catch((error) => !CANCELLED_CODES.has(error?.code) && reportError());
   completeEmailLink().catch(reportError);
-  return { signIn, signOut, clearAccount };
+  /** Turns a voucher code into Pro on this account (the rules do the checking). */
+  function redeem(code) {
+    if (!billing) throw new VoucherError('failed');
+    return billing.redeem(code);
+  }
+
+  return { signIn, signOut, clearAccount, redeem };
+}
+
+/** "I have a code": one field, checked against Firestore when submitted. */
+export function openRedeemModal({ ui, i18n, session }) {
+  const { t } = i18n;
+  const input = ui.h('input', {
+    class: 'redeem__input',
+    type: 'text',
+    autocomplete: 'off',
+    spellcheck: 'false',
+    placeholder: t('plan.codePlaceholder'),
+    'aria-label': t('plan.codeTitle'),
+  });
+  const content = ui.h('div', { class: 'redeem' }, ui.h('p', { class: 'text-muted' }, t('plan.codeHint')), input);
+  const submit = async (api) => {
+    try {
+      await (await session()).redeem(input.value);
+      api.close();
+      ui.toast(t('plan.unlocked'), { duration: 8000 });
+    } catch (error) {
+      const reason = ['invalid', 'unknown', 'used'].includes(error?.reason) ? error.reason : 'failed';
+      ui.toast(t(`plan.code${reason[0].toUpperCase()}${reason.slice(1)}`), { duration: 8000 });
+      input.focus();
+    }
+  };
+  const modal = ui.modal({
+    title: t('plan.codeTitle'),
+    content,
+    actions: [
+      { label: t('common.cancel') },
+      { label: t('plan.unlock'), primary: true, onClick: (api) => (submit(api), false) }, // stays open until a code works
+    ],
+  });
+  input.addEventListener('keydown', (event) => event.key === 'Enter' && submit(modal));
+  input.focus();
+  return modal;
 }
 
 // ---------- Entry point ----------
@@ -443,6 +506,7 @@ export async function initAuth({ store, ui, i18n, slot, setSignedIn, config = fi
     onSignOutClear: () => run(async () => (await session()).signOut({ clear: true })),
     onClearAccount: () => run(async () => (await session()).clearAccount()),
     onSyncReminders: () => syncWithReminders({ store, ui, i18n }),
+    onRedeem: () => openRedeemModal({ ui, i18n, session }),
   });
 
   view.showSignedOut();

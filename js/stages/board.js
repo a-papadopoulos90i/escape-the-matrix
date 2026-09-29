@@ -6,6 +6,7 @@ import * as timer from '../timer.js';
 import { QUADRANTS, isRecord } from '../store.js';
 import { carryStrip, attemptBadge, recordLabel, dayNav, QUAD_ICON, quadrantAxes, quadrantGlyph } from '../carry.js';
 import { fileWithTag, priorityButton, tagPlaces } from '../tags.js';
+import { canAddTask } from '../plan.js';
 
 const PRESET_MINUTES = [5, 15, 25, 45, 60];
 const TIP_ROOM = 150; // px free beside the matrix needed to put the "Done mark" bubble on the left
@@ -119,6 +120,7 @@ function quickAddForm() {
     const title = input.value.trim();
     if (!title) return;
     input.value = '';
+    if (!roomForTask()) return;
     ctx.store.addTask({ title, date: ctx.getDate() }); // re-renders; focus returns to the field by its key
   };
   return ui.h(
@@ -301,6 +303,7 @@ function addRow(quadrant) {
     const title = input.value.trim();
     if (commit && title) {
       // Born in a quadrant, so it carries that quadrant's label from the start.
+      if (!roomForTask()) return;
       ctx.store.addTask({ title, date: ctx.getDate(), quadrant, tag: quadrant }); // the re-render opens a fresh row
       return;
     }
@@ -447,6 +450,11 @@ function waitingPanel(tasks) {
     ),
     open ? ui.h('div', { class: 'waiting__list', id: 'waiting-list' }, tasks.map(waitingCard)) : null,
   );
+}
+
+/** The free plan holds 100 open tasks; past that, adding says so and points at the plans. */
+function roomForTask() {
+  return canAddTask({ store: ctx.store, ui: ctx.ui, i18n: ctx.i18n, onSeePlans: () => ctx.goTo(0) });
 }
 
 const INSERT_ICON =

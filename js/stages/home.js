@@ -1,6 +1,7 @@
 // Home — what the planner is, its three steps (a screenshot beside each, alternating sides), the
 // purpose behind it and why it is free. The logo opens it; it is not one of the stepper tabs.
 import { QUADRANTS } from '../store.js';
+import { payLinks } from '../billing-links.js';
 import { quadrantGlyph } from '../carry.js';
 
 const STEPS = [
@@ -137,6 +138,14 @@ export function mount(container, ctx) {
       cta,
     );
   const proFeatures = ['unlimited', 'timer', 'aiReports', 'voice'];
+  /** A link to Stripe's checkout once that plan has one; until then, a disabled "Coming soon". */
+  function proButton(period, className) {
+    const href = payLinks[period];
+    return href
+      ? h('a', { class: className, href, rel: 'noopener' }, t('home.pricing.goPro'))
+      : h('button', { class: className, type: 'button', disabled: true }, t('home.pricing.soon'));
+  }
+
   const pricing = h(
     'section',
     { class: 'home-section home-pricing', 'aria-labelledby': 'home-pricing-title' },
@@ -146,8 +155,8 @@ export function mount(container, ctx) {
       'ul',
       { class: 'home-plans' },
       plan({ key: 'free', features: ['tasks100', 'stages', 'noCard'], cta: h('button', { class: 'btn', type: 'button', onClick: () => ctx.goTo(1) }, t('home.pricing.startFree')) }),
-      plan({ key: 'monthly', featured: true, features: proFeatures, cta: h('button', { class: 'btn btn-primary', type: 'button', disabled: true }, t('home.pricing.soon')) }),
-      plan({ key: 'yearly', features: proFeatures, cta: h('button', { class: 'btn', type: 'button', disabled: true }, t('home.pricing.soon')) }),
+      plan({ key: 'monthly', featured: true, features: proFeatures, cta: proButton('monthly', 'btn btn-primary') }),
+      plan({ key: 'yearly', features: proFeatures, cta: proButton('yearly', 'btn') }),
     ),
   );
 

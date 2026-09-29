@@ -267,7 +267,9 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await expect(menu.locator('.account-menu__name')).toHaveText('Andreas Papadopoulos');
     await expect(menu.locator('.account-menu__email')).toHaveText('andreas@example.com');
     await expect(menu.locator('.account-menu__status')).toHaveText('Synced ✓');
-    await expect(menu.locator('[role="menuitem"]')).toHaveText(['Sign out', 'Clear account', 'Sign out & clear this device']);
+    await expect(menu.locator('[role="menuitem"]')).toHaveText(['I have a code', 'Sign out', 'Clear account', 'Sign out & clear this device']);
+    await expect(menu.getByRole('menuitem', { name: 'I have a code' })).toBeFocused();
+    await page.keyboard.press('ArrowDown');
     await expect(menu.getByRole('menuitem', { name: 'Sign out', exact: true })).toBeFocused();
     await page.keyboard.press('ArrowDown');
     await expect(menu.getByRole('menuitem', { name: 'Clear account' })).toBeFocused();
@@ -492,6 +494,21 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await page.getByRole('menuitem', { name: 'Sync with Reminders' }).click();
     await expect(page.locator('.toast', { hasText: 'older version' })).toBeVisible();
     await expect(page.locator('.toast', { hasText: 'Reminders synced' })).toHaveCount(0);
+  });
+
+  test('the account menu offers to unlock Pro with a code, and refuses nonsense', async ({ page }) => {
+    await seed(page, { ui: UI_STATE, doc: LOCAL_DOC });
+    await page.goto('/');
+    await startFakeSession(page, { signedIn: true });
+    await page.locator('#account .account-btn').click();
+    await page.getByRole('menuitem', { name: 'I have a code' }).click();
+
+    const dialog = page.getByRole('dialog', { name: 'Unlock Levelix Pro' });
+    await expect(dialog).toBeVisible();
+    await dialog.locator('.redeem__input').fill('abc');
+    await dialog.getByRole('button', { name: 'Unlock' }).click();
+    await expect(page.locator('.toast', { hasText: 'That does not look like a code' })).toBeVisible();
+    await expect(dialog).toBeVisible(); // the dialog stays open so the code can be corrected
   });
 
   test('when the SDK cannot load, free mode stays usable and the button retries on click', async ({ page }) => {
