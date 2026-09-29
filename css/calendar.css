@@ -125,22 +125,31 @@
 
 .calendar__weekdays,
 .calendar__week {
+  position: relative; /* the month's name hangs off to the left */
   display: grid;
-  grid-template-columns: var(--month-gutter) repeat(var(--cols), minmax(0, 1fr));
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
   gap: var(--calendar-gap);
   width: 100%;
-  max-width: calc(var(--calendar-width) + var(--month-gutter) + var(--calendar-gap));
+  max-width: var(--calendar-width);
   margin: 0 auto;
 }
 
-/* The month's name, left of the week it starts in — outside the grid of days. */
+/* The month's name sits outside the grid, so the days stay exactly centred on the page. */
 .calendar__month-mark {
-  align-self: center;
+  position: absolute;
+  top: 50%;
+  right: calc(100% + var(--space-4));
+  transform: translateY(-50%);
+  max-width: var(--month-gutter);
   font-family: var(--font-display);
   font-size: var(--text-md);
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--ink);
+}
+
+.calendar__month-mark.is-empty {
+  display: none;
 }
 
 .calendar__weekday {
@@ -353,24 +362,19 @@ body.is-signed-in .calendar__demo-row {
 }
 
 /* ---------- Responsive ---------- */
+@media (max-width: 1023px) {
+  .calendar__month-mark {
+    position: static;
+    max-width: none;
+    grid-column: 1 / -1;
+    margin-top: var(--space-2);
+    transform: none;
+  }
+}
+
 @media (max-width: 639px) {
   .calendar {
     --calendar-gap: 8px;
-    --month-gutter: 0px;
-  }
-
-  .calendar__weekdays,
-  .calendar__week {
-    grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
-  }
-
-  .calendar__month-mark {
-    grid-column: 1 / -1;
-    margin-top: var(--space-2);
-  }
-
-  .calendar__month-mark.is-empty {
-    display: none;
   }
 
   .calendar--weekends {
