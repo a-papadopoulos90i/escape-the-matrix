@@ -441,6 +441,7 @@ test.describe('Google mode (fake Firebase SDK)', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(body) });
     });
     await page.goto('/?reminders=on');
+    await expect(page.locator('.toast', { hasText: 'Reminders sync is on in this browser' })).toBeVisible();
     await expect.poll(() => page.evaluate(() => location.search)).toBe('');
     await startFakeSession(page, { signedIn: true });
     const accountBtn = page.locator('#account .account-btn');

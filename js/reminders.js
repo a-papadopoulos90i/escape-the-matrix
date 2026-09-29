@@ -6,11 +6,12 @@ const FLAG = 'levelix:remindersBridge';
 const BRIDGE = 'http://127.0.0.1:47827';
 const RECENT_DONE_MS = 14 * 24 * 60 * 60 * 1000; // finished tasks older than this stay out of Reminders
 
-/** ?reminders=on / ?reminders=off switches the opt-in for this browser, then drops the parameter. */
+/** ?reminders=on / ?reminders=off switches the opt-in for this browser, then drops the parameter.
+ *  Returns the value it applied, so the shell can confirm it on screen. */
 export function captureRemindersFlag() {
   const params = new URLSearchParams(window.location.search);
   const value = params.get('reminders');
-  if (value !== 'on' && value !== 'off') return;
+  if (value !== 'on' && value !== 'off') return null;
   try {
     localStorage.setItem(FLAG, value);
   } catch {
@@ -19,6 +20,7 @@ export function captureRemindersFlag() {
   params.delete('reminders');
   const query = params.toString();
   window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`);
+  return value;
 }
 
 export function remindersEnabled() {
