@@ -9,7 +9,8 @@ import { createEmptyDoc } from './store.js';
 import { createLocalAdapter } from './storage/local.js';
 import { createCloudAdapter } from './storage/cloud.js';
 import { remindersEnabled, syncWithReminders } from './reminders.js';
-import { createBilling, VoucherError } from './billing.js';
+import { createBilling, listVouchers, makeVouchers, VoucherError } from './billing.js';
+import { openVoucherModal, vouchersEnabled } from './vouchers.js';
 
 const SDK_BASE = 'https://www.gstatic.com/firebasejs/10.14.1/';
 const SDK_MODULES = ['firebase-app.js', 'firebase-auth.js', 'firebase-firestore.js'];
@@ -54,7 +55,7 @@ function firstName(user) {
  * Renders the account slot. showSignedOut() → Google button; showSignedIn(user, status) → avatar,
  * first name and a status dot that opens the account menu. setStatus() updates in place.
  */
-export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignOutClear, onClearAccount, onSyncReminders, onRedeem, providers = ['google', 'apple', 'email'] }) {
+export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignOutClear, onClearAccount, onSyncReminders, onRedeem, onVouchers, providers = ['google', 'apple', 'email'] }) {
   let plan = 'free'; // shown in the menu; the real answer lives in Firestore
   const { t } = i18n;
   let user = null;
@@ -99,6 +100,7 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignO
     const list = ui.h('div', { class: 'menu account-menu__actions', role: 'menu', 'aria-label': t('account.menu') },
       remindersEnabled() && menuItem(t('reminders.sync'), onSyncReminders), // personal Mac bridge, opt-in only
       plan !== 'pro' && menuItem(t('plan.enterCode'), onRedeem),
+      vouchersEnabled() && menuItem(t('vouchers.menu'), onVouchers), // owner only — the rules decide, not this switch
       menuItem(t('account.signOut'), onSignOut),
       menuItem(t('account.clearAccount'), onClearAccount, true),
       menuItem(t('account.signOutClear'), onSignOutClear, true),
@@ -426,7 +428,14 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
     return billing.redeem(code);
   }
 
-  return { signIn, signOut, clearAccount, redeem };
+  return {
+    signIn,
+    signOut,
+    clearAccount,
+    redeem,
+    makeVouchers: (options) => makeVouchers({ db, firestore: sdk, ...options }),
+    listVouchers: (options) => listVouchers({ db, firestore: sdk, ...options }),
+  };
 }
 
 /** "I have a code": one field, checked against Firestore when submitted. */
@@ -507,6 +516,7 @@ export async function initAuth({ store, ui, i18n, slot, setSignedIn, config = fi
     onClearAccount: () => run(async () => (await session()).clearAccount()),
     onSyncReminders: () => syncWithReminders({ store, ui, i18n }),
     onRedeem: () => openRedeemModal({ ui, i18n, session }),
+    onVouchers: () => openVoucherModal({ ui, i18n, session }),
   });
 
   view.showSignedOut();

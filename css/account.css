@@ -310,3 +310,86 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
+/* Owner's code screen. */
+.vouchers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.vouchers__make {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.vouchers__count,
+.vouchers__period {
+  padding: 8px 10px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font: inherit;
+}
+
+.vouchers__fresh {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.vouchers__fresh-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.vouchers__fresh-codes {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  resize: vertical;
+}
+
+.vouchers__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 34vh;
+  overflow-y: auto;
+}
+
+.vouchers__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.vouchers__row:nth-child(odd) {
+  background: var(--surface-2);
+}
+
+.vouchers__row.is-used {
+  opacity: 0.6;
+}
+
+.vouchers__code {
+  flex: 1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.04em;
+}
+
+.vouchers__period-tag,
+.vouchers__state {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}

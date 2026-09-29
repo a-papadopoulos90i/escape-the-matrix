@@ -126,6 +126,11 @@ async function startFakeSession(page, { remote = REMOTE_ENVELOPE, signedIn = fal
           fake.authListeners.forEach((callback) => callback(null));
         },
         getFirestore: () => ({}),
+        collection: (db, name) => ({ name }),
+        query: (source) => source,
+        orderBy: () => null,
+        limit: () => null,
+        getDocs: async () => ({ forEach: () => {} }), // no codes made in tests
         doc: (db, collection, id) => ({ path: `${collection}/${id}` }),
         getDoc: async () => snapshot(fake.remote, { hasPendingWrites: false, fromCache: false }),
         setDoc: async (ref, data) => {
@@ -509,6 +514,26 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await dialog.getByRole('button', { name: 'Unlock' }).click();
     await expect(page.locator('.toast', { hasText: 'That does not look like a code' })).toBeVisible();
     await expect(dialog).toBeVisible(); // the dialog stays open so the code can be corrected
+  });
+
+  test('the codes screen is hidden unless this browser asked for it, then it opens from the menu', async ({ page }) => {
+    await seed(page, { ui: UI_STATE, doc: LOCAL_DOC });
+    await page.goto('/');
+    await startFakeSession(page, { signedIn: true });
+    await page.locator('#account .account-btn').click();
+    await expect(page.getByRole('menuitem', { name: 'Codes' })).toHaveCount(0); // not for ordinary visitors
+    await page.keyboard.press('Escape');
+
+    await page.goto('/?vouchers=on');
+    await expect(page.locator('.toast', { hasText: 'codes screen is on' })).toBeVisible();
+    await startFakeSession(page, { signedIn: true });
+    await page.locator('#account .account-btn').click();
+    await page.getByRole('menuitem', { name: 'Codes' }).click();
+
+    const dialog = page.getByRole('dialog', { name: 'Levelix Pro codes' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Make codes' })).toBeVisible();
+    await expect(dialog).toContainText('No codes yet');
   });
 
   test('when the SDK cannot load, free mode stays usable and the button retries on click', async ({ page }) => {

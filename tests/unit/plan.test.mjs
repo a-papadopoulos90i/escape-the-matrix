@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { canAddTask, FREE_TASK_LIMIT, isPro, openTaskCount, setPlan } from '../../js/plan.js';
-import { createBilling, normalizeCode, VoucherError } from '../../js/billing.js';
+import { createBilling, listVouchers, makeCode, makeVouchers, normalizeCode, VoucherError } from '../../js/billing.js';
 
 const fakeStore = (tasks) => ({ get: () => ({ tasks }) });
 const task = (extra = {}) => ({ deleted: false, carriedTo: null, done: false, ...extra });
@@ -54,6 +54,13 @@ function fakeFirestore({ vouchers = {}, billing = {} } = {}) {
       next(snapshot(store[ref.collection][ref.id]));
       return () => {};
     },
+    collection: (_db, name) => ({ name }),
+    query: (source) => source,
+    orderBy: () => null,
+    limit: () => null,
+    getDocs: async (source) => ({
+      forEach: (visit) => Object.entries(store[source.name]).forEach(([id, data]) => visit({ id, data: () => data })),
+    }),
   };
 }
 
@@ -81,4 +88,22 @@ test('a code that is unknown, already used or too short is refused', async () =>
   await assert.rejects(() => billing.redeem('used-code-1'), (error) => error.reason === 'used');
   assert.equal(isPro(), false);
   billing.dispose();
+});
+
+test('made codes are unambiguous and each one lands in the vouchers collection unused', async () => {
+  const code = makeCode();
+  assert.match(code, /^LVX[ABCDEFGHJKLMNPQRTUVWXY2346789]{9}$/); // no O/0, I/1, S/5 to mistype
+
+  const firestore = fakeFirestore();
+  const codes = await makeVouchers({ db: {}, firestore, count: 3, period: 'monthly' });
+  assert.equal(codes.length, 3);
+  assert.equal(new Set(codes).size, 3);
+  for (const made of codes) {
+    assert.equal(firestore.store.vouchers[made].redeemedBy, null);
+    assert.equal(firestore.store.vouchers[made].period, 'monthly');
+  }
+
+  const rows = await listVouchers({ db: {}, firestore });
+  assert.deepEqual(rows.map((row) => row.code).sort(), [...codes].sort());
+  assert.deepEqual(rows.map((row) => row.redeemedBy), [null, null, null]);
 });
