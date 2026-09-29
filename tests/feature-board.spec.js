@@ -249,6 +249,58 @@ test('in the waiting list, the insert arrow puts a card on the day in its tag\'s
   expect(errors).toEqual([]);
 });
 
+test('Repeat: a task dragged in stays for good, the arrow sends a copy to the day, and the counters follow', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 1400 });
+  await page.clock.setFixedTime(new Date(2026, 2, 11, 9, 0, 0)); // today = DAY
+  await seed(page, { tasks: [task('t_gym', 'Gym session', null, { tag: 'do' })] });
+  await page.goto('/');
+  const section = panel(page).locator('.repeat');
+  await expect(section).toContainText('Repeat (0)');
+
+  // Drag it out of the waiting list into the Repeat section.
+  const card = panel(page).locator('.waiting-card', { hasText: 'Gym session' });
+  const from = await centre(card.locator('.task-card__title'));
+  const to = await centre(section.locator('.repeat__label'));
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(to.x, to.y, { steps: 10 });
+  await page.mouse.up();
+  await expect(section.locator('.repeat-card', { hasText: 'Gym session' })).toHaveCount(1);
+  await expect(section).toContainText('Repeat (1)');
+  await expect(panel(page).locator('.waiting .waiting-card', { hasText: 'Gym session' })).toHaveCount(0); // gone from the waiting list itself
+  await waitForSaved(page, (doc) => taskById(doc, 't_gym').repeat === true);
+
+  // The arrow sends a COPY to the day; the standing task stays in the section.
+  await section.locator('.repeat-card').locator('.task-card__insert').click();
+  await expect(quadrant(page, 'do').locator('.task-card', { hasText: 'Gym session' })).toHaveCount(1);
+  await expect(section.locator('.repeat-card', { hasText: 'Gym session' })).toHaveCount(1);
+  await expect(section.locator('.repeat-score__hit')).toHaveText('0');
+
+  // Ticking the copy counts a day done; unticking takes it back.
+  await quadrant(page, 'do').locator('.task-card', { hasText: 'Gym session' }).locator('.task-card__check').check();
+  await expect(section.locator('.repeat-score__hit')).toHaveText('1');
+  await expect(section.locator('.repeat-score__miss')).toHaveText('0');
+  await panel(page).locator('.repeat').screenshot({ path: path.join(SHOTS, 'repeat-section.png') });
+  await quadrant(page, 'do').locator('.task-card', { hasText: 'Gym session' }).locator('.task-card__check').uncheck();
+  await expect(section.locator('.repeat-score__hit')).toHaveText('0');
+  await waitForSaved(page, (doc) => taskById(doc, 't_gym').hits === 0);
+});
+
+test('Repeat: a copy left unfinished on a day that has passed counts a miss and clears away', async ({ page }) => {
+  await page.clock.setFixedTime(new Date(2026, 2, 11, 9, 0, 0)); // today = DAY
+  await seed(page, {
+    tasks: [
+      task('t_read', 'Read 20 pages', null, { tag: 'plan', repeat: true, hits: 2, misses: 0 }),
+      task('t_copy', 'Read 20 pages', 'plan', { date: '2026-03-09', repeatOf: 't_read' }),
+    ],
+  });
+  await page.goto('/');
+  const section = panel(page).locator('.repeat');
+  await expect(section.locator('.repeat-score__miss')).toHaveText('1');
+  await expect(section.locator('.repeat-score__hit')).toHaveText('2');
+  await waitForSaved(page, (doc) => taskById(doc, 't_read').misses === 1 && taskById(doc, 't_copy').deleted === true);
+});
+
 test('the waiting list starts folded behind its heading and opens on click (remembered per browser)', async ({ page }) => {
   await page.addInitScript(() => {
     if (sessionStorage.getItem('levelix:keepWaitingDefault')) return;

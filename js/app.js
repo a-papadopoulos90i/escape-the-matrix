@@ -344,6 +344,7 @@ async function boot() {
   window.addEventListener('pagehide', () => store.flush({ immediate: true })); // no timer fires after this
 
   captureRemindersFlag(); // ?reminders=on|off — the owner's personal Reminders bridge
+  store.settleRepeats(dates.todayKey()); // repeat copies left unfinished on a past day count a miss
   restoreUiState();
   els.stepperNav.setAttribute('aria-label', t('stepper.label'));
   els.skipLink.textContent = t('app.skip');

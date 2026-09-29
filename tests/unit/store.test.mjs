@@ -557,3 +557,46 @@ test('normalizeDoc drops invalid tasks, dedupes ids and keeps valid quadrants', 
   assert.equal(doc.tasks[1].timer, null);
   assert.deepEqual(QUADRANTS, ['do', 'plan', 'delegate', 'delete']);
 });
+
+test('repeat tasks stand apart from the waiting list and count hits when their copies are ticked', () => {
+  const { store } = makeStore();
+  const standing = store.addTask({ title: 'Gym session', date: DAY, tag: 'do' });
+  store.setRepeat(standing.id, true);
+
+  assert.deepEqual(store.waitingTasks().map((t) => t.title), []); // it left the waiting list…
+  assert.deepEqual(store.repeatTasks().map((t) => t.title), ['Gym session']); // …for its own section
+
+  // Putting it on a day makes a copy that points back; the repeat task itself stays put.
+  const copy = store.addTask({ title: 'Gym session', date: DAY, quadrant: 'do', tag: 'do', repeatOf: standing.id });
+  assert.equal(store.repeatTasks().length, 1);
+  assert.equal(store.tasksForDate(DAY).filter((t) => t.quadrant === 'do').length, 1);
+
+  store.toggleDone(copy.id, true);
+  assert.equal(store.findTask(standing.id).hits, 1);
+  assert.equal(store.findTask(standing.id).misses, 0);
+  store.toggleDone(copy.id, true); // ticking twice never counts twice
+  assert.equal(store.findTask(standing.id).hits, 1);
+
+  store.toggleDone(copy.id, false); // unticking takes the hit back
+  assert.equal(store.findTask(standing.id).hits, 0);
+});
+
+test('settleRepeats counts a miss for each copy left unfinished on a day that has passed, once', () => {
+  const { store } = makeStore();
+  const standing = store.addTask({ title: 'Read 20 pages', date: '2026-03-09', tag: 'plan' });
+  store.setRepeat(standing.id, true);
+  const missed = store.addTask({ title: 'Read 20 pages', date: '2026-03-09', quadrant: 'plan', repeatOf: standing.id });
+  const finished = store.addTask({ title: 'Read 20 pages', date: '2026-03-10', quadrant: 'plan', repeatOf: standing.id });
+  store.toggleDone(finished.id, true);
+  const todays = store.addTask({ title: 'Read 20 pages', date: DAY, quadrant: 'plan', repeatOf: standing.id });
+
+  store.settleRepeats(DAY);
+  const after = store.findTask(standing.id);
+  assert.equal(after.misses, 1); // only the unfinished copy from a past day
+  assert.equal(after.hits, 1);
+  assert.equal(store.findTask(missed.id), null); // the stale copy is cleared away
+  assert.ok(store.findTask(todays.id)); // today's copy is still in play
+
+  store.settleRepeats(DAY);
+  assert.equal(store.findTask(standing.id).misses, 1); // run twice, counted once
+});

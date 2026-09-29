@@ -81,6 +81,15 @@ function normalizeTask(raw) {
     attempt: Number.isInteger(raw.attempt) && raw.attempt > 0 ? raw.attempt : 1,
     carriedTo: isDateKey(raw.carriedTo) ? raw.carriedTo : null,
     carriedFrom: typeof raw.carriedFrom === 'string' ? raw.carriedFrom : null,
+    // Repeat section: a `repeat` task is a standing one that never leaves the list. Putting it on a
+    // day makes a copy that points back with `repeatOf`; when that copy is ticked it counts a hit on
+    // the repeat task, and when its day passes unfinished it counts a miss. `counted` keeps either
+    // from being counted twice.
+    repeat: raw.repeat === true,
+    hits: Number.isInteger(raw.hits) && raw.hits > 0 ? raw.hits : 0,
+    misses: Number.isInteger(raw.misses) && raw.misses > 0 ? raw.misses : 0,
+    repeatOf: typeof raw.repeatOf === 'string' ? raw.repeatOf : null,
+    counted: raw.counted === true,
     deleted,
     deletedAt: deleted ? (typeof raw.deletedAt === 'string' ? raw.deletedAt : updatedAt) : null,
   };
@@ -319,6 +328,13 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
     return true;
   }
 
+  /** A repeat copy ticked done adds one to its repeat task's hits; unticking takes it back. */
+  function countHit(copy) {
+    if (copy.done === copy.counted) return;
+    patchTask(copy.id, () => ({ counted: copy.done }), 'repeatHit');
+    patchTask(copy.repeatOf, (parent) => ({ hits: Math.max(0, parent.hits + (copy.done ? 1 : -1)) }), 'repeatHit');
+  }
+
   function nextOrder() {
     const maxOrder = doc.tasks.reduce((max, task) => Math.max(max, task.order), 0);
     return Math.max(now(), maxOrder + 1);
@@ -353,7 +369,7 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
     /** The live (not deleted) task with this id, or null. */
     findTask: find,
 
-    addTask({ title, date, quadrant = null, tag = null, attempt = 1, carriedFrom = null }) {
+    addTask({ title, date, quadrant = null, tag = null, attempt = 1, carriedFrom = null, repeatOf = null }) {
       if (!isDateKey(date)) throw new Error(`addTask: invalid date "${date}"`);
       const at = stamp();
       const task = {
@@ -369,6 +385,11 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
         updatedAt: at,
         timer: null,
         attempt: Number.isInteger(attempt) && attempt > 0 ? attempt : 1,
+        repeat: false,
+        hits: 0,
+        misses: 0,
+        repeatOf: typeof repeatOf === 'string' ? repeatOf : null,
+        counted: false,
         carriedTo: null,
         carriedFrom: typeof carriedFrom === 'string' ? carriedFrom : null,
         deleted: false,
@@ -485,21 +506,53 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
       return undoable(() => patchTask(id, () => ({ tag: next }), 'setTag'));
     },
 
-    /** Marking done also stops a live timer on that task. */
+    /** Marking done also stops a live timer on that task — and, on a repeat copy, counts a hit. */
     toggleDone(id, done) {
-      return patchTask(
-        id,
-        (task) => {
-          const next = typeof done === 'boolean' ? done : !task.done;
-          const stopTimer = next && task.timer && !task.timer.stoppedAt;
-          return {
-            done: next,
-            doneAt: next ? stamp() : null,
-            timer: stopTimer ? stoppedTimer(task.timer, now()) : task.timer,
-          };
-        },
-        'toggleDone',
-      );
+      let updated = null;
+      undoable(() => {
+        updated = patchTask(
+          id,
+          (task) => {
+            const next = typeof done === 'boolean' ? done : !task.done;
+            const stopTimer = next && task.timer && !task.timer.stoppedAt;
+            return {
+              done: next,
+              doneAt: next ? stamp() : null,
+              timer: stopTimer ? stoppedTimer(task.timer, now()) : task.timer,
+            };
+          },
+          'toggleDone',
+        );
+        if (updated?.repeatOf) countHit(updated);
+      });
+      return updated && find(id);
+    },
+
+    /** Moves a task into the repeat section (it leaves any quadrant), or back out of it. */
+    setRepeat(id, on) {
+      return undoable(() => patchTask(id, () => (on ? { repeat: true, quadrant: null } : { repeat: false }), 'setRepeat'));
+    },
+
+    /** The standing repeat tasks — shown in their own section, never in the waiting list. */
+    repeatTasks() {
+      return doc.tasks.filter((task) => live(task) && !isRecord(task) && task.repeat).sort(compareTasks);
+    },
+
+    /**
+     * Counts a miss on every repeat copy left unfinished on a day that has now passed, and clears the
+     * copy away. Run when the app opens and when the day changes; counting each copy only once.
+     */
+    settleRepeats(today) {
+      if (!isDateKey(today)) return null;
+      const stale = doc.tasks.filter((task) => live(task) && task.repeatOf && !task.done && !task.counted && task.date < today);
+      if (!stale.length) return null;
+      return undoable(() => {
+        for (const copy of stale) {
+          patchTask(copy.repeatOf, (parent) => ({ misses: parent.misses + 1 }), 'repeatMiss');
+          patchTask(copy.id, () => ({ counted: true }), 'repeatMiss');
+          store.removeTask(copy.id);
+        }
+      });
     },
 
     moveTaskToDate(id, date) {
@@ -524,7 +577,7 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
      */
     waitingTasks() {
       return doc.tasks
-        .filter((task) => live(task) && !isRecord(task) && task.quadrant === null && !task.done)
+        .filter((task) => live(task) && !isRecord(task) && !task.repeat && task.quadrant === null && !task.done)
         .sort(compareTasks);
     },
 
@@ -535,7 +588,7 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
      */
     allTasks() {
       return doc.tasks
-        .filter((task) => live(task) && !isRecord(task) && !task.done)
+        .filter((task) => live(task) && !isRecord(task) && !task.repeat && !task.done)
         .sort(compareTasks);
     },
 

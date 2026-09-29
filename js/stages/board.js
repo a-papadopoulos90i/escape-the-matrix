@@ -53,6 +53,7 @@ export function mount(container, nextCtx) {
   quickAdd = quickAddForm();
   root = ui.h('div', { class: 'stage-body' }, nav, ui.stageHeader({ stage: 3, title: i18n.t('stage.3.title') }), boardEl);
   container.append(root);
+  ctx.store.settleRepeats(ctx.dates.todayKey()); // days that passed with a repeat copy unfinished count a miss
   render();
   unsubscribe = ctx.store.subscribe(onStoreChange);
 }
@@ -92,7 +93,7 @@ function render() {
   const tasks = currentTasks();
   const waiting = sortWaiting(ctx.store.waitingTasks()); // the global backlog, shared by every day
   boardEl.replaceChildren(
-    ...[carryStrip(ctx, ctx.getDate()), matrix(tasks.filter((task) => task.quadrant !== null)), quickAdd, waiting.length ? waitingPanel(waiting) : null].filter(Boolean),
+    ...[carryStrip(ctx, ctx.getDate()), matrix(tasks.filter((task) => task.quadrant !== null)), quickAdd, repeatPanel(ctx.store.repeatTasks()), waiting.length ? waitingPanel(waiting) : null].filter(Boolean),
   );
   markTipAnchor();
   restoreFocus(focusKey);
@@ -455,7 +456,7 @@ function insertButton(task) {
       'aria-label': label,
       title: label,
       dataset: { focusKey: `insert:${task.id}` },
-      onClick: (event) => (task.tag ? fileWithTag(ctx, task, task.tag) : openInsertMenu(task, event.currentTarget)),
+      onClick: (event) => (task.tag ? putOnDay(task, task.tag) : openInsertMenu(task, event.currentTarget)),
     },
     ui.h('span', { 'aria-hidden': 'true', html: INSERT_ICON }),
   );
@@ -464,8 +465,62 @@ function insertButton(task) {
 function openInsertMenu(task, anchor) {
   ctx.ui.menu({
     anchor,
-    items: QUADRANTS.map((quadrant) => ({ label: quadrantAxes(ctx, quadrant), iconEl: quadrantGlyph(ctx, quadrant), onSelect: () => fileWithTag(ctx, task, quadrant) })),
+    items: QUADRANTS.map((quadrant) => ({ label: quadrantAxes(ctx, quadrant), iconEl: quadrantGlyph(ctx, quadrant), onSelect: () => putOnDay(task, quadrant) })),
   });
+}
+
+/** Puts the task on the open day in `quadrant`. A repeat task never leaves its section: it sends a copy. */
+function putOnDay(task, quadrant) {
+  if (!task.repeat) return fileWithTag(ctx, task, quadrant);
+  const { store } = ctx;
+  const last = currentTasks().reduce((max, item) => Math.max(max, item.order + 1), Date.now());
+  store.undoable(() => {
+    const copy = store.addTask({ title: task.title, date: ctx.getDate(), quadrant, tag: quadrant, repeatOf: task.id });
+    store.reorderTask(copy.id, last);
+  });
+}
+
+/** Standing tasks that never leave the list: drag one in to make it repeat, out to stop. Each keeps a
+ *  green count of the days it was done and a red count of the days it was not. */
+function repeatPanel(tasks) {
+  const { ui, i18n } = ctx;
+  return ui.h(
+    'section',
+    { class: 'repeat', 'aria-labelledby': 'repeat-label' },
+    ui.h(
+      'div',
+      { class: 'repeat__head' },
+      ui.h('h3', { class: 'repeat__label', id: 'repeat-label' }, ui.icon('refresh', { size: 15 }), i18n.t('board.repeat', { n: tasks.length })),
+      ui.h('p', { class: 'repeat__hint' }, i18n.t(tasks.length ? 'board.repeatHint' : 'board.repeatEmpty')),
+    ),
+    tasks.length ? ui.h('div', { class: 'repeat__list' }, tasks.map(repeatCard)) : null,
+  );
+}
+
+function repeatCard(task) {
+  const { ui } = ctx;
+  return ui.h(
+    'div',
+    { class: 'task-card waiting-card repeat-card', dataset: { id: task.id } },
+    insertButton(task),
+    priorityButton(ctx, task),
+    repeatScore(task),
+    titleButton(task),
+    tagPlaces(ctx, task),
+    deleteButton(task),
+  );
+}
+
+/** green = days done, red = days missed. */
+function repeatScore(task) {
+  const { ui, i18n } = ctx;
+  const label = i18n.t('board.repeatScore', { hits: task.hits, misses: task.misses });
+  return ui.h(
+    'span',
+    { class: 'repeat-score', title: label, 'aria-label': label },
+    ui.h('span', { class: 'repeat-score__hit' }, String(task.hits)),
+    ui.h('span', { class: 'repeat-score__miss' }, String(task.misses)),
+  );
 }
 
 function waitingCard(task) {
@@ -747,7 +802,7 @@ function quadrantCardWidth() {
 
 /** The quadrant or waiting list under the pointer, or null. */
 function targetAt(x, y) {
-  const el = document.elementFromPoint(x, y)?.closest('.quadrant, .waiting');
+  const el = document.elementFromPoint(x, y)?.closest('.quadrant, .waiting, .repeat');
   return el && root.contains(el) ? el : null;
 }
 
@@ -773,7 +828,9 @@ function autoScroll(current) {
 function dropOnto(id, target) {
   const task = findTask(id);
   if (!task) return;
+  if (target.classList.contains('repeat')) return task.repeat ? undefined : ctx.store.setRepeat(task.id, true);
   const quadrant = target.classList.contains('waiting') ? null : target.dataset.quadrant ?? null;
+  if (task.repeat) return quadrant ? putOnDay(task, quadrant) : ctx.store.setRepeat(task.id, false); // out of the section, or a copy on the day
   if (task.quadrant === quadrant) return;
   moveToQuadrant(task, quadrant);
 }

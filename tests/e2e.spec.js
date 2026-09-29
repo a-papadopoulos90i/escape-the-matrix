@@ -131,6 +131,7 @@ async function touchDrag(page, from, to) {
 
 /** Drops a card into a quadrant. Tagging is only a label, so dragging is how a task gets placed. */
 async function dropInto(page, cardLocator, quadrantName) {
+  await cardLocator.scrollIntoViewIfNeeded();
   const from = await centre(cardLocator.locator('.task-card__title'));
   const to = await centre(quadrant(page, quadrantName));
   await page.mouse.move(from.x, from.y);
@@ -167,7 +168,7 @@ const fillRatio = (locator) =>
 
 test('walkthrough: pick a day, dump, sort, work the board, organize, back to a green calendar', async ({ page }) => {
   const errors = collectErrors(page);
-  await page.setViewportSize({ width: 1280, height: 1100 });
+  await page.setViewportSize({ width: 1280, height: 1400 }); // the board, the quick add, Repeat and the waiting list all in view
   await page.clock.setFixedTime(FIXED_NOW);
   await page.goto('/');
 
@@ -299,7 +300,7 @@ test('4. adding tasks builds a numbered list; ✕ deletes with Undo; reload keep
 // ---------- 5: sorting ----------
 
 test('5. on the board, a card\'s tag menu files it into the chosen priority', async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 1100 });
+  await page.setViewportSize({ width: 1280, height: 1400 }); // the board, the quick add, Repeat and the waiting list all in view
   await page.clock.setFixedTime(FIXED_NOW);
   await seed(page, { tasks: sortedTasks(), stage: 3 });
   await page.goto('/');
@@ -651,7 +652,7 @@ test.describe('mobile', () => {
 // ---------- 18–19: robustness and deployment ----------
 
 test('18. no console errors on any stage and no network needed after the first load (free mode)', async ({ page, context }) => {
-  await page.setViewportSize({ width: 1280, height: 1100 }); // room to drag a card onto the board
+  await page.setViewportSize({ width: 1280, height: 1400 }); // the board, the quick add, Repeat and the waiting list all in view // room to drag a card onto the board
   const errors = collectErrors(page);
   const requests = [];
   page.on('request', (request) => requests.push(request.url()));

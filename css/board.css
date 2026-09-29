@@ -111,6 +111,77 @@
   font-size: var(--text-xs);
 }
 
+/* ---------- Repeat: standing tasks, above the waiting list ---------- */
+.repeat {
+  max-width: var(--content-col);
+  margin: var(--space-5) auto 0;
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.repeat.is-drop-target {
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+.repeat__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+
+.repeat__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+
+.repeat__hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.repeat__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+/* Days done (green) and days missed (red), right next to the priority glyph. */
+.repeat-score {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 4px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.repeat-score__hit,
+.repeat-score__miss {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  text-align: center;
+}
+
+.repeat-score__hit {
+  background: var(--green);
+  color: #fff;
+}
+
+.repeat-score__miss {
+  background: var(--red);
+  color: #fff;
+}
+
 /* The heading is the fold button: the chevron points right while the list is folded. */
 .waiting__toggle {
   display: inline-flex;
