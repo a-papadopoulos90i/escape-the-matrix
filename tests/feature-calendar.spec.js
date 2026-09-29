@@ -394,6 +394,47 @@ test('the "demo version" link loads a local two-month demo', async ({ page }) =>
   await expect(page.locator('[role="dialog"] .analysis__total')).toContainText(':');
 });
 
+test('the time report opens a task to its single timings: correct one by hand, remove another', async ({ page }) => {
+  const stopwatch = (elapsedSec, stoppedAt) => ({ mode: 'stopwatch', durationSec: 0, startedAt: null, elapsedSec, running: false, stoppedAt });
+  const doc = makeDoc();
+  doc.tasks = [
+    { ...doc.tasks[0], id: 't_a', title: 'Deep work', date: '2026-03-02', timer: stopwatch(3600, '2026-03-02T10:00:00.000Z') },
+    { ...doc.tasks[0], id: 't_b', title: 'Deep work', date: '2026-03-03', timer: stopwatch(1800, '2026-03-03T10:00:00.000Z') },
+  ];
+  await seed(page, { doc });
+  await page.goto('/');
+  await openReport(page);
+  const dialog = page.locator('[role="dialog"]');
+  const group = dialog.locator('.analysis__group', { hasText: 'Deep work' });
+
+  await group.locator('.analysis__task').click(); // unfold the two timings behind the sum
+  const entries = group.locator('.analysis__entry');
+  await expect(entries).toHaveCount(2);
+  await expect(entries.first()).toContainText('Mon 2 Mar');
+  await expect(entries.first()).toContainText('1:00:00');
+
+  // Correct the first by hand.
+  await entries.first().getByRole('button', { name: 'Edit the time' }).click();
+  await group.locator('.analysis__input').fill('0:30:00');
+  await page.keyboard.press('Enter');
+  await expect(group.locator('.analysis__row .analysis__time')).toHaveText('1:00:00'); // 30:00 + 30:00
+  await expect(dialog.locator('.analysis__total')).toContainText('1:00:00');
+
+  // Nonsense is refused, the entry keeps its time.
+  await entries.first().getByRole('button', { name: 'Edit the time' }).click();
+  await group.locator('.analysis__input').fill('abc');
+  await page.keyboard.press('Enter');
+  await expect(group.locator('.analysis__input')).toHaveAttribute('aria-invalid', 'true');
+  await page.keyboard.press('Escape');
+
+  // Remove the other timing; the sum follows and the task itself stays.
+  await group.locator('.analysis__entry', { hasText: 'Tue 3 Mar' }).getByRole('button', { name: 'Remove this time' }).click();
+  await expect(page.locator('.toast', { hasText: 'Time removed' })).toBeVisible();
+  await expect(group.locator('.analysis__entry')).toHaveCount(1);
+  await expect(dialog.locator('.analysis__total')).toContainText('30:00');
+  await expect.poll(async () => (await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), DOC_KEY)).tasks.find((task) => task.id === 't_b').timer).toBe(null);
+});
+
 test('the time report sums tracked time per task, most first', async ({ page }) => {
   const stopwatch = (elapsedSec, stoppedAt) => ({ mode: 'stopwatch', durationSec: 0, startedAt: null, elapsedSec, running: false, stoppedAt });
   const doc = makeDoc();

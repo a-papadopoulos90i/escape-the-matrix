@@ -645,13 +645,18 @@ body.is-signed-in .calendar__demo-row {
   border-radius: var(--radius-sm);
 }
 
-.analysis__row:nth-child(odd) {
+.analysis__group:nth-child(odd) {
   background: var(--surface-2);
+  border-radius: var(--radius-sm);
 }
 
 .analysis__task {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.analysis__group .analysis__row {
+  align-items: center;
 }
 
 .analysis__count {
@@ -663,6 +668,57 @@ body.is-signed-in .calendar__demo-row {
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
+}
+
+.analysis__task {
+  gap: 6px;
+  text-align: left;
+}
+
+.analysis__entries {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 8px 6px 26px;
+}
+
+.analysis__entry {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.analysis__date {
+  flex: 1;
+  min-width: 0;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.analysis__input {
+  width: 8em;
+  padding: 4px 8px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.analysis__input[aria-invalid='true'] {
+  border-color: var(--red);
+}
+
+.analysis__act {
+  width: 28px;
+  height: 28px;
+}
+
+.analysis__hint {
+  padding: 0 8px;
+  font-size: var(--text-xs);
 }
 
 .analysis__total {

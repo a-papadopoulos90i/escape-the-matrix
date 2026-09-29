@@ -355,7 +355,7 @@ async function boot() {
   });
   els.reportButton = ui.h(
     'button',
-    { class: 'report-fab', type: 'button', hidden: true, 'aria-label': t('settings.timeReport'), title: t('settings.timeReport'), onClick: () => openTimeReport({ ui, store, i18n }) },
+    { class: 'report-fab', type: 'button', hidden: true, 'aria-label': t('settings.timeReport'), title: t('settings.timeReport'), onClick: () => openTimeReport({ ui, store, i18n, dates }) },
     ui.icon('clock', { size: 22 }),
   );
   document.querySelector('.app').append(els.reportButton);

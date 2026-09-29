@@ -560,6 +560,31 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
       return undoable(() => patchTask(id, () => ({ date }), 'moveTaskToDate'));
     },
 
+    /** Sets the time tracked on a task by hand (0 clears it). Any running timer stops. */
+    setTrackedTime(id, seconds) {
+      const value = Math.max(0, Math.round(Number(seconds)) || 0);
+      return undoable(() =>
+        patchTask(
+          id,
+          (task) => ({
+            timer:
+              value === 0
+                ? null
+                : {
+                    mode: task.timer?.mode ?? 'stopwatch',
+                    durationSec: task.timer?.durationSec ?? 0,
+                    startedAt: null,
+                    elapsedSec: value,
+                    running: false,
+                    stoppedAt: isoAt(now()),
+                    alarmedAt: task.timer?.alarmedAt ?? null,
+                  },
+          }),
+          'setTrackedTime',
+        ),
+      );
+    },
+
     reorderTask(id, order) {
       if (!Number.isFinite(order)) return;
       patchTask(id, () => ({ order }), 'reorderTask');

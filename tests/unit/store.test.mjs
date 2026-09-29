@@ -600,3 +600,20 @@ test('settleRepeats counts a miss for each copy left unfinished on a day that ha
   store.settleRepeats(DAY);
   assert.equal(store.findTask(standing.id).misses, 1); // run twice, counted once
 });
+
+test('setTrackedTime writes the time by hand and clears it with 0', () => {
+  const { store } = makeStore();
+  const task = store.addTask({ title: 'Deep work', date: DAY });
+  store.startTimer(task.id, { mode: 'stopwatch' });
+
+  store.setTrackedTime(task.id, 5400);
+  const timed = store.findTask(task.id);
+  assert.equal(timed.timer.elapsedSec, 5400);
+  assert.equal(timed.timer.running, false); // a live timer is stopped
+  assert.ok(timed.timer.stoppedAt);
+
+  const token = store.setTrackedTime(task.id, 0);
+  assert.equal(store.findTask(task.id).timer, null);
+  store.undo(token);
+  assert.equal(store.findTask(task.id).timer.elapsedSec, 5400);
+});
