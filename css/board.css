@@ -182,8 +182,8 @@
   color: #fff;
 }
 
-/* The heading is the fold button: the chevron points right while the list is folded. */
-.waiting__toggle {
+/* The heading is the fold button: the chevron points right while the section is folded. */
+.fold-toggle {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -196,19 +196,21 @@
   cursor: pointer;
 }
 
-.waiting__toggle:hover {
+.fold-toggle:hover {
   background: var(--surface-2);
 }
 
-.waiting__toggle .icon {
+.fold-toggle .icon {
   transition: transform var(--dur-fast);
 }
 
-.waiting.is-collapsed .waiting__toggle .icon {
+.waiting.is-collapsed .fold-toggle .icon,
+.repeat.is-collapsed .fold-toggle .icon {
   transform: rotate(-90deg);
 }
 
-.waiting.is-collapsed .waiting__head {
+.waiting.is-collapsed .waiting__head,
+.repeat.is-collapsed .repeat__head {
   margin-bottom: 0;
 }
 

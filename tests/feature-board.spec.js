@@ -306,14 +306,20 @@ test('the waiting list starts folded behind its heading and opens on click (reme
     if (sessionStorage.getItem('levelix:keepWaitingDefault')) return;
     sessionStorage.setItem('levelix:keepWaitingDefault', '1');
     localStorage.removeItem('levelix:waitingOpen');
+    localStorage.removeItem('levelix:repeatOpen');
   });
   await page.setViewportSize({ width: 1280, height: 1000 });
   await seed(page, { tasks: [...SORTED(), task('t_wait', 'Book the venue', null, { tag: 'delegate' })] });
   await page.goto('/');
-  const toggle = () => panel(page).locator('.waiting__toggle');
+  const toggle = () => panel(page).locator('.waiting .fold-toggle');
 
   await expect(toggle()).toHaveAttribute('aria-expanded', 'false');
   await expect(toggle()).toHaveText('Waiting list (1)');
+  // Repeat folds the same way, with its own memory.
+  const repeatToggle = () => panel(page).locator('.repeat .fold-toggle');
+  await expect(repeatToggle()).toHaveAttribute('aria-expanded', 'false');
+  await repeatToggle().click();
+  await expect(repeatToggle()).toHaveAttribute('aria-expanded', 'true');
   await expect(panel(page).locator('.waiting-card')).toHaveCount(0);
   await expect(panel(page).locator('.waiting__sort')).toHaveCount(0);
   await panel(page).locator('.waiting').screenshot({ path: path.join(SHOTS, 'waiting-folded.png') });
@@ -325,8 +331,9 @@ test('the waiting list starts folded behind its heading and opens on click (reme
 
   await page.reload();
   await expect(toggle()).toHaveAttribute('aria-expanded', 'true');
+  await expect(panel(page).locator('.repeat .fold-toggle')).toHaveAttribute('aria-expanded', 'true');
   await toggle().click();
-  await expect(panel(page).locator('.waiting-card')).toHaveCount(0);
+  await expect(panel(page).locator('.waiting .waiting-card')).toHaveCount(0);
 });
 
 test('pulling unfinished work forward keeps the priority it was in', async ({ page }) => {

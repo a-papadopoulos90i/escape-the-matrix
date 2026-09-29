@@ -377,49 +377,58 @@ function openSortMenu(anchor) {
   });
 }
 
-// The waiting list follows you on every day, so it stays folded behind its button until opened (remembered per browser).
-const OPEN_KEY = 'levelix:waitingOpen';
-let openChoice = null; // this session's choice, for when storage is blocked
+// The waiting list and the repeat section follow you on every day, so each stays folded behind its
+// heading until opened (remembered per browser).
+const OPEN_KEYS = { waiting: 'levelix:waitingOpen', repeat: 'levelix:repeatOpen' };
+const openChoice = {}; // this session's choices, for when storage is blocked
 
-function waitingOpen() {
-  if (openChoice !== null) return openChoice;
+function sectionOpen(name) {
+  if (openChoice[name] !== undefined) return openChoice[name];
   try {
-    return localStorage.getItem(OPEN_KEY) === '1';
+    return localStorage.getItem(OPEN_KEYS[name]) === '1';
   } catch {
     return false;
   }
 }
 
-function toggleWaiting() {
-  openChoice = !waitingOpen();
+function toggleSection(name) {
+  openChoice[name] = !sectionOpen(name);
   try {
-    localStorage.setItem(OPEN_KEY, openChoice ? '1' : '0');
+    localStorage.setItem(OPEN_KEYS[name], openChoice[name] ? '1' : '0');
   } catch {
     /* storage blocked — the choice lasts for this visit */
   }
   render();
 }
 
+/** The heading of a foldable section: a chevron plus its label. */
+function foldButton(name, label, controls) {
+  return ctx.ui.h(
+    'button',
+    {
+      class: `${name}__toggle fold-toggle`,
+      type: 'button',
+      'aria-expanded': String(sectionOpen(name)),
+      'aria-controls': controls,
+      dataset: { focusKey: `${name}-toggle` },
+      onClick: () => toggleSection(name),
+    },
+    ctx.ui.icon('chevron-down', { size: 16 }),
+    label,
+  );
+}
+
 function waitingPanel(tasks) {
   const { ui, i18n } = ctx;
   const active = tasks.filter((task) => !isRecord(task));
-  const open = waitingOpen();
+  const open = sectionOpen('waiting');
   return ui.h(
     'section',
     { class: `waiting ${open ? '' : 'is-collapsed'}`.trim(), 'aria-labelledby': 'waiting-label' },
     ui.h(
       'div',
       { class: 'waiting__head' },
-      ui.h(
-        'h3',
-        { class: 'waiting__label', id: 'waiting-label' },
-        ui.h(
-          'button',
-          { class: 'waiting__toggle', type: 'button', 'aria-expanded': String(open), 'aria-controls': 'waiting-list', dataset: { focusKey: 'waiting-toggle' }, onClick: toggleWaiting },
-          ui.icon('chevron-down', { size: 16 }),
-          i18n.t('board.waiting', { n: active.length }),
-        ),
-      ),
+      ui.h('h3', { class: 'waiting__label', id: 'waiting-label' }, foldButton('waiting', i18n.t('board.waiting', { n: active.length }), 'waiting-list')),
       ui.h('p', { class: 'waiting__hint' }, i18n.t('board.waitingHint')),
       open &&
         ui.h(
@@ -484,16 +493,17 @@ function putOnDay(task, quadrant) {
  *  green count of the days it was done and a red count of the days it was not. */
 function repeatPanel(tasks) {
   const { ui, i18n } = ctx;
+  const open = sectionOpen('repeat');
   return ui.h(
     'section',
-    { class: 'repeat', 'aria-labelledby': 'repeat-label' },
+    { class: `repeat ${open ? '' : 'is-collapsed'}`.trim(), 'aria-labelledby': 'repeat-label' },
     ui.h(
       'div',
       { class: 'repeat__head' },
-      ui.h('h3', { class: 'repeat__label', id: 'repeat-label' }, ui.icon('refresh', { size: 15 }), i18n.t('board.repeat', { n: tasks.length })),
+      ui.h('h3', { class: 'repeat__label', id: 'repeat-label' }, foldButton('repeat', i18n.t('board.repeat', { n: tasks.length }), 'repeat-list')),
       ui.h('p', { class: 'repeat__hint' }, i18n.t(tasks.length ? 'board.repeatHint' : 'board.repeatEmpty')),
     ),
-    tasks.length ? ui.h('div', { class: 'repeat__list' }, tasks.map(repeatCard)) : null,
+    open && tasks.length ? ui.h('div', { class: 'repeat__list', id: 'repeat-list' }, tasks.map(repeatCard)) : null,
   );
 }
 
@@ -686,7 +696,7 @@ function onClickCapture(event) {
 function draggableCardAt(target) {
   const card = target.closest('.task-card');
   if (!card || card.classList.contains('task-card--new') || card.classList.contains('task-card--record')) return null;
-  if (target.closest('.task-card__check, .task-card__priority, .task-card__insert, .task-card__clock, .task-card__forward, .task-card__delete, .quadrant__add, .waiting-place, .waiting__toggle')) return null;
+  if (target.closest('.task-card__check, .task-card__priority, .task-card__insert, .task-card__clock, .task-card__forward, .task-card__delete, .quadrant__add, .waiting-place, .fold-toggle')) return null;
   return card;
 }
 

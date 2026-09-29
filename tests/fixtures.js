@@ -8,7 +8,9 @@ export const test = base.extend({
   context: async ({ context }, use) => {
     // The waiting list starts collapsed for visitors; specs start with it open (one spec checks the default).
     await context.addInitScript(() => {
-      if (!sessionStorage.getItem('levelix:keepWaitingDefault')) localStorage.setItem('levelix:waitingOpen', '1');
+      if (sessionStorage.getItem('levelix:keepWaitingDefault')) return;
+      localStorage.setItem('levelix:waitingOpen', '1');
+      localStorage.setItem('levelix:repeatOpen', '1');
     });
     await context.route('**/js/firebase-config.js*', (route) =>
       route.fulfill({ status: 200, contentType: 'text/javascript', body: FREE_MODE_CONFIG }),
