@@ -92,7 +92,7 @@ export function renderClock(el, task, now = Date.now()) {
   el.className = `task-card__clock task-card__clock--${state}`;
   el.setAttribute('title', label);
   el.setAttribute('aria-label', label);
-  if (state === 'idle') el.replaceChildren(icon('clock', { size: 18 }));
+  if (state === 'idle') el.replaceChildren(icon('play', { size: 16 })); // idle: a plain play triangle — press it to time the task
   else el.textContent = text;
 }
 

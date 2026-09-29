@@ -241,7 +241,7 @@ function scheduleButton(task) {
       dataset: { focusKey: `fwd:${task.id}` },
       onClick: (event) => openTaskPopover(task.id, event.currentTarget, { view: 'schedule' }),
     },
-    ctx.ui.icon('forward', { size: 16 }),
+    ctx.ui.icon('clock', { size: 16 }), // the card's scheduling button: next day / postpone
   );
 }
 
