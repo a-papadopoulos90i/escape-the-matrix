@@ -42,8 +42,9 @@ export function openVoucherModal({ ui, i18n, session }) {
   const count = h(
     'select',
     { class: 'vouchers__count', 'aria-label': t('vouchers.howMany') },
-    ...[1, 5, 10, 25].map((n) => h('option', { value: String(n), selected: n === 5 ? '' : null }, String(n))),
+    ...[1, 5, 10, 25].map((n) => h('option', { value: String(n) }, String(n))),
   );
+  count.value = '5'; // a handful at a time is the usual case
 
   const row = (voucher) =>
     h(
