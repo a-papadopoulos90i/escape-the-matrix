@@ -7,7 +7,7 @@ import * as dates from './dates.js';
 import * as ui from './ui.js';
 import * as i18n from './i18n.js';
 import { openTimeReport } from './report.js';
-import { captureRemindersFlag } from './reminders.js';
+import { captureRemindersFlag, remindersEnabled, startRemindersAutoSync } from './reminders.js';
 import * as home from './stages/home.js';
 import * as calendar from './stages/calendar.js';
 import * as dump from './stages/dump.js';
@@ -345,6 +345,7 @@ async function boot() {
 
   const remindersFlag = captureRemindersFlag(); // ?reminders=on|off — the owner's personal Reminders bridge
   if (remindersFlag) ui.toast(t(remindersFlag === 'on' ? 'reminders.enabled' : 'reminders.disabled'), { duration: 9000 });
+  if (remindersEnabled()) startRemindersAutoSync({ store, ui, i18n });
   store.settleRepeats(dates.todayKey()); // repeat copies left unfinished on a past day count a miss
   restoreUiState();
   els.stepperNav.setAttribute('aria-label', t('stepper.label'));

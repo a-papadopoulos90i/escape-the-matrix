@@ -116,7 +116,7 @@ export const strings = {
   'account.signOutClear': 'Sign out & clear this device',
   'account.clearAccount': 'Clear account',
   'reminders.sync': 'Sync with Reminders',
-  'reminders.enabled': 'Reminders sync is on in this browser — “Sync with Reminders” is now in the account menu.',
+  'reminders.enabled': 'Reminders sync is on in this browser — it now syncs on its own, and the account menu can force it.',
   'reminders.disabled': 'Reminders sync is off in this browser.',
   'reminders.done': 'Reminders synced — {sent} sent, {imported} imported, {changed} updated from Reminders, {completed} ticked, {deleted} removed.',
   'reminders.offline': 'The Reminders bridge is not running on this Mac. Start it with: node tools/reminders-bridge/server.mjs',

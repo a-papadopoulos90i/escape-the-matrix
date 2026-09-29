@@ -5,6 +5,12 @@ import { todayKey } from './dates.js';
 const FLAG = 'levelix:remindersBridge';
 const BRIDGE = 'http://127.0.0.1:47827';
 const RECENT_DONE_MS = 14 * 24 * 60 * 60 * 1000; // finished tasks older than this stay out of Reminders
+// Sync runs by itself: shortly after the app opens, every few minutes, when the tab comes back, and a
+// little after each local change — so a tick in either app reaches the other without pressing anything.
+const FIRST_RUN_MS = 5_000;
+const EVERY_MS = 3 * 60_000;
+const AFTER_EDIT_MS = 20_000;
+const OFFLINE_BACKOFF_MS = 5 * 60_000; // the bridge is not running: stop trying for a while
 
 /** ?reminders=on / ?reminders=off switches the opt-in for this browser, then drops the parameter.
  *  Returns the value it applied, so the shell can confirm it on screen. */
@@ -38,8 +44,12 @@ async function call(pathname, body) {
   return response.json();
 }
 
-/** One press: Levelix → the "Levelix" Reminders list, then completions and new reminders back in. */
-export async function syncWithReminders({ store, ui, i18n }) {
+/**
+ * One sync: Levelix → the "Levelix" Reminders list, then whatever changed in Reminders back in.
+ * `silent` (the automatic runs) keeps quiet unless something actually came in from Reminders.
+ * Returns { offline } / { outdated } / the bridge's result.
+ */
+export async function syncWithReminders({ store, ui, i18n, silent = false }) {
   const { t } = i18n;
   const cutoff = Date.now() - RECENT_DONE_MS;
   const all = store.get().tasks;
@@ -52,14 +62,14 @@ export async function syncWithReminders({ store, ui, i18n }) {
   try {
     result = await call('/sync', { tasks, deleted, today: todayKey() });
   } catch {
-    ui.toast(t('reminders.offline'), { duration: 10000 });
-    return;
+    if (!silent) ui.toast(t('reminders.offline'), { duration: 10000 });
+    return { offline: true };
   }
 
   // A bridge started before an update answers without the newer lists: say so instead of pretending it synced.
   if (!['changedInReminders', 'deletedInReminders', 'reopenedInReminders'].every((key) => Array.isArray(result[key]))) {
-    ui.toast(t('reminders.outdated'), { duration: 12000 });
-    return;
+    if (!silent) ui.toast(t('reminders.outdated'), { duration: 12000 });
+    return { outdated: true };
   }
   const links = [];
   store.undoable(() => {
@@ -82,18 +92,56 @@ export async function syncWithReminders({ store, ui, i18n }) {
     try {
       await call('/link', { links });
     } catch {
-      ui.toast(t('reminders.linkFailed'), { duration: 10000 });
-      return;
+      if (!silent) ui.toast(t('reminders.linkFailed'), { duration: 10000 });
+      return { linkFailed: true };
     }
   }
-  ui.toast(
-    t('reminders.done', {
-      sent: result.created + result.updated,
-      imported: result.imports.length,
-      changed: result.changedInReminders.length,
-      completed: result.completedInReminders.length + result.reopenedInReminders.length,
-      deleted: result.deleted + result.deletedInReminders.length,
-    }),
-    { duration: 6000 },
-  );
+  const fromReminders =
+    result.imports.length + result.changedInReminders.length + result.deletedInReminders.length + result.completedInReminders.length + result.reopenedInReminders.length;
+  if (!silent || fromReminders > 0) {
+    ui.toast(
+      t('reminders.done', {
+        sent: result.created + result.updated,
+        imported: result.imports.length,
+        changed: result.changedInReminders.length,
+        completed: result.completedInReminders.length + result.reopenedInReminders.length,
+        deleted: result.deleted + result.deletedInReminders.length,
+      }),
+      { duration: 6000 },
+    );
+  }
+  return result;
+}
+
+/** Keeps both sides in step on their own. Started once at boot when this browser opted in. */
+export function startRemindersAutoSync({ store, ui, i18n }) {
+  let running = false;
+  let quietUntil = 0;
+  let lastRun = 0;
+  let timer = null;
+
+  const run = async () => {
+    if (running || document.hidden || Date.now() < quietUntil) return;
+    running = true;
+    try {
+      const result = await syncWithReminders({ store, ui, i18n, silent: true });
+      quietUntil = result?.offline ? Date.now() + OFFLINE_BACKOFF_MS : 0;
+    } finally {
+      running = false;
+      lastRun = Date.now();
+    }
+  };
+  const soon = (ms) => {
+    clearTimeout(timer);
+    timer = setTimeout(run, ms);
+  };
+
+  soon(FIRST_RUN_MS);
+  setInterval(run, EVERY_MS);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && Date.now() - lastRun > 60_000) soon(1000);
+  });
+  store.subscribe((doc, meta) => {
+    if (meta?.reason !== 'setSetting' && !running) soon(AFTER_EDIT_MS); // let a burst of edits settle first
+  });
 }

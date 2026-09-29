@@ -460,6 +460,27 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     expect(calls[1]).toEqual({ pathname: '/link', body: { links: [{ reminderId: 'x-apple-reminder://R1', taskId: imported.id, title: 'Buy milk', rDate: '2026-03-12', lDate: '2026-03-12' }] } });
   });
 
+  test('with the opt-in on, the sync runs by itself — nothing to press', async ({ page }) => {
+    await seed(page, { ui: UI_STATE, doc: LOCAL_DOC });
+    const calls = [];
+    await page.route('http://127.0.0.1:47827/**', async (route) => {
+      const pathname = new URL(route.request().url()).pathname;
+      calls.push(pathname);
+      const body =
+        pathname === '/sync'
+          ? { created: 0, updated: 0, deleted: 0, completedInReminders: ['t_local'], reopenedInReminders: [], changedInReminders: [], deletedInReminders: [], imports: [] }
+          : { linked: 0 };
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(body) });
+    });
+
+    await page.goto('/?reminders=on'); // no menu, no click — the shell starts syncing on its own
+    await expect(page.locator('.toast', { hasText: 'Reminders synced' })).toBeVisible({ timeout: 20000 });
+    expect(calls[0]).toBe('/sync');
+    await expect
+      .poll(async () => (await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), DOC_KEY)).tasks.find((task) => task.id === 't_local').done)
+      .toBe(true); // ticked in Reminders, ticked here
+  });
+
   test('Sync with Reminders tells you to restart an out-of-date bridge instead of claiming success', async ({ page }) => {
     await seed(page, { ui: UI_STATE, doc: LOCAL_DOC });
     await page.route('http://127.0.0.1:47827/**', (route) =>
