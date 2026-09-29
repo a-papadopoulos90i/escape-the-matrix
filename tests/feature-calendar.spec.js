@@ -244,6 +244,29 @@ test('the month title opens the same date picker: pick a day to select it and ju
   await expect(page.locator('#stepper .step.is-current')).toHaveAttribute('aria-label', /Calendar/); // nothing opened
 });
 
+test('Show more adds the following weeks only — no day twice — and names each month on its left', async ({ page }) => {
+  await onAWeekday(page);
+  await seed(page);
+  await page.goto('/');
+  const marks = panel(page).locator('.calendar__week .calendar__month-mark:not(.is-empty)');
+
+  await expect(cells(page)).toHaveCount(42);
+  await expect(marks).toHaveText(['March', 'April']); // April starts inside the last week shown
+  const before = await cellKeys(page);
+
+  await panel(page).getByRole('button', { name: 'Show more' }).click();
+  const after = await cellKeys(page);
+  await expect(cells(page)).toHaveCount(84);
+  expect(after.slice(0, 42)).toEqual(before); // the days already shown stay put
+  expect(new Set(after).size).toBe(after.length); // and none is repeated
+  expect(after[42]).toBe('2026-04-12'); // it simply carries on from the last week
+  await expect(marks).toHaveText(['March', 'April', 'May']);
+
+  await panel(page).getByRole('button', { name: 'Show more' }).click();
+  await expect(cells(page)).toHaveCount(126);
+  expect((await cellKeys(page))[84]).toBe('2026-05-24');
+});
+
 test('routing: today opens Write down; every other day opens Prioritize', async ({ page }) => {
   await onAWeekday(page); // today = 2026-03-11
   await seed(page);

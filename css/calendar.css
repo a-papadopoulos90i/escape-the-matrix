@@ -6,6 +6,7 @@
   --calendar-cell: 88px;
   --calendar-gap: 14px;
   --calendar-width: var(--content-col);
+  --month-gutter: 92px;
 }
 
 /* ---------- Toolbar ---------- */
@@ -113,25 +114,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-6);
-}
-
-.calendar__month-block {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.calendar__month-title {
-  width: 100%;
-  max-width: var(--calendar-width);
-  margin: 0 auto var(--space-3);
-  font-family: var(--font-display);
-  font-size: var(--text-lg);
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  text-align: left;
+  gap: var(--calendar-gap);
 }
 
 /* "Show next month" — centred under the calendar. */
@@ -140,13 +123,24 @@
   margin: var(--space-5) auto 0;
 }
 
-.calendar__grid {
+.calendar__weekdays,
+.calendar__week {
   display: grid;
-  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  grid-template-columns: var(--month-gutter) repeat(var(--cols), minmax(0, 1fr));
   gap: var(--calendar-gap);
   width: 100%;
-  max-width: var(--calendar-width);
+  max-width: calc(var(--calendar-width) + var(--month-gutter) + var(--calendar-gap));
   margin: 0 auto;
+}
+
+/* The month's name, left of the week it starts in — outside the grid of days. */
+.calendar__month-mark {
+  align-self: center;
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
 }
 
 .calendar__weekday {
@@ -362,6 +356,21 @@ body.is-signed-in .calendar__demo-row {
 @media (max-width: 639px) {
   .calendar {
     --calendar-gap: 8px;
+    --month-gutter: 0px;
+  }
+
+  .calendar__weekdays,
+  .calendar__week {
+    grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  }
+
+  .calendar__month-mark {
+    grid-column: 1 / -1;
+    margin-top: var(--space-2);
+  }
+
+  .calendar__month-mark.is-empty {
+    display: none;
   }
 
   .calendar--weekends {

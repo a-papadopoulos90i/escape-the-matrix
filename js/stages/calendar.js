@@ -1,6 +1,7 @@
 // Stage 1 — "Pick your day". A vertically scrolling month calendar: the current month shows, and
-// "Show next month" appends the following month below so the user simply scrolls down (no popup, no
-// resizing). Each day cell is a gray tray when empty, a green striped fill (one stripe per done
+// "Show more" adds the next weeks below, so the calendar is one continuous run the user scrolls
+// through, with each month's name at the left of the week it starts in. Each day cell is a gray tray
+// when empty, a green striped fill (one stripe per done
 // task) when planned, a blue border for today and a soft ring on the selected day. Clicking a day
 // opens Stage 2 for today, Stage 3 (the board) for any other day.
 //
@@ -10,12 +11,14 @@
 import { isRecord, QUADRANTS } from '../store.js';
 import { QUAD_ICON, openDayPicker, quadrantGlyph, quadrantAxes } from '../carry.js';
 
+const WEEKS_PER_MONTH = 6; // a month view, and what each "Show more" adds
+
 let ctx = null;
 let root = null;
 let els = {};
 let cols = 5;
 let flipped = false; // Manage mode: cells preview task titles and a tap opens the day popup
-let monthsShown = 1; // grows as the user reveals more months below
+let weeksShown = WEEKS_PER_MONTH; // the calendar is one continuous run of weeks; "Show more" adds more
 let demoInvited = false; // the example link pulses only the first time the calendar shows after the site opens
 let unsubscribe = null;
 
@@ -49,7 +52,7 @@ export function mount(container, context) {
   );
   els.title = root.querySelector('.stage-title');
 
-  monthsShown = 1;
+  weeksShown = WEEKS_PER_MONTH;
   root.classList.toggle('calendar--flipped', flipped);
   render();
   unsubscribe = store.subscribe(render);
@@ -191,33 +194,51 @@ function render() {
   root.style.setProperty('--cols', cols);
   root.classList.add('calendar--weekends');
 
-  // One tabbable cell across every visible month (the focused one on re-render, else selected,
-  // else today, else the very first cell).
-  const monthKeys = Array.from({ length: monthsShown }, (_, i) => dates.addMonths(baseMonth, i));
-  const allKeys = monthKeys.flatMap((mk) => dates.monthGrid(dates.fromMonthKey(mk).year, dates.fromMonthKey(mk).month, weekendsShown).flat());
+  // One continuous run of weeks from the week the month starts in — "Show more" simply adds more of
+  // them, so no day is ever shown twice. The month's name sits left of the week it starts in.
+  const startKey = dates.monthGrid(base.year, base.month, weekendsShown)[0][0];
+  const weeks = Array.from({ length: weeksShown }, (_, w) => Array.from({ length: 7 }, (_, d) => dates.addDays(startKey, w * 7 + d)));
+  const allKeys = weeks.flat();
+  // One tabbable cell across the whole run (the focused one on re-render, else selected, else today,
+  // else the very first cell).
   const focusedKey = document.activeElement?.dataset?.key;
   const tabKey = [focusedKey, ctx.getDate(), dates.todayKey()].find((key) => allKeys.includes(key)) ?? allKeys[0];
 
-  els.months.replaceChildren(...monthKeys.map((mk, i) => monthBlock(mk, weekendsShown, tabKey, i > 0)));
+  let previousMonth = null;
+  const rows = weeks.map((week) => {
+    const owner = dates.monthOfKey(week[3]); // the month the week belongs to (its midweek day)
+    const label = owner === previousMonth ? null : monthMark(owner);
+    previousMonth = owner;
+    return weekRow(week, label, tabKey);
+  });
+  els.months.replaceChildren(weekdayRow(weekendsShown), ...rows);
   if (focusedKey) els.months.querySelector(`[data-key="${focusedKey}"]`)?.focus();
 }
 
-/** One month: an optional title (shown on appended months) plus its weekday header + day grid. */
-function monthBlock(monthKey, weekendsShown, tabKey, titled) {
-  const { dates, ui } = ctx;
+/** "October" — the year too when it is not the current one. */
+function monthMark(monthKey) {
+  const { dates } = ctx;
   const { year, month } = dates.fromMonthKey(monthKey);
-  const label = `${dates.monthName(month)} ${year}`;
-  const grid = ui.h(
-    'div',
-    { class: 'calendar__grid', role: 'group', 'aria-label': label },
-    ...dates.weekdayLabels(weekendsShown).map((name) => ui.h('span', { class: 'calendar__weekday', 'aria-hidden': 'true' }, name)),
-    ...dates.monthGrid(year, month, weekendsShown).flat().map((key) => dayCell(key, key === tabKey)),
-  );
+  return year === Number(dates.todayKey().slice(0, 4)) ? dates.monthName(month) : `${dates.monthName(month)} ${year}`;
+}
+
+function weekdayRow(weekendsShown) {
+  const { dates, ui } = ctx;
   return ui.h(
-    'section',
-    { class: 'calendar__month-block' },
-    titled ? ui.h('h3', { class: 'calendar__month-title' }, label) : null,
-    grid,
+    'div',
+    { class: 'calendar__weekdays' },
+    ui.h('span', { class: 'calendar__month-mark is-empty', 'aria-hidden': 'true' }),
+    ...dates.weekdayLabels(weekendsShown).map((name) => ui.h('span', { class: 'calendar__weekday', 'aria-hidden': 'true' }, name)),
+  );
+}
+
+function weekRow(week, label, tabKey) {
+  const { ui } = ctx;
+  return ui.h(
+    'div',
+    { class: 'calendar__week', role: 'group', 'aria-label': label ?? undefined },
+    ui.h('span', { class: `calendar__month-mark ${label ? '' : 'is-empty'}`.trim(), 'aria-hidden': label ? null : 'true' }, label ?? ''),
+    ...week.map((key) => dayCell(key, key === tabKey)),
   );
 }
 
@@ -387,11 +408,12 @@ function openDayPopup(key) {
 }
 
 /** Appends the next month below and scrolls it into view (SPEC §2 — no popup, just more to scroll). */
+/** Reveals the next few weeks below and scrolls to where they start. */
 function showNextMonth() {
-  monthsShown += 1;
+  const firstNew = weeksShown;
+  weeksShown += WEEKS_PER_MONTH;
   render();
-  const blocks = els.months.querySelectorAll('.calendar__month-block');
-  blocks[blocks.length - 1]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  els.months.querySelectorAll('.calendar__week')[firstNew]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 /** Picking a day selects it and shows its month. */
@@ -400,7 +422,7 @@ function pickDay(anchor) {
     month: ctx.getCalendarMonth(),
     onPick: (key) => {
       ctx.setDate(key);
-      monthsShown = 1;
+      weeksShown = WEEKS_PER_MONTH;
       ctx.setCalendarMonth(ctx.dates.monthOfKey(key));
       render();
     },
@@ -408,7 +430,7 @@ function pickDay(anchor) {
 }
 
 function shiftMonth(delta) {
-  monthsShown = 1;
+  weeksShown = WEEKS_PER_MONTH;
   ctx.setCalendarMonth(ctx.dates.addMonths(ctx.getCalendarMonth(), delta));
   render();
 }

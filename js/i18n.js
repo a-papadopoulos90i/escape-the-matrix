@@ -155,7 +155,7 @@ export const strings = {
   'calendar.prevMonth': 'Previous month',
   'calendar.nextMonth': 'Next month',
   'calendar.today': 'Today',
-  'calendar.showNext': 'Show next month',
+  'calendar.showNext': 'Show more',
   'calendar.showWeekends': 'Show weekends',
   'calendar.demo': 'See an example',
   'calendar.manage': 'All Tasks',
