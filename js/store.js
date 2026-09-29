@@ -392,8 +392,8 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
     },
 
     /**
-     * Pulls tasks forward to `date`: each gets a fresh copy there (in the waiting list, attempt + 1)
-     * while the original stays on its day as a record (`carriedTo`) that no longer counts.
+     * Pulls tasks forward to `date`: each gets a fresh copy there (attempt + 1), keeping the priority
+     * it was in, while the original stays on its day as a record (`carriedTo`) that no longer counts.
      * One undo token reverts the whole batch.
      */
     carryOver(ids, date) {
@@ -402,14 +402,12 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
         for (const id of ids) {
           const task = find(id);
           if (!task || isRecord(task) || task.date >= date) continue;
-          // The backlog keeps ONE entry per task. Pulling the same title forward again — from
-          // another day, or in a later pull — raises that entry's attempt count instead of adding a
-          // second copy, so the list never fills with duplicates.
-          const waiting = doc.tasks.find(
-            (other) => live(other) && !isRecord(other) && other.quadrant === null && !other.done && other.title === task.title,
-          );
-          if (waiting) patchTask(waiting.id, () => ({ attempt: Math.max(waiting.attempt, task.attempt + 1) }), 'carryOver');
-          else store.addTask({ title: task.title, date, attempt: task.attempt + 1, carriedFrom: task.id });
+          // The day keeps ONE entry per task. Pulling the same title forward again — from another
+          // day, or in a later pull — raises that entry's attempt count instead of adding a second
+          // copy, so the day never fills with duplicates.
+          const already = doc.tasks.find((other) => live(other) && !isRecord(other) && !other.done && other.date === date && other.title === task.title);
+          if (already) patchTask(already.id, () => ({ attempt: Math.max(already.attempt, task.attempt + 1) }), 'carryOver');
+          else store.addTask({ title: task.title, date, quadrant: task.quadrant, tag: task.tag ?? task.quadrant, attempt: task.attempt + 1, carriedFrom: task.id });
           patchTask(id, () => ({ carriedTo: date }), 'carryOver');
         }
       });

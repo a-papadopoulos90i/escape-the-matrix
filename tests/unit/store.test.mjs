@@ -207,18 +207,19 @@ test('pull (unfinishedBefore) carries forward only placed, unfinished work — n
   // Only the placed, unfinished task is offered to "Pull them here".
   assert.deepEqual(store.unfinishedBefore(today).map((t) => t.title), ['Placed, not done']);
 
-  // Pulling copies it into today's waiting list (attempt 2) and leaves a record behind.
+  // Pulling copies it onto today (attempt 2), keeping the priority it was in, and leaves a record behind.
   store.carryOver([placed.id], today);
   const copy = store.tasksForDate(today).find((t) => t.title === 'Placed, not done');
-  assert.equal(copy.quadrant, null);
+  assert.equal(copy.quadrant, 'do');
+  assert.equal(copy.tag, 'do');
   assert.equal(copy.attempt, 2);
   assert.equal(store.findTask(placed.id).carriedTo, today);
 
-  // The pulled copy now sits in a waiting list, so a later day never pulls it again.
-  assert.deepEqual(store.unfinishedBefore('2026-03-12').map((t) => t.title), []);
+  // The original is a record now; only the copy — unfinished on today — can be pulled to a later day.
+  assert.deepEqual(store.unfinishedBefore('2026-03-12').map((t) => t.title), ['Placed, not done']);
 });
 
-test('pulling the same task from several days leaves ONE backlog entry, counting the attempts', () => {
+test('pulling the same task from several days leaves ONE entry on the new day, counting the attempts', () => {
   const { store } = makeStore();
   const first = store.addTask({ title: 'Pay the rent', date: '2026-03-01', quadrant: 'do' });
   const second = store.addTask({ title: 'Pay the rent', date: '2026-03-05', quadrant: 'plan' });
@@ -226,21 +227,23 @@ test('pulling the same task from several days leaves ONE backlog entry, counting
 
   store.carryOver([first.id, second.id, other.id], '2026-03-11');
 
-  const waiting = store.waitingTasks();
-  assert.deepEqual(waiting.map((t) => t.title).sort(), ['Call the bank', 'Pay the rent']); // no duplicate
-  assert.equal(waiting.filter((t) => t.title === 'Pay the rent').length, 1);
-  assert.equal(waiting.find((t) => t.title === 'Pay the rent').attempt, 2);
+  const pulled = store.tasksForDate('2026-03-11');
+  assert.deepEqual(pulled.map((t) => t.title).sort(), ['Call the bank', 'Pay the rent']); // no duplicate
+  assert.equal(pulled.filter((t) => t.title === 'Pay the rent').length, 1);
+  const rent = pulled.find((t) => t.title === 'Pay the rent');
+  assert.equal(rent.attempt, 2);
+  assert.equal(rent.quadrant, 'do'); // the priority of the first day it was pulled from
 
   // Both originals stay behind as records, so neither is offered for pulling again.
   assert.equal(store.findTask(first.id).carriedTo, '2026-03-11');
   assert.equal(store.findTask(second.id).carriedTo, '2026-03-11');
-  assert.deepEqual(store.unfinishedBefore('2026-03-20').map((t) => t.title), []);
+  assert.deepEqual(store.unfinishedBefore('2026-03-20').map((t) => t.title).sort(), ['Call the bank', 'Pay the rent']);
 
-  // Put that entry back on a day, leave it unfinished, pull again: still one row, now on its third go.
-  const entry = store.waitingTasks().find((t) => t.title === 'Pay the rent');
+  // Move that entry to another day, leave it unfinished, pull again: still one row, now on its third go.
+  const entry = rent;
   store.setQuadrant(entry.id, 'do', '2026-03-12');
   store.carryOver([entry.id], '2026-03-20');
-  const after = store.waitingTasks().filter((t) => t.title === 'Pay the rent');
+  const after = store.tasksForDate('2026-03-20').filter((t) => t.title === 'Pay the rent');
   assert.equal(after.length, 1);
   assert.equal(after[0].attempt, 3);
 });

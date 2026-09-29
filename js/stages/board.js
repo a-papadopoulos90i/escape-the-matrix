@@ -711,18 +711,20 @@ function positionGhost(current) {
 /** Turns the press into a drag: a fixed ghost follows the pointer, the original card dims. */
 function liftCard(current) {
   const rect = current.card.getBoundingClientRect();
-  // A wide waiting-list card shrinks to the size of a card inside a quadrant — the piece it becomes
-  // once dropped — keeping the grabbed point under the pointer.
+  // A wide waiting-list card is dragged as the piece it becomes once dropped: a quadrant card, in a
+  // quadrant's width, with the grabbed point kept under the pointer.
   const width = Math.min(rect.width, quadrantCardWidth() ?? rect.width);
+  const task = findTask(current.card.dataset.id);
+  const asPlaced = task && !isRecord(task) && current.card.classList.contains('waiting-card');
   current.offsetX = (current.startX - rect.left) * (width / rect.width);
-  current.offsetY = current.startY - rect.top;
-  const ghost = current.card.cloneNode(true);
+  const ghost = asPlaced ? taskCard({ ...task, quadrant: task.tag ?? 'do' }) : current.card.cloneNode(true);
   ghost.className = 'task-card board-ghost task-card--dragging';
   ghost.removeAttribute('data-id');
   ghost.setAttribute('aria-hidden', 'true');
   ghost.inert = true;
   ghost.style.width = `${width}px`;
   document.body.append(ghost);
+  current.offsetY = Math.min(current.startY - rect.top, ghost.offsetHeight - 8);
   current.ghost = ghost;
   current.active = true;
   try {

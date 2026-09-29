@@ -422,6 +422,9 @@
   top: 0;
   left: 0;
   margin: 0;
+  /* It sits on <body>, outside .board, so it repeats the board's own card padding to match a placed card. */
+  gap: 6px;
+  padding: 4px;
   pointer-events: none;
 }
 

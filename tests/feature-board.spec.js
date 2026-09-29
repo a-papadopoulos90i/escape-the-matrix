@@ -277,6 +277,19 @@ test('the waiting list starts folded behind its heading and opens on click (reme
   await expect(panel(page).locator('.waiting-card')).toHaveCount(0);
 });
 
+test('pulling unfinished work forward keeps the priority it was in', async ({ page }) => {
+  await page.clock.setFixedTime(new Date(2026, 2, 11, 9, 0, 0)); // today = Wed 11 Mar 2026 (= DAY)
+  await seed(page, { tasks: [task('t_old', 'Old report', 'delegate', { date: '2026-03-09', tag: 'delegate' })] });
+  await page.goto('/');
+
+  await panel(page).getByRole('button', { name: 'Pull it here' }).click();
+  const pulled = quadrant(page, 'delegate').locator('.task-card', { hasText: 'Old report' });
+  await expect(pulled).toHaveCount(1); // not dropped into the waiting list any more
+  await expect(pulled.locator('.attempt-badge')).toHaveText('×2');
+  await expect(panel(page).locator('.waiting-card', { hasText: 'Old report' })).toHaveCount(0);
+  await waitForSaved(page, (doc) => doc.tasks.some((task) => task.title === 'Old report' && task.date === DAY && task.quadrant === 'delegate' && task.tag === 'delegate'));
+});
+
 test('"Pull them here" is offered only on the real today, for unfinished work from the days before it', async ({ page }) => {
   await page.clock.setFixedTime(new Date(2026, 2, 11, 9, 0, 0)); // today = Wed 11 Mar 2026 (= DAY)
   await seed(page, { tasks: [...SORTED(), task('t_old', 'Old report', 'do', { date: '2026-03-09' })] });
@@ -400,7 +413,7 @@ test('the waiting list sorts newest first, oldest first or by priority, and reme
   await expect(panel(page).locator('.waiting__sort')).toHaveText('By priority');
 });
 
-test('dragging a waiting-list card shrinks it to the size of a card inside a quadrant', async ({ page }) => {
+test('a dragged waiting-list card looks like the quadrant card it will become', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 1000 });
   await seed(page, { tasks: [...SORTED(), task('t_wait', 'Book the venue', null, { tag: 'delegate' })] });
   await page.goto('/');
@@ -415,9 +428,19 @@ test('dragging a waiting-list card shrinks it to the size of a card inside a qua
   await page.mouse.move(from.x + 20, from.y - 40, { steps: 4 });
   const ghost = await page.locator('.board-ghost').boundingBox();
   expect(Math.abs(ghost.width - placedWidth)).toBeLessThanOrEqual(2);
+  // Same shape as a placed card: one row high, with the placed card's controls — not the waiting row's.
+  const placedHeight = (await quadrant(page, 'do').locator('.task-card').first().boundingBox()).height;
+  expect(Math.abs(ghost.height - placedHeight)).toBeLessThanOrEqual(2);
+  expect(await page.locator('.board-ghost').evaluate((el) => [...el.children].map((child) => child.className.split(' ')[0]))).toEqual([
+    'task-card__done',
+    'task-card__priority',
+    'task-card__title',
+    'task-card__actions',
+  ]);
   // The grabbed point stays under the pointer.
   expect(from.x + 20).toBeGreaterThanOrEqual(ghost.x);
   expect(from.x + 20).toBeLessThanOrEqual(ghost.x + ghost.width);
+  await page.screenshot({ path: path.join(SHOTS, 'drag-ghost.png'), clip: { x: 100, y: 150, width: 1000, height: 800 } });
   await page.mouse.up();
 });
 
