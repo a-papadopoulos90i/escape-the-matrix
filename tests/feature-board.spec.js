@@ -366,6 +366,13 @@ test('pulling unfinished work forward keeps the priority it was in', async ({ pa
   await expect(pulled).toHaveCount(1); // not dropped into the waiting list any more
   await expect(pulled.locator('.attempt-badge')).toHaveText('×2');
   await expect(panel(page).locator('.waiting-card', { hasText: 'Old report' })).toHaveCount(0);
+
+  // The old day keeps nothing: the task moved, so Reminders and Calendar show it once.
+  await panel(page).locator('.stage-nav__day-arrow').first().click();
+  await panel(page).locator('.stage-nav__day-arrow').first().click();
+  await expect(panel(page).locator('.stage-nav__day-label')).toHaveText('Mon 9 Mar');
+  await expect(panel(page).locator('.task-card', { hasText: 'Old report' })).toHaveCount(0);
+  await expect(panel(page).locator('.record-label')).toHaveCount(0);
   await waitForSaved(page, (doc) => doc.tasks.some((task) => task.title === 'Old report' && task.date === DAY && task.quadrant === 'delegate' && task.tag === 'delegate'));
 });
 

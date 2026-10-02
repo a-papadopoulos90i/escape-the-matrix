@@ -207,15 +207,17 @@ test('pull (unfinishedBefore) carries forward only placed, unfinished work — n
   // Only the placed, unfinished task is offered to "Pull them here".
   assert.deepEqual(store.unfinishedBefore(today).map((t) => t.title), ['Placed, not done']);
 
-  // Pulling copies it onto today (attempt 2), keeping the priority it was in, and leaves a record behind.
+  // Pulling MOVES it onto today (attempt 2), keeping the priority it was in: one task, one entry.
   store.carryOver([placed.id], today);
-  const copy = store.tasksForDate(today).find((t) => t.title === 'Placed, not done');
-  assert.equal(copy.quadrant, 'do');
-  assert.equal(copy.tag, 'do');
-  assert.equal(copy.attempt, 2);
-  assert.equal(store.findTask(placed.id).carriedTo, today);
+  const moved = store.findTask(placed.id);
+  assert.equal(moved.date, today);
+  assert.equal(moved.quadrant, 'do');
+  assert.equal(moved.attempt, 2);
+  assert.equal(moved.carriedTo, null);
+  assert.deepEqual(store.tasksForDate(past).map((t) => t.title), ['Placed and done', 'Dropped', 'Left in the waiting list']); // nothing left behind
+  assert.equal(store.tasksForDate(today).filter((t) => t.title === 'Placed, not done').length, 1);
 
-  // The original is a record now; only the copy — unfinished on today — can be pulled to a later day.
+  // Unfinished on today, so a later day can pull it on again.
   assert.deepEqual(store.unfinishedBefore('2026-03-12').map((t) => t.title), ['Placed, not done']);
 });
 
@@ -232,11 +234,13 @@ test('pulling the same task from several days leaves ONE entry on the new day, c
   assert.equal(pulled.filter((t) => t.title === 'Pay the rent').length, 1);
   const rent = pulled.find((t) => t.title === 'Pay the rent');
   assert.equal(rent.attempt, 2);
-  assert.equal(rent.quadrant, 'do'); // the priority of the first day it was pulled from
+  assert.equal(rent.quadrant, 'do'); // the priority it was in on the day it came from
+  assert.equal(rent.id, first.id); // the very same task, moved
 
-  // Both originals stay behind as records, so neither is offered for pulling again.
-  assert.equal(store.findTask(first.id).carriedTo, '2026-03-11');
-  assert.equal(store.findTask(second.id).carriedTo, '2026-03-11');
+  // The twin folded into the entry that moved; nothing is left on the old days.
+  assert.equal(store.findTask(second.id), null);
+  assert.deepEqual(store.tasksForDate('2026-03-01'), []);
+  assert.deepEqual(store.tasksForDate('2026-03-05'), []);
   assert.deepEqual(store.unfinishedBefore('2026-03-20').map((t) => t.title).sort(), ['Call the bank', 'Pay the rent']);
 
   // Move that entry to another day, leave it unfinished, pull again: still one row, now on its third go.
@@ -616,4 +620,17 @@ test('setTrackedTime writes the time by hand and clears it with 0', () => {
   assert.equal(store.findTask(task.id).timer, null);
   store.undo(token);
   assert.equal(store.findTask(task.id).timer.elapsedSec, 5400);
+});
+
+test('dropCarriedRecords clears the left-behind copies of older documents, once', () => {
+  const { store } = makeStore();
+  const original = store.addTask({ title: 'Pay the rent', date: '2026-03-01', quadrant: 'do' });
+  // What an older version wrote: a record on the old day plus its copy on the new one.
+  store.updateTask(original.id, { carriedTo: DAY });
+  const copy = store.addTask({ title: 'Pay the rent', date: DAY, quadrant: 'do', attempt: 2, carriedFrom: original.id });
+
+  store.dropCarriedRecords();
+  assert.equal(store.findTask(original.id), null);
+  assert.equal(store.findTask(copy.id).attempt, 2);
+  assert.equal(store.dropCarriedRecords(), null); // nothing left to do on the next start
 });
