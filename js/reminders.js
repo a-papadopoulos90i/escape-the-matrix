@@ -45,18 +45,28 @@ async function call(pathname, body) {
 }
 
 /**
+ * What the bridge is told about: the tasks that belong in Reminders, and everything that should not be
+ * there any more. A record (the "pulled to …" copy left on the old day) is Levelix's own history — it
+ * stays here and its reminder is removed, so Calendar shows the task once, on the day it is on now.
+ */
+export function syncPayload(store, now = Date.now()) {
+  const cutoff = now - RECENT_DONE_MS;
+  const all = store.get().tasks;
+  const tasks = all
+    .filter((task) => !task.deleted && task.carriedTo === null && (!task.done || Date.parse(task.doneAt ?? '') >= cutoff))
+    .map((task) => ({ id: task.id, title: task.title, date: task.date, placed: task.quadrant !== null, done: task.done, updatedAt: task.updatedAt }));
+  const deleted = all.filter((task) => task.deleted || task.carriedTo !== null).map((task) => task.id);
+  return { tasks, deleted };
+}
+
+/**
  * One sync: Levelix → the "Levelix" Reminders list, then whatever changed in Reminders back in.
  * `silent` (the automatic runs) keeps quiet unless something actually came in from Reminders.
  * Returns { offline } / { outdated } / the bridge's result.
  */
 export async function syncWithReminders({ store, ui, i18n, silent = false }) {
   const { t } = i18n;
-  const cutoff = Date.now() - RECENT_DONE_MS;
-  const all = store.get().tasks;
-  const tasks = all
-    .filter((task) => !task.deleted && task.carriedTo === null && (!task.done || Date.parse(task.doneAt ?? '') >= cutoff))
-    .map((task) => ({ id: task.id, title: task.title, date: task.date, placed: task.quadrant !== null, done: task.done, updatedAt: task.updatedAt }));
-  const deleted = all.filter((task) => task.deleted).map((task) => task.id);
+  const { tasks, deleted } = syncPayload(store);
 
   let result;
   try {

@@ -413,9 +413,10 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
     },
 
     /**
-     * Pulls tasks forward to `date`: each one MOVES there, keeping the priority it was in and counting
-     * one more attempt (×2, ×3 …). Nothing is left behind on the old day, so a task is one entry — in
-     * Levelix, in Reminders and in Calendar. One undo token reverts the whole batch.
+     * Pulls tasks forward to `date`: each gets a fresh copy there (attempt + 1), keeping the priority
+     * it was in, while the original stays on its day as a record (`carriedTo`) — that is the history of
+     * what was left undone. Records never leave Levelix for Reminders (js/reminders.js drops them, so
+     * Calendar shows the task once, on the day it is on now). One undo token reverts the whole batch.
      */
     carryOver(ids, date) {
       if (!isDateKey(date)) throw new Error(`carryOver: invalid date "${date}"`);
@@ -423,30 +424,30 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
         for (const id of ids) {
           const task = find(id);
           if (!task || isRecord(task) || task.date >= date) continue;
-          // The day keeps ONE entry per title: pulling a second copy of the same thing forward folds
-          // into the one already there and raises its attempt count.
-          const already = doc.tasks.find(
-            (other) => other.id !== id && live(other) && !isRecord(other) && !other.done && other.date === date && other.title === task.title,
-          );
-          if (already) {
-            patchTask(already.id, () => ({ attempt: Math.max(already.attempt, task.attempt + 1) }), 'carryOver');
-            store.removeTask(id); // its twin on the new day carries it on
-          } else {
-            patchTask(id, () => ({ date, attempt: task.attempt + 1 }), 'carryOver');
-          }
+          // The new day keeps ONE entry per title: pulling the same thing forward again raises that
+          // entry's attempt count instead of adding a second copy.
+          const already = doc.tasks.find((other) => live(other) && !isRecord(other) && !other.done && other.date === date && other.title === task.title);
+          if (already) patchTask(already.id, () => ({ attempt: Math.max(already.attempt, task.attempt + 1) }), 'carryOver');
+          else store.addTask({ title: task.title, date, quadrant: task.quadrant, tag: task.tag ?? task.quadrant, attempt: task.attempt + 1, carriedFrom: task.id });
+          patchTask(id, () => ({ carriedTo: date }), 'carryOver');
         }
       });
     },
 
     /**
-     * Tidies documents written before pulling moved tasks: a record left behind on an old day is
-     * removed once its copy is still around, so nothing shows twice. Safe to run on every start.
+     * Brings back records that a short-lived version removed: a tombstoned record whose copy is still
+     * around is history worth keeping. Safe to run on every start — once restored, nothing matches.
      */
-    dropCarriedRecords() {
-      const stale = doc.tasks.filter((task) => live(task) && isRecord(task) && doc.tasks.some((other) => live(other) && other.carriedFrom === task.id));
-      if (!stale.length) return null;
+    restoreCarriedRecords() {
+      const lost = doc.tasks.filter((task) => task.deleted && isRecord(task) && doc.tasks.some((other) => live(other) && other.carriedFrom === task.id));
+      if (!lost.length) return null;
+      const ids = new Set(lost.map((task) => task.id)); // patchTask only sees live tasks, so commit directly
       return undoable(() => {
-        for (const record of stale) store.removeTask(record.id);
+        const ms = now();
+        commit(
+          doc.tasks.map((task) => (ids.has(task.id) ? { ...task, deleted: false, deletedAt: null, updatedAt: isoAt(ms) } : task)),
+          { reason: 'restoreRecord' },
+        );
       });
     },
 

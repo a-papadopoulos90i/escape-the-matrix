@@ -350,7 +350,7 @@ async function boot() {
   const voucherFlag = captureVoucherFlag(); // ?vouchers=on|off — the owner's code screen
   if (voucherFlag) ui.toast(t(voucherFlag === 'on' ? 'vouchers.enabled' : 'vouchers.disabled'), { duration: 9000 });
   store.settleRepeats(dates.todayKey()); // repeat copies left unfinished on a past day count a miss
-  store.dropCarriedRecords(); // documents from before pulls moved tasks still carry left-behind copies
+  store.restoreCarriedRecords(); // a short-lived version dropped the "pulled to …" history; put it back
   restoreUiState();
   els.stepperNav.setAttribute('aria-label', t('stepper.label'));
   els.skipLink.textContent = t('app.skip');
