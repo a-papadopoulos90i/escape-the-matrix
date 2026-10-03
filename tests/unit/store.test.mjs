@@ -648,3 +648,29 @@ test('the Reminders payload leaves out records and asks for their reminders to g
   assert.ok(deleted.includes(original.id)); // the record's reminder is removed, so Calendar shows it once
   assert.ok(deleted.includes(gone.id));
 });
+
+test('a new timer adds to the time a task already collected; the countdown measures its own run', () => {
+  const { store, clock } = makeStore();
+  const task = store.addTask({ title: 'Deep work', date: DAY });
+
+  store.startTimer(task.id, { mode: 'countdown', durationSec: 300 });
+  clock.tick(300); // the five minutes run out
+  assert.equal(Math.round(timerElapsed(store.findTask(task.id).timer, clock.now())), 300);
+  assert.equal(timerRemaining(store.findTask(task.id).timer, clock.now()), 0);
+  store.stopTimer(task.id);
+
+  // Another five minutes: the countdown starts from five again, the total keeps climbing.
+  store.startTimer(task.id, { mode: 'countdown', durationSec: 300 });
+  const started = store.findTask(task.id).timer;
+  assert.equal(started.baseSec, 300);
+  assert.equal(timerRemaining(started, clock.now()), 300);
+  clock.tick(120);
+  const after = store.findTask(task.id).timer;
+  assert.equal(Math.round(timerElapsed(after, clock.now())), 420); // 5:00 + 2:00
+  assert.equal(Math.round(timerRemaining(after, clock.now())), 180);
+
+  store.pauseTimer(task.id);
+  assert.equal(Math.round(timerElapsed(store.findTask(task.id).timer, clock.now())), 420); // pausing keeps the total
+  store.setTrackedTime(task.id, 60);
+  assert.equal(Math.round(timerElapsed(store.findTask(task.id).timer, clock.now())), 60); // a hand-written time replaces it
+});

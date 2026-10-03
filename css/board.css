@@ -1135,3 +1135,10 @@ body.has-timer-bar .toast-root {
 .waiting-place.is-active svg {
   fill: currentColor;
 }
+
+/* "Tracked so far" line in the timer picker. */
+.timer-picker__tracked {
+  margin: 0;
+  font-size: var(--text-xs);
+  text-align: center;
+}

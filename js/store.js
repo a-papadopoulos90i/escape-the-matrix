@@ -44,6 +44,9 @@ function normalizeTimer(raw) {
     durationSec: Number.isFinite(raw.durationSec) ? Math.max(0, raw.durationSec) : 0,
     startedAt,
     elapsedSec: Number.isFinite(raw.elapsedSec) ? Math.max(0, raw.elapsedSec) : 0,
+    // Time this task collected on EARLIER runs. A new timer adds on top of it, so starting another
+    // countdown never throws away what the task has already taken.
+    baseSec: Number.isFinite(raw.baseSec) ? Math.max(0, raw.baseSec) : 0,
     running: raw.running === true && startedAt !== null,
     stoppedAt: typeof raw.stoppedAt === 'string' ? raw.stoppedAt : null,
     alarmedAt: typeof raw.alarmedAt === 'string' ? raw.alarmedAt : null, // countdown alarm already raised
@@ -147,16 +150,23 @@ export function mergeDocs(a, b, nowMs = Date.now()) {
 }
 
 /** Seconds accumulated by a timer, including the live segment when it is running. */
-export function timerElapsed(timer, nowMs = Date.now()) {
+/** Seconds collected by the CURRENT run — what a countdown measures itself against. */
+export function runElapsed(timer, nowMs = Date.now()) {
   if (!timer) return 0;
   const live = timer.running && timer.startedAt ? Math.max(0, (nowMs - Date.parse(timer.startedAt)) / 1000) : 0;
   return timer.elapsedSec + live;
 }
 
-/** Seconds left on a countdown (0 for stopwatches or when finished). */
+/** All the time this task has taken: earlier runs plus the current one. */
+export function timerElapsed(timer, nowMs = Date.now()) {
+  if (!timer) return 0;
+  return (timer.baseSec ?? 0) + runElapsed(timer, nowMs);
+}
+
+/** Seconds left on the countdown now running (0 for stopwatches or when it has run out). */
 export function timerRemaining(timer, nowMs = Date.now()) {
   if (!timer || timer.mode !== 'countdown') return 0;
-  return Math.max(0, timer.durationSec - timerElapsed(timer, nowMs));
+  return Math.max(0, timer.durationSec - runElapsed(timer, nowMs));
 }
 
 function quadrantRank(task) {
@@ -250,7 +260,7 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
   }
 
   function stoppedTimer(timer, ms) {
-    return { ...timer, elapsedSec: timerElapsed(timer, ms), startedAt: null, running: false, stoppedAt: isoAt(ms) };
+    return { ...timer, elapsedSec: runElapsed(timer, ms), startedAt: null, running: false, stoppedAt: isoAt(ms) };
   }
 
   /** Only one timer may be live: stops every other unfinished timer. */
@@ -592,6 +602,7 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
                     durationSec: task.timer?.durationSec ?? 0,
                     startedAt: null,
                     elapsedSec: value,
+                    baseSec: 0, // a time written by hand replaces everything the task had
                     running: false,
                     stoppedAt: isoAt(now()),
                     alarmedAt: task.timer?.alarmedAt ?? null,
@@ -656,23 +667,26 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
 
     // ----- timers -----
 
-    startTimer(id, { mode = 'stopwatch', durationSec = 0 } = {}) {
+    startTimer(id, { mode = 'stopwatch', durationSec = 0, keepOthers = false } = {}) {
       if (!TIMER_MODES.includes(mode)) throw new Error(`startTimer: unknown mode "${mode}"`);
       const task = find(id);
       if (!task) return null;
-      const at = stamp();
+      const ms = now();
+      const at = isoAt(ms);
       const timer = {
         mode,
         durationSec: mode === 'countdown' ? Math.max(1, Math.round(durationSec)) : 0,
         startedAt: at,
         elapsedSec: 0,
+        baseSec: timerElapsed(task.timer, ms), // whatever the task has taken so far is kept and added to
         running: true,
         stoppedAt: null,
         alarmedAt: null,
       };
       const next = { ...task, timer, updatedAt: at };
+      const others = keepOthers ? doc.tasks : stopOtherTimers(doc.tasks, id); // `keepOthers`: run side by side
       commit(
-        stopOtherTimers(doc.tasks, id).map((item) => (item.id === id ? next : item)),
+        others.map((item) => (item.id === id ? next : item)),
         { reason: 'startTimer', id },
       );
       return next;
@@ -683,20 +697,20 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
       if (!task?.timer?.running) return null;
       return patchTask(
         id,
-        ({ timer }) => ({ timer: { ...timer, elapsedSec: timerElapsed(timer, now()), startedAt: null, running: false } }),
+        ({ timer }) => ({ timer: { ...timer, elapsedSec: runElapsed(timer, now()), startedAt: null, running: false } }),
         'pauseTimer',
       );
     },
 
     // Resumes a paused OR a stopped timer, keeping its accumulated time (a stopped timer's
     // stoppedAt is cleared so "Continue" picks up where it left off). Only one timer runs at a time.
-    resumeTimer(id) {
+    resumeTimer(id, { keepOthers = false } = {}) {
       const task = find(id);
       if (!task?.timer || task.timer.running) return null;
       const at = stamp();
       const next = { ...task, timer: { ...task.timer, startedAt: at, running: true, stoppedAt: null }, updatedAt: at };
       commit(
-        stopOtherTimers(doc.tasks, id).map((item) => (item.id === id ? next : item)),
+        (keepOthers ? doc.tasks : stopOtherTimers(doc.tasks, id)).map((item) => (item.id === id ? next : item)),
         { reason: 'resumeTimer', id },
       );
       return next;
@@ -717,7 +731,14 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
 
     /** The live task whose timer is running or paused (not stopped), or null. */
     activeTimer() {
-      return doc.tasks.find((task) => live(task) && task.timer && !task.timer.stoppedAt) ?? null;
+      return store.activeTimers()[0] ?? null;
+    },
+
+    /** Every live task with a timer going, running ones first and the latest start at the front. */
+    activeTimers() {
+      return doc.tasks
+        .filter((task) => live(task) && task.timer && !task.timer.stoppedAt)
+        .sort((a, b) => Number(b.timer.running) - Number(a.timer.running) || String(b.timer.startedAt ?? '').localeCompare(String(a.timer.startedAt ?? '')));
     },
 
     // ----- persistence -----

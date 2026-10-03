@@ -107,4 +107,5 @@
   /* Above the modal: a popover/menu is always opened from whatever sits beneath it, and a menu
      raised from inside a dialog must stay clickable. */
   --z-popover: 70;
+  --z-modal-top: 80; /* a question raised FROM a popover must sit above it */
 }

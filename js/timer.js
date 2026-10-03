@@ -6,7 +6,7 @@
 // alarms once on the next load — and never twice.
 // Mounted once at document level by app.js at boot, so the bar shows on every stage after a reload.
 import { timerElapsed, timerRemaining } from './store.js';
-import { h, icon, confirm } from './ui.js';
+import { h, icon, modal } from './ui.js';
 import { t } from './i18n.js';
 
 const TICK_MS = 1000;
@@ -66,6 +66,12 @@ export function formatTime(sec) {
   return hours ? `${hours}:${minutes}:${seconds}` : `${minutes}:${seconds}`;
 }
 
+/** Seconds left on this task's countdown (0 for a stopwatch or one that has run out). */
+export const remaining = (task) => timerRemaining(task.timer);
+
+/** Every second this task has collected, across all its runs. */
+export const tracked = (task) => timerElapsed(task.timer);
+
 /** What a task's clock should show: { state: idle | running | paused | finished | done, text }. */
 export function clockState(task, now = Date.now()) {
   const { timer } = task;
@@ -103,19 +109,52 @@ export function renderClock(el, task, now = Date.now()) {
 export async function start(task, { mode, durationSec = 0 }) {
   unlockAudio(); // must happen inside the user gesture, before any await
   if (mode === 'countdown') requestNotificationPermission(); // likewise
-  const active = store.activeTimer();
-  if (active && active.id !== task.id && !(await confirm(t('timer.replace')))) return false;
-  store.startTimer(task.id, { mode, durationSec });
+  const active = store.activeTimers().find((other) => other.id !== task.id);
+  let keepOthers = false;
+  if (active) {
+    const choice = await askAboutRunning(active);
+    if (!choice) return false;
+    keepOthers = choice === 'both';
+  }
+  store.startTimer(task.id, { mode, durationSec, keepOthers });
   return true;
+}
+
+/**
+ * Another task is already being timed. One question, three answers: leave it (null), stop that one and
+ * start this ('stop'), or let both run ('both') — some work really does happen side by side.
+ * It sits above the timer picker it was opened from, so it can actually be answered.
+ */
+function askAboutRunning(active) {
+  return new Promise((resolve) => {
+    let choice = null;
+    modal({
+      title: t('timer.replaceTitle'),
+      content: t('timer.replaceBody', { title: active.title }),
+      className: 'modal--top',
+      actions: [
+        { label: t('common.cancel') },
+        { label: t('timer.runBoth'), onClick: () => (choice = 'both') },
+        { label: t('timer.stopOther'), primary: true, onClick: () => (choice = 'stop') },
+      ],
+      onClose: () => resolve(choice),
+    });
+  });
 }
 
 /** Continues a paused or stopped timer from its accumulated time (never resets it). Like `start`,
  *  it asks before displacing another live timer. Resolves to true when it resumed. */
 export async function resume(task) {
+  if (clockState(task).state === 'finished' || (task.timer?.mode === 'countdown' && timerRemaining(task.timer) <= 0)) return false; // nothing left to run
   unlockAudio();
-  const active = store.activeTimer();
-  if (active && active.id !== task.id && !(await confirm(t('timer.replace')))) return false;
-  store.resumeTimer(task.id);
+  const active = store.activeTimers().find((other) => other.id !== task.id);
+  let keepOthers = false;
+  if (active) {
+    const choice = await askAboutRunning(active);
+    if (!choice) return false;
+    keepOthers = choice === 'both';
+  }
+  store.resumeTimer(task.id, { keepOthers });
   return true;
 }
 
@@ -150,16 +189,17 @@ function setTicking(on) {
 
 /** One clock update: every card clock of the live task, the bar time, and the countdown alarm. */
 function tick() {
-  const task = store?.activeTimer();
-  if (!task) return;
+  const tasks = store?.activeTimers() ?? [];
+  if (!tasks.length) return;
   const now = Date.now();
-  for (const el of document.querySelectorAll(`.task-card__clock[data-timer-id="${CSS.escape(task.id)}"]`)) {
-    renderClock(el, task, now);
+  for (const task of tasks) {
+    for (const el of document.querySelectorAll(`.task-card__clock[data-timer-id="${CSS.escape(task.id)}"]`)) {
+      renderClock(el, task, now);
+    }
+    const { timer } = task;
+    if (timer.mode === 'countdown' && timer.running && !timer.alarmedAt && timerRemaining(timer, now) <= 0) raiseAlarm(task);
   }
-  updateBarTime(task, now);
-  const { timer } = task;
-  if (timer.mode !== 'countdown' || !timer.running || timer.alarmedAt) return;
-  if (timerRemaining(timer, now) <= 0) raiseAlarm(task);
+  updateBarTime(tasks[0], now); // the bar follows the one that started last
 }
 
 function onVisibilityChange() {
@@ -209,7 +249,8 @@ function renderBar(task) {
   document.body.classList.toggle('has-timer-bar', visible);
   if (!visible) return;
   const running = task.timer.running;
-  bar.title.textContent = task.title;
+  const others = store.activeTimers().length - 1;
+  bar.title.textContent = others > 0 ? t('timer.alsoRunning', { title: task.title, n: others }) : task.title;
   bar.el.classList.toggle('timer-bar--paused', !running);
   fillButton(bar.pause, running ? 'pause' : 'play', t(running ? 'timer.pause' : 'timer.resume'));
 }
@@ -220,6 +261,7 @@ function updateBarTime(task, now) {
   bar.time.textContent = text;
   bar.status.textContent = finished ? t('timer.finished') : '';
   bar.el.classList.toggle('timer-bar--finished', finished);
+  bar.pause.hidden = finished; // a countdown that has run out has nothing to pause
 }
 
 // ---------- Alarm ----------

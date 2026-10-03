@@ -903,8 +903,11 @@ function showTimerPicker(task, body) {
   // If this task already has time on the clock (paused or stopped), offer to CONTINUE it from where
   // it left off — so the time is never lost — before the options that start a fresh timer.
   const status = timer.clockState(task);
+  // A countdown that has run out has nothing left to continue: only a fresh timer makes sense, and
+  // whatever it collects is added to the time already on the task.
+  const hasRunLeft = task.timer?.mode !== 'countdown' || timer.remaining(task) > 0;
   const continueBtn =
-    status.state === 'paused' || status.state === 'done'
+    (status.state === 'paused' || status.state === 'done') && hasRunLeft
       ? ui.h(
           'button',
           { class: 'btn btn-primary timer-picker__continue', type: 'button', onClick: () => resumeFromPicker(task) },
@@ -917,6 +920,7 @@ function showTimerPicker(task, body) {
     [
       editableTitle(task, body, () => showTimerPicker(task, body)),
       continueBtn,
+      timer.tracked(task) > 0 ? ui.h('p', { class: 'timer-picker__tracked text-muted' }, i18n.t('timer.tracked', { time: timer.formatTime(timer.tracked(task)) })) : null,
       stopwatch,
       ui.h(
         'fieldset',

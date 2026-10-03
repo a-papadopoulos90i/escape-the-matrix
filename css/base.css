@@ -1424,3 +1424,8 @@ body.has-modal {
   color: var(--muted);
   white-space: pre;
 }
+
+/* A modal opened from a popover (the "another task is on the clock" question) sits above it. */
+.modal-backdrop:has(> .modal--top) {
+  z-index: var(--z-modal-top);
+}

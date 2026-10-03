@@ -301,6 +301,27 @@ test('Repeat: a copy left unfinished on a day that has passed counts a miss and 
   await waitForSaved(page, (doc) => taskById(doc, 't_read').misses === 1 && taskById(doc, 't_copy').deleted === true);
 });
 
+test('a countdown that ran out offers a new timer, not "Continue", and the next one adds to the time', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  const spent = { mode: 'countdown', durationSec: 300, startedAt: null, elapsedSec: 311, baseSec: 0, running: false, stoppedAt: '2026-03-11T08:00:00.000Z', alarmedAt: '2026-03-11T08:00:00.000Z' };
+  await seed(page, { tasks: [task('t_timed', 'Φίλτρα νερού', 'do', { timer: spent })] });
+  await page.goto('/');
+  const clock = () => card(page, 'Φίλτρα νερού').locator('.task-card__clock');
+  await expect(clock()).toHaveText('05:11');
+
+  await clock().click();
+  const popover = page.locator('.popover');
+  await expect(popover).toContainText('Tracked so far: 05:11');
+  await expect(popover.locator('.timer-picker__continue')).toHaveCount(0); // nothing left to continue
+
+  // A fresh countdown runs its own five minutes and adds them on top of the 5:11 already tracked.
+  await popover.getByRole('button', { name: '5', exact: true }).click();
+  await expect(page.locator('.timer-bar')).toBeVisible();
+  await expect(page.locator('.timer-bar')).not.toContainText("Time's up");
+  await expect(clock()).toHaveText(/^0[45]:[0-5]\d$/); // counting down from 5:00 again
+  await waitForSaved(page, (doc) => taskById(doc, 't_timed').timer.baseSec === 311);
+});
+
 test('the free plan stops at 100 open tasks: adding says so, deleting makes room again', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 1000 });
   const many = Array.from({ length: 100 }, (_, i) => task(`t_f${i}`, `Task ${i + 1}`, null, {}));
@@ -614,7 +635,7 @@ test('▶ starts a countdown: clock live, bar visible, survives reload, pause/re
   expect(errors).toEqual([]);
 });
 
-test('starting a second timer asks to stop the first; Done ticks the task', async ({ page }) => {
+test('starting a second timer asks — in front of the picker — and can stop the first; Done ticks the task', async ({ page }) => {
   await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
   await openTimer(page, 'Marketing Order A5');
@@ -624,14 +645,38 @@ test('starting a second timer asks to stop the first; Done ticks the task', asyn
   await openTimer(page, 'Invoice Send');
   await popover(page).locator('.timer-picker__preset', { hasText: '15' }).click();
   const dialog = page.locator('[role="dialog"].modal');
-  await expect(dialog).toContainText('Stop the current timer and start a new one?');
-  await dialog.locator('button', { hasText: 'Confirm' }).click();
+  await expect(dialog).toContainText('is being timed right now');
+  // The question sits above the picker it was asked from, so it can be answered.
+  const layers = await page.evaluate(() => {
+    const value = (selector) => Number(getComputedStyle(document.querySelector(selector)).zIndex);
+    return { question: value('.modal-backdrop'), picker: value('.popover') };
+  });
+  expect(layers.question).toBeGreaterThan(layers.picker);
+
+  await dialog.getByRole('button', { name: 'Stop that one' }).click();
   await expect(bar(page).locator('.timer-bar__title')).toHaveText('Invoice Send');
   await expect(card(page, 'Marketing Order A5').locator('.task-card__clock')).toHaveClass(/task-card__clock--done/);
 
   await bar(page).locator('.timer-bar__done').click();
   await expect(bar(page)).toBeHidden();
   await expect(card(page, 'Invoice Send')).toHaveClass(/task-card--done/);
+});
+
+test('"Run both" lets two tasks be timed side by side', async ({ page }) => {
+  await seed(page, { tasks: SORTED(), stage: 3 });
+  await page.goto('/');
+  await openTimer(page, 'Marketing Order A5');
+  await popover(page).locator('.timer-picker__stopwatch').click();
+
+  await openTimer(page, 'Invoice Send');
+  await popover(page).locator('.timer-picker__stopwatch').click();
+  await page.locator('[role="dialog"].modal').getByRole('button', { name: 'Run both' }).click();
+
+  // Both clocks keep running, and the bar says it is not alone.
+  await expect(card(page, 'Marketing Order A5').locator('.task-card__clock')).toHaveClass(/task-card__clock--running/);
+  await expect(card(page, 'Invoice Send').locator('.task-card__clock')).toHaveClass(/task-card__clock--running/);
+  await expect(bar(page).locator('.timer-bar__title')).toHaveText('Invoice Send (+1 more)');
+  await waitForSaved(page, (doc) => doc.tasks.filter((item) => item.timer?.running).length === 2);
 });
 
 test('a countdown reaching 0 flashes the bar and shows "Time\'s up!"', async ({ page }) => {
