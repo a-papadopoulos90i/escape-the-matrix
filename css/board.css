@@ -1142,3 +1142,32 @@ body.has-timer-bar .toast-root {
   font-size: var(--text-xs);
   text-align: center;
 }
+
+/* A press-and-drag on a touch screen must drag the card, never start selecting its text. */
+.board .task-card,
+.dump-row,
+.waiting-card {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Narrow screens: the glyph row and the ✕ drop to a line of their own, so the title keeps the width
+   it needs to be read (on a phone the glyphs are always visible — there is no hover to reveal them). */
+@media (max-width: 639px) {
+  .waiting-card,
+  .dump-row {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
+  .waiting-card .task-card__title,
+  .dump-row .task-card__title {
+    text-align: left;
+  }
+
+  .waiting-card__places {
+    flex: 1 0 100%;
+    justify-content: flex-end;
+  }
+}

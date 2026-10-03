@@ -662,6 +662,22 @@ test('starting a second timer asks — in front of the picker — and can stop t
   await expect(card(page, 'Invoice Send')).toHaveClass(/task-card--done/);
 });
 
+test('on a phone the waiting card keeps the title readable, and a card never selects its text', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const long = 'Να κάνω το βιογραφικό μου έτσι ώστε να είναι κατανοητό και εύκολο για δουλειές';
+  await seed(page, { tasks: [...SORTED(), task('t_long', long, null, { tag: 'plan' })] });
+  await page.goto('/');
+
+  const shape = await panel(page).locator('.waiting .waiting-card').first().evaluate((card) => {
+    const title = card.querySelector('.task-card__title').getBoundingClientRect();
+    return { titleWidth: Math.round(title.width), titleHeight: Math.round(title.height), select: getComputedStyle(card).webkitUserSelect || getComputedStyle(card).userSelect };
+  });
+  expect(shape.titleWidth).toBeGreaterThan(150); // not squeezed into a column of single letters
+  expect(shape.titleHeight).toBeLessThan(120);
+  expect(shape.select).toBe('none'); // a press-and-drag drags, it does not select
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+});
+
 test('the browser tab shows the running time and the task it belongs to', async ({ page }) => {
   await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
