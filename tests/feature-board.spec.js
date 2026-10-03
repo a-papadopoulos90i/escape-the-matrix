@@ -662,6 +662,19 @@ test('starting a second timer asks — in front of the picker — and can stop t
   await expect(card(page, 'Invoice Send')).toHaveClass(/task-card--done/);
 });
 
+test('the browser tab shows the running time and the task it belongs to', async ({ page }) => {
+  await seed(page, { tasks: SORTED(), stage: 3 });
+  await page.goto('/');
+  const ownTitle = await page.title();
+
+  await openTimer(page, 'Marketing Order A5');
+  await popover(page).locator('.timer-picker__stopwatch').click();
+  await expect.poll(() => page.title()).toMatch(/^\d{2}:\d{2} — Marketing Order A5$/);
+
+  await bar(page).locator('.timer-bar__pause').click(); // paused: the tab goes back to its own name
+  await expect.poll(() => page.title()).toBe(ownTitle);
+});
+
 test('"Run both" lets two tasks be timed side by side', async ({ page }) => {
   await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');

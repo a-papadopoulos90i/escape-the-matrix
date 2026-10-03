@@ -26,6 +26,7 @@ let unsubscribe = null;
 let interval = null;
 let flashHandle = null;
 let audio = null;
+let pageTitle = ''; // the tab's own title, put back when nothing is being timed
 
 // ---------- Public API ----------
 
@@ -33,6 +34,7 @@ let audio = null;
 export function init({ store: nextStore }) {
   if (bar) return;
   store = nextStore;
+  pageTitle = document.title;
   bar = buildBar();
   document.body.append(bar.el);
   unsubscribe = store.subscribe(sync);
@@ -42,6 +44,7 @@ export function init({ store: nextStore }) {
 
 export function destroy() {
   if (!bar) return;
+  if (pageTitle) document.title = pageTitle;
   setTicking(false);
   clearTimeout(flashHandle);
   unsubscribe?.();
@@ -247,7 +250,10 @@ function renderBar(task) {
   const visible = Boolean(task);
   bar.el.hidden = !visible;
   document.body.classList.toggle('has-timer-bar', visible);
-  if (!visible) return;
+  if (!visible) {
+    showInTabTitle(null, 'idle', '');
+    return;
+  }
   const running = task.timer.running;
   const others = store.activeTimers().length - 1;
   bar.title.textContent = others > 0 ? t('timer.alsoRunning', { title: task.title, n: others }) : task.title;
@@ -262,6 +268,14 @@ function updateBarTime(task, now) {
   bar.status.textContent = finished ? t('timer.finished') : '';
   bar.el.classList.toggle('timer-bar--finished', finished);
   bar.pause.hidden = finished; // a countdown that has run out has nothing to pause
+  showInTabTitle(task, state, text);
+}
+
+/** The tab says what is on the clock: "02:44 — Pay the accountant", and goes back to normal after. */
+function showInTabTitle(task, state, text) {
+  if (!pageTitle) return;
+  const live = state === 'running' || state === 'finished';
+  document.title = live && task ? `${text} — ${task.title}` : pageTitle;
 }
 
 // ---------- Alarm ----------
