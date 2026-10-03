@@ -1429,3 +1429,17 @@ body.has-modal {
 .modal-backdrop:has(> .modal--top) {
   z-index: var(--z-modal-top);
 }
+
+/* iOS Safari zooms the whole page in when a tapped field's text is smaller than 16px — and leaves it
+   zoomed afterwards. Every field is 16px on a touch screen, so typing never moves the page. */
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select,
+  /* the same, but strong enough to beat the fields that carry their own class */
+  input[class],
+  textarea[class],
+  select[class] {
+    font-size: 16px;
+  }
+}

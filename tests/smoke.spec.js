@@ -262,6 +262,24 @@ test('the sign-in chooser → Continue with Google opens the not-connected modal
   await expect(dialog).toHaveCount(0);
 });
 
+test.describe('on a touch screen', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test('every field types at 16px, so tapping one never zooms the page in', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('#stepper .step').nth(1).click(); // Write down: the add field and the rows
+    await page.locator('.dump__input').fill('A task to type into');
+    await page.keyboard.press('Enter');
+
+    const smallest = await page.evaluate(() => {
+      const fields = [...document.querySelectorAll('input, textarea, select')].filter((el) => !['checkbox', 'radio'].includes(el.type));
+      return Math.min(...fields.map((el) => parseFloat(getComputedStyle(el).fontSize)));
+    });
+    expect(smallest).toBeGreaterThanOrEqual(16); // iOS zooms in below this and stays zoomed
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+  });
+});
+
 test('mobile viewport: no horizontal scroll and the shell stays usable', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 740 });
   await page.goto('/');
