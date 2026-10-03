@@ -669,11 +669,26 @@ test('on a phone the waiting card keeps the title readable, and a card never sel
   await page.goto('/');
 
   const shape = await panel(page).locator('.waiting .waiting-card').first().evaluate((card) => {
-    const title = card.querySelector('.task-card__title').getBoundingClientRect();
-    return { titleWidth: Math.round(title.width), titleHeight: Math.round(title.height), select: getComputedStyle(card).webkitUserSelect || getComputedStyle(card).userSelect };
+    const box = (selector) => {
+      const b = card.querySelector(selector).getBoundingClientRect();
+      return { left: Math.round(b.left), width: Math.round(b.width), centre: Math.round(b.left + b.width / 2), bottom: Math.round(b.bottom), top: Math.round(b.top) };
+    };
+    const outer = card.getBoundingClientRect();
+    return {
+      centre: Math.round(outer.left + outer.width / 2),
+      width: Math.round(outer.width),
+      insert: box('.task-card__insert'),
+      del: box('.task-card__delete'),
+      title: box('.task-card__title'),
+      select: getComputedStyle(card).webkitUserSelect || getComputedStyle(card).userSelect,
+    };
   });
-  expect(shape.titleWidth).toBeGreaterThan(150); // not squeezed into a column of single letters
-  expect(shape.titleHeight).toBeLessThan(120);
+  // The phone layout: arrow on the left of the top row, ✕ at its right end, title across the card below.
+  expect(shape.insert.left).toBeLessThan(shape.centre);
+  expect(shape.del.left).toBeGreaterThan(shape.centre);
+  expect(shape.title.top).toBeGreaterThan(shape.insert.top);
+  expect(shape.title.width).toBeGreaterThan(shape.width - 40); // the whole width, not a column of letters
+  expect(Math.abs(shape.title.centre - shape.centre)).toBeLessThanOrEqual(2); // centred under it
   expect(shape.select).toBe('none'); // a press-and-drag drags, it does not select
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
 });

@@ -1158,16 +1158,48 @@ body.has-timer-bar .toast-root {
   .waiting-card,
   .dump-row {
     flex-wrap: wrap;
-    row-gap: 4px;
+    row-gap: 6px;
+    padding: 10px 12px;
   }
 
+  /* Row 1: the small controls, with the ✕ pushed to the far end. */
+  .waiting-card > *,
+  .dump-row > * {
+    order: 1;
+  }
+
+  .waiting-card .task-card__delete,
+  .dump-row .dump-row__delete {
+    order: 2;
+    margin-left: auto;
+  }
+
+  /* Row 2: the whole title across the card, centred, with room to be read. */
   .waiting-card .task-card__title,
-  .dump-row .task-card__title {
-    text-align: left;
+  .dump-row .dump-row__input {
+    order: 3;
+    flex: 1 0 100%;
+    text-align: center;
   }
 
+  /* Row 3: the four priority glyphs, centred under the title. */
   .waiting-card__places {
+    order: 4;
     flex: 1 0 100%;
-    justify-content: flex-end;
+    justify-content: center;
+  }
+}
+
+/* A narrow window WITH a pointer (not a phone) reveals the glyphs on hover, so they take no room until then. */
+@media (max-width: 639px) and (hover: hover) {
+  .waiting-card__places {
+    display: none;
+  }
+
+  .waiting-card:hover .waiting-card__places,
+  .waiting-card:focus-within .waiting-card__places,
+  .dump-row:hover .waiting-card__places,
+  .dump-row:focus-within .waiting-card__places {
+    display: flex;
   }
 }
