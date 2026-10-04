@@ -604,9 +604,9 @@ function undoToast(message, token) {
 }
 
 function nextVisibleDay(fromKey) {
-  // ⏩ "next day" skips weekends: a Friday task jumps to Monday. (Weekends still show on the
-  // calendar; this only affects where the one-tap "next day" action lands.)
-  return ctx.dates.nextVisibleDay(fromKey, false);
+  // "Next day" means the next day — Saturday and Sunday included. (It used to skip the weekend, which
+  // made a Saturday task land on Monday and look lost.)
+  return ctx.dates.addDays(fromKey, 1);
 }
 
 /** Moves tasks to another day. Every day (weekends included) is shown on the calendar, so a moved

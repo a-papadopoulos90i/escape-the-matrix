@@ -762,16 +762,16 @@ const fridayTasks = (friday) => [
   { ...task('t_2', 'Invoice Send', 'delegate'), date: toKey(friday) },
 ];
 
-test('⏩ sends a Friday task to Monday (skips the weekend) with Undo', async ({ page }) => {
+test('"Next day" sends a Friday task to Saturday — the very next day — with Undo', async ({ page }) => {
   const friday = nextWeekday(new Date(), 5);
-  const monday = shiftDays(friday, 3);
+  const saturday = shiftDays(friday, 1);
   await seed(page, { tasks: fridayTasks(friday), stage: 3, date: toKey(friday) });
   await page.goto('/');
   await openSchedule(page, 'Marketing Order A5');
   await popover(page).locator('.schedule-picker__nextday').click();
   await expect(card(page, 'Marketing Order A5')).toHaveCount(0);
-  await expect(page.locator('.toast')).toContainText(`Moved to ${formatShort(monday)}`);
-  await waitForSaved(page, (doc) => taskById(doc, 't_1').date === toKey(monday));
+  await expect(page.locator('.toast')).toContainText(`Moved to ${formatShort(saturday)}`);
+  await waitForSaved(page, (doc) => taskById(doc, 't_1').date === toKey(saturday));
   await page.locator('.toast__action', { hasText: 'Undo' }).click();
   await expect(card(page, 'Marketing Order A5')).toHaveCount(1);
   await waitForSaved(page, (doc) => taskById(doc, 't_1').date === toKey(friday));
