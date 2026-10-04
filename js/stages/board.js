@@ -598,9 +598,9 @@ function startAdding(quadrant) {
 // ---------- Undoable batch actions ----------
 
 /** Each toast reverts its own step (`token` from store.undoable), even with several toasts open. */
-function undoToast(message, token) {
+function undoToast(message, token, extra = []) {
   if (!token) return;
-  ctx.ui.toast(message, { action: { label: ctx.i18n.t('toast.undo'), onClick: () => ctx.store.undo(token) } });
+  ctx.ui.toast(message, { actions: [...extra, { label: ctx.i18n.t('toast.undo'), onClick: () => ctx.store.undo(token) }] });
 }
 
 function nextVisibleDay(fromKey) {
@@ -614,7 +614,10 @@ function nextVisibleDay(fromKey) {
 function moveTasks(tasks, dateKey) {
   const { store, dates, i18n } = ctx;
   const token = store.undoable(() => tasks.forEach((task) => store.moveTaskToDate(task.id, dateKey)));
-  undoToast(i18n.t('toast.movedTo', { date: dates.formatShort(dateKey) }), token);
+  // Where it went is one tap away, so a moved task is never lost.
+  undoToast(i18n.t('toast.movedTo', { date: dates.formatShort(dateKey) }), token, [
+    { label: i18n.t('toast.openDay'), onClick: () => ctx.setDate(dateKey) },
+  ]);
 }
 
 

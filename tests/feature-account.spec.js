@@ -464,7 +464,7 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     const imported = tasks.find((task) => task.title === 'Buy milk');
     expect(imported).toMatchObject({ date: '2026-03-12', quadrant: null, done: false });
     expect(tasks.find((task) => task.id === 't_local')).toMatchObject({ done: true, title: 'Renamed in Reminders', date: '2026-03-20' });
-    expect(calls[1]).toEqual({ pathname: '/link', body: { links: [{ reminderId: 'x-apple-reminder://R1', taskId: imported.id, title: 'Buy milk', rDate: '2026-03-12', lDate: '2026-03-12' }] } });
+    expect(calls[1]).toEqual({ pathname: '/link', body: { links: [{ reminderId: 'x-apple-reminder://R1', taskId: imported.id, title: 'Buy milk', rDate: '2026-03-12', lDate: '2026-03-12', quadrant: null }] } });
   });
 
   test('with the opt-in on, the sync runs by itself — nothing to press', async ({ page }) => {

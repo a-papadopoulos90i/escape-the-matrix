@@ -7,7 +7,7 @@ import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promise
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { planSync } from './plan.mjs';
+import { planSync, priorityForQuadrant } from './plan.mjs';
 
 const PORT = Number(process.env.LEVELIX_BRIDGE_PORT || 47827);
 const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'reminders.jxa.js');
@@ -72,7 +72,9 @@ async function sync({ tasks = [], deleted = [], today }) {
 async function link({ links = [] }) {
   const result = await runJxa('link', { links });
   const state = await loadState();
-  for (const { taskId, title, rDate = null, lDate } of links) state[taskId] = { title, rDate, lDate, placed: false, done: false };
+  for (const { taskId, title, rDate = null, lDate, quadrant = null } of links) {
+    state[taskId] = { title, rDate, lDate, placed: quadrant !== null, done: false, quadrant, priority: priorityForQuadrant(quadrant) };
+  }
   await saveState(state);
   return result;
 }
@@ -119,7 +121,7 @@ const server = http.createServer(async (req, res) => {
 
   try {
     const { pathname } = new URL(req.url, `http://127.0.0.1:${PORT}`);
-    if (req.method === 'GET' && pathname === '/health') return send(res, 200, { ok: true, list: 'Levelix', version: 3 }, allowed);
+    if (req.method === 'GET' && pathname === '/health') return send(res, 200, { ok: true, list: 'Levelix', version: 4 }, allowed);
     if (req.method === 'POST' && (pathname === '/sync' || pathname === '/link')) {
       const payload = JSON.parse((await readBody(req)) || '{}');
       const result = await exclusive(() => (pathname === '/sync' ? sync(payload) : link(payload)));

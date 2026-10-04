@@ -1,8 +1,8 @@
 // Apple Reminders side of the personal Levelix bridge (run by server.mjs through `osascript -l JavaScript`).
 // It only ever touches one Reminders list, "Levelix". All merge decisions live in plan.mjs; this script
 // only reads the list and carries out the operations it is given.
-//   read  <file>  — prints [{ id, title, body, completed, date, created, modified }]
-//   apply <file>  — file holds { ops: [{ op: 'create', taskId, title, date } | { op: 'update', id, title?, date?, completed?: boolean } | { op: 'delete', id }] }
+//   read  <file>  — prints [{ id, title, body, completed, date, priority, created, modified }]
+//   apply <file>  — file holds { ops: [{ op: 'create', taskId, title, date, priority } | { op: 'update', id, title?, date?, completed?, priority? } | { op: 'delete', id }] }
 //   link  <file>  — file holds { links: [{ reminderId, taskId }] }
 ObjC.import('Foundation');
 
@@ -46,6 +46,7 @@ function read(list) {
   const completed = r.completed();
   const allday = r.alldayDueDate();
   const due = r.dueDate();
+  const priority = r.priority();
   const created = r.creationDate();
   const modified = r.modificationDate();
   return ids.map((id, i) => ({
@@ -54,6 +55,7 @@ function read(list) {
     body: bodies[i] || '',
     completed: completed[i],
     date: toKey(allday[i] || due[i]),
+    priority: Number.isFinite(priority[i]) ? priority[i] : 0,
     created: created[i] ? created[i].getTime() : 0,
     modified: modified[i] ? modified[i].getTime() : 0,
   }));
@@ -65,12 +67,14 @@ function apply(app, list, ops) {
     if (op.op === 'create') {
       const props = { name: op.title, body: `levelix:${op.taskId}` };
       if (op.date) props.alldayDueDate = toDate(op.date);
+      if (op.priority) props.priority = op.priority;
       reminders.push(app.Reminder(props));
     } else if (op.op === 'update') {
       const reminder = reminders.byId(op.id);
       if (op.title !== undefined) reminder.name = op.title;
       if (op.date) reminder.alldayDueDate = toDate(op.date);
       if (op.completed !== undefined) reminder.completed = op.completed;
+      if (op.priority !== undefined) reminder.priority = op.priority;
     } else if (op.op === 'delete') {
       app.delete(reminders.byId(op.id));
     }

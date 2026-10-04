@@ -12,10 +12,16 @@
 export const TAG = /levelix:([A-Za-z0-9_-]+)/;
 const EDITED_AFTER_CREATION_MS = 10_000;
 
+// Reminders has three levels of priority; Levelix has four boxes. They line up like this, and a dated
+// reminder with no priority lands in Schedule so it is actually visible on its day.
+const PRIORITY_OF = { do: 1, plan: 5, delegate: 9, delete: 0 };
+export const quadrantForPriority = (priority) => (priority >= 1 && priority <= 4 ? 'do' : priority === 5 ? 'plan' : priority >= 6 ? 'delegate' : null);
+export const priorityForQuadrant = (quadrant) => PRIORITY_OF[quadrant] ?? 0;
+
 /**
- * tasks:     [{ id, title, date, placed, done, updatedAt }]  (what Levelix syncs)
+ * tasks:     [{ id, title, date, placed, quadrant, done, updatedAt }]  (what Levelix syncs)
  * deleted:   [taskId]                                        (Levelix tombstones)
- * reminders: [{ id, title, body, completed, date, created, modified }] (dates as keys, times in ms)
+ * reminders: [{ id, title, body, completed, date, priority, created, modified }] (dates as keys, times in ms)
  * Returns { ops, result, state }: ops for the Reminders app, result for the browser, the next state.
  */
 export function planSync({ tasks = [], deleted = [], reminders = [], state = {}, today }) {
@@ -43,8 +49,9 @@ export function planSync({ tasks = [], deleted = [], reminders = [], state = {},
       }
       if (task.done) continue;
       const date = task.placed ? task.date : null;
-      ops.push({ op: 'create', taskId: task.id, title: task.title, date });
-      next[task.id] = { title: task.title, rDate: date, lDate: task.date, placed: task.placed, done: false };
+      const priority = priorityForQuadrant(task.quadrant);
+      ops.push({ op: 'create', taskId: task.id, title: task.title, date, priority });
+      next[task.id] = { title: task.title, rDate: date, lDate: task.date, placed: task.placed, done: false, priority, quadrant: task.quadrant ?? null };
       result.created += 1;
       continue;
     }
@@ -84,6 +91,21 @@ export function planSync({ tasks = [], deleted = [], reminders = [], state = {},
       }
     }
 
+    // Priority ↔ box: the side that changed it since the last sync decides where the task sits.
+    let priority = reminder.priority ?? 0;
+    let quadrant = task.quadrant ?? null;
+    const wantedPriority = priorityForQuadrant(quadrant);
+    if (priority !== wantedPriority) {
+      const reminderDecides =
+        base?.priority === undefined ? reminderNewer : priority !== base.priority && quadrant === (base.quadrant ?? null);
+      if (reminderDecides) {
+        quadrant = quadrantForPriority(priority);
+        change.quadrant = quadrant;
+      } else {
+        patch.priority = priority = wantedPriority;
+      }
+    }
+
     // Ticks: a side that changed since the last sync wins; when both changed, Levelix wins. Without a record
     // (older links), the reminder wins only when it was edited after the task.
     let done = task.done;
@@ -103,7 +125,7 @@ export function planSync({ tasks = [], deleted = [], reminders = [], state = {},
       result.updated += 1;
     }
     if (Object.keys(change).length) result.changedInReminders.push({ id: task.id, ...change });
-    next[task.id] = { title, rDate, lDate, placed, done };
+    next[task.id] = { title, rDate, lDate, placed, done, priority, quadrant };
   }
 
   for (const id of gone) {
@@ -117,7 +139,9 @@ export function planSync({ tasks = [], deleted = [], reminders = [], state = {},
 
   for (const reminder of reminders) {
     if (reminder.completed || TAG.test(reminder.body || '') || !String(reminder.title || '').trim()) continue;
-    result.imports.push({ reminderId: reminder.id, title: String(reminder.title).trim(), date: reminder.date });
+    // A reminder that carries a day goes straight onto that day's board, in the box its priority names.
+    const imported = quadrantForPriority(reminder.priority ?? 0) ?? (reminder.date ? 'plan' : null);
+    result.imports.push({ reminderId: reminder.id, title: String(reminder.title).trim(), date: reminder.date, quadrant: imported });
   }
   return { ops, result, state: next };
 }

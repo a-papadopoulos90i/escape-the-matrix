@@ -259,14 +259,17 @@ export function bubble({ text, html, content, tone = 'khaki', tail = 'bottom', a
 // ---------- Toast ----------
 
 /** Bottom-centre toast with optional action ({ label, onClick }). duration 0 = sticky. */
-export function toast(message, { action, duration = TOAST_DURATION } = {}) {
+/** `action` is one button; `actions` is several (e.g. "Open the day" next to "Undo"). */
+export function toast(message, { action, actions, duration = TOAST_DURATION } = {}) {
   const root = document.getElementById('toast-root');
+  const buttons = [...(actions ?? []), ...(action ? [action] : [])];
   const el = h(
     'div',
     { class: 'toast', role: 'status' },
     h('span', { class: 'toast__text' }, message),
-    action &&
-      h('button', { class: 'toast__action', type: 'button', onClick: () => { dismiss(); action.onClick?.(); } }, action.label),
+    buttons.map((item) =>
+      h('button', { class: 'toast__action', type: 'button', onClick: () => { dismiss(); item.onClick?.(); } }, item.label),
+    ),
     h('button', { class: 'btn-icon toast__close', type: 'button', 'aria-label': t('common.close'), onClick: () => dismiss() }, icon('close', { size: 16 })),
   );
   let timer = null;

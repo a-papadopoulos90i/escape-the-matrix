@@ -323,6 +323,7 @@ export const strings = {
   'toast.deleted': 'Task deleted',
   'toast.deletedMany': '{n} tasks deleted',
   'toast.undo': 'Undo',
+  'toast.openDay': 'Open that day',
   'toast.saveFailed': 'Could not save your changes in this browser.',
 
   'confirm.deleteTask': 'Delete this task?',

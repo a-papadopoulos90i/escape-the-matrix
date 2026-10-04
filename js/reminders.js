@@ -54,7 +54,7 @@ export function syncPayload(store, now = Date.now()) {
   const all = store.get().tasks;
   const tasks = all
     .filter((task) => !task.deleted && task.carriedTo === null && (!task.done || Date.parse(task.doneAt ?? '') >= cutoff))
-    .map((task) => ({ id: task.id, title: task.title, date: task.date, placed: task.quadrant !== null, done: task.done, updatedAt: task.updatedAt }));
+    .map((task) => ({ id: task.id, title: task.title, date: task.date, placed: task.quadrant !== null, quadrant: task.quadrant, done: task.done, updatedAt: task.updatedAt }));
   const deleted = all.filter((task) => task.deleted || task.carriedTo !== null).map((task) => task.id);
   return { tasks, deleted };
 }
@@ -91,11 +91,13 @@ export async function syncWithReminders({ store, ui, i18n, silent = false }) {
       if (change.title !== undefined) store.updateTask(change.id, { title: change.title });
       if (change.unplace) store.setQuadrant(change.id, null);
       if (change.date) store.moveTaskToDate(change.id, change.date);
+      // The reminder's priority says which box it belongs in (no priority = back to the waiting list).
+      if (change.quadrant !== undefined) store.setQuadrant(change.id, change.quadrant, store.findTask(change.id)?.date);
     }
     for (const id of result.deletedInReminders) store.removeTask(id); // deleted in Reminders
     for (const item of result.imports) {
-      const task = store.addTask({ title: item.title, date: item.date ?? todayKey() });
-      links.push({ reminderId: item.reminderId, taskId: task.id, title: task.title, rDate: item.date, lDate: task.date });
+      const task = store.addTask({ title: item.title, date: item.date ?? todayKey(), quadrant: item.quadrant ?? null, tag: item.quadrant ?? null });
+      links.push({ reminderId: item.reminderId, taskId: task.id, title: task.title, rDate: item.date, lDate: task.date, quadrant: task.quadrant });
     }
   });
   if (links.length) {
