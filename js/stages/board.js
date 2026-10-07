@@ -283,14 +283,29 @@ function titleButton(task) {
  * A task pulled to a later day stays here as a record: faded red, not counted, nothing to tick
  * or start — it only shows how the day went and where the task continued.
  */
+/** What was left undone on this day and pulled to another one. Tapping it brings the task back here. */
 function recordCard(task) {
-  const { ui } = ctx;
+  const { ui, i18n, dates } = ctx;
+  const label = i18n.t('carry.pullBack', { date: dates.formatShort(task.date) });
   return ui.h(
-    'div',
-    { class: 'task-card task-card--record', dataset: { id: task.id } },
+    'button',
+    { class: 'task-card task-card--record', type: 'button', dataset: { id: task.id }, title: label, 'aria-label': `${task.title} — ${label}`, onClick: () => pullBack(task) },
     ui.h('span', { class: 'task-card__title task-card__title--record' }, attemptBadge(ctx, task), task.title),
     recordLabel(ctx, task),
   );
+}
+
+/** Undoes a pull: the copy comes back to this day (one attempt fewer) and the record makes way. */
+function pullBack(record) {
+  const { store, dates, i18n } = ctx;
+  const copy = store.get().tasks.find((task) => !task.deleted && task.carriedFrom === record.id && task.carriedTo === null);
+  const token = store.undoable(() => {
+    if (!copy) return store.updateTask(record.id, { carriedTo: null }); // nothing to bring back: it lives here again
+    store.moveTaskToDate(copy.id, record.date);
+    store.updateTask(copy.id, { attempt: Math.max(1, copy.attempt - 1) });
+    store.removeTask(record.id);
+  });
+  undoToast(i18n.t('toast.pulledBack', { date: dates.formatShort(record.date) }), token);
 }
 
 /** Inline "add task" row: Enter or blur with text commits, Escape or an empty blur discards. */

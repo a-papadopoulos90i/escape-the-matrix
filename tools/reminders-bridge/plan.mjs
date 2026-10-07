@@ -21,18 +21,30 @@ export const priorityForQuadrant = (quadrant) => PRIORITY_OF[quadrant] ?? 0;
 /**
  * tasks:     [{ id, title, date, placed, quadrant, done, updatedAt }]  (what Levelix syncs)
  * deleted:   [taskId]                                        (Levelix tombstones)
+ * relink:    [{ from, to }]                                  (a pulled task hands its reminder over)
  * reminders: [{ id, title, body, completed, date, priority, created, modified }] (dates as keys, times in ms)
  * Returns { ops, result, state }: ops for the Reminders app, result for the browser, the next state.
  */
-export function planSync({ tasks = [], deleted = [], reminders = [], state = {}, today }) {
+export function planSync({ tasks = [], deleted = [], relink = [], reminders = [], state = {}, today }) {
   const byTask = new Map();
   for (const reminder of reminders) {
     const match = TAG.exec(reminder.body || '');
     if (match && !byTask.has(match[1])) byTask.set(match[1], reminder);
   }
   const ops = [];
+  // Hand a reminder over to the task that took the work on, keeping everything already on it.
+  for (const { from, to } of relink) {
+    const reminder = byTask.get(from);
+    if (!reminder || byTask.has(to)) continue;
+    ops.push({ op: 'retag', id: reminder.id, taskId: to });
+    reminder.body = `levelix:${to}`;
+    byTask.delete(from);
+    byTask.set(to, reminder);
+    if (state[from] && !state[to]) state[to] = state[from];
+  }
   const result = { created: 0, updated: 0, deleted: 0, completedInReminders: [], reopenedInReminders: [], changedInReminders: [], deletedInReminders: [], imports: [] };
   const next = { ...state };
+  for (const { from } of relink) delete next[from]; // the record is history in Levelix, not in Reminders
   const gone = new Set(deleted);
 
   for (const task of tasks) {

@@ -397,6 +397,30 @@ test('pulling unfinished work forward keeps the priority it was in', async ({ pa
   await waitForSaved(page, (doc) => doc.tasks.some((task) => task.title === 'Old report' && task.date === DAY && task.quadrant === 'delegate' && task.tag === 'delegate'));
 });
 
+test('the record left behind brings the task back when you tap it', async ({ page }) => {
+  await page.clock.setFixedTime(new Date(2026, 2, 11, 9, 0, 0)); // today = Wed 11 Mar 2026 (= DAY)
+  await seed(page, { tasks: [task('t_old', 'Old report', 'delegate', { date: '2026-03-09', tag: 'delegate' })] });
+  await page.goto('/');
+  await panel(page).getByRole('button', { name: 'Pull it here' }).click();
+  await expect(quadrant(page, 'delegate').locator('.task-card', { hasText: 'Old report' })).toHaveCount(1);
+
+  // Back on the day it came from, the record is a button that brings it back.
+  await panel(page).locator('.stage-nav__day-arrow').first().click();
+  await panel(page).locator('.stage-nav__day-arrow').first().click();
+  await expect(panel(page).locator('.stage-nav__day-label')).toHaveText('Mon 9 Mar');
+  await panel(page).locator('.task-card--record', { hasText: 'Old report' }).click();
+
+  await expect(page.locator('.toast', { hasText: 'Brought back to Mon 9 Mar' })).toBeVisible();
+  await expect(panel(page).locator('.task-card--record')).toHaveCount(0);
+  const back = quadrant(page, 'delegate').locator('.task-card', { hasText: 'Old report' });
+  await expect(back).toHaveCount(1);
+  await expect(back.locator('.attempt-badge')).toHaveCount(0); // the attempt it cost is given back
+  await waitForSaved(page, (doc) => {
+    const live = doc.tasks.filter((item) => !item.deleted && item.title === 'Old report');
+    return live.length === 1 && live[0].date === '2026-03-09' && live[0].quadrant === 'delegate';
+  });
+});
+
 test('"Pull them here" is offered only on the real today, for unfinished work from the days before it', async ({ page }) => {
   await page.clock.setFixedTime(new Date(2026, 2, 11, 9, 0, 0)); // today = Wed 11 Mar 2026 (= DAY)
   await seed(page, { tasks: [...SORTED(), task('t_old', 'Old report', 'do', { date: '2026-03-09' })] });

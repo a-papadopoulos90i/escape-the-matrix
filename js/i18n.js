@@ -278,6 +278,7 @@ export const strings = {
   'carry.toast': '{n} tasks pulled here — the old days keep a record',
   'carry.toastOne': '1 task pulled here — the old day keeps a record',
   'carry.record': 'Pulled to {date}',
+  'carry.pullBack': 'Bring it back to {date}',
   'carry.attempt': '×{n}',
   'carry.attemptTitle': '{n}th time on the plan',
   'carry.attemptTitle2': '2nd time on the plan',
@@ -324,6 +325,7 @@ export const strings = {
   'toast.deletedMany': '{n} tasks deleted',
   'toast.undo': 'Undo',
   'toast.openDay': 'Open that day',
+  'toast.pulledBack': 'Brought back to {date}',
   'toast.saveFailed': 'Could not save your changes in this browser.',
 
   'confirm.deleteTask': 'Delete this task?',

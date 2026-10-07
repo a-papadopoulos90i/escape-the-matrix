@@ -634,18 +634,21 @@ test('restoreCarriedRecords brings back history a short-lived version removed, o
   assert.equal(store.restoreCarriedRecords(), null); // nothing more to do on the next start
 });
 
-test('the Reminders payload leaves out records and asks for their reminders to go', async () => {
+test('the Reminders payload leaves out records: a pulled task hands its reminder to its copy', async () => {
   const { syncPayload } = await import('../../js/reminders.js');
   const { store } = makeStore();
   const original = store.addTask({ title: 'Pay the rent', date: '2026-03-01', quadrant: 'do' });
   store.carryOver([original.id], DAY);
+  const copy = store.tasksForDate(DAY).find((task) => task.title === 'Pay the rent');
   const gone = store.addTask({ title: 'Dropped idea', date: DAY });
   store.removeTask(gone.id);
 
-  const { tasks, deleted } = syncPayload(store);
+  const { tasks, deleted, relink } = syncPayload(store);
   assert.deepEqual(tasks.map((task) => task.title), ['Pay the rent']); // the copy on the new day only
   assert.equal(tasks[0].date, DAY);
-  assert.ok(deleted.includes(original.id)); // the record's reminder is removed, so Calendar shows it once
+  // The one reminder follows the task to its new day, keeping whatever was ticked or edited on it.
+  assert.deepEqual(relink, [{ from: original.id, to: copy.id }]);
+  assert.ok(!deleted.includes(original.id));
   assert.ok(deleted.includes(gone.id));
 });
 

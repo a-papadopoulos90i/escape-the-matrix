@@ -2,7 +2,7 @@
 // It only ever touches one Reminders list, "Levelix". All merge decisions live in plan.mjs; this script
 // only reads the list and carries out the operations it is given.
 //   read  <file>  — prints [{ id, title, body, completed, date, priority, created, modified }]
-//   apply <file>  — file holds { ops: [{ op: 'create', taskId, title, date, priority } | { op: 'update', id, title?, date?, completed?, priority? } | { op: 'delete', id }] }
+//   apply <file>  — file holds { ops: [{ op: 'create', taskId, title, date, priority } | { op: 'update', id, title?, date?, completed?, priority? } | { op: 'retag', id, taskId } | { op: 'delete', id }] }
 //   link  <file>  — file holds { links: [{ reminderId, taskId }] }
 ObjC.import('Foundation');
 
@@ -75,6 +75,10 @@ function apply(app, list, ops) {
       if (op.date) reminder.alldayDueDate = toDate(op.date);
       if (op.completed !== undefined) reminder.completed = op.completed;
       if (op.priority !== undefined) reminder.priority = op.priority;
+    } else if (op.op === 'retag') {
+      // The same reminder now belongs to another task (a pulled task keeps its reminder).
+      const reminder = reminders.byId(op.id);
+      reminder.body = String(reminder.body() || '').replace(TAG, `levelix:${op.taskId}`);
     } else if (op.op === 'delete') {
       app.delete(reminders.byId(op.id));
     }

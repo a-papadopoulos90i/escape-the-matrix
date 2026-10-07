@@ -55,8 +55,20 @@ export function syncPayload(store, now = Date.now()) {
   const tasks = all
     .filter((task) => !task.deleted && task.carriedTo === null && (!task.done || Date.parse(task.doneAt ?? '') >= cutoff))
     .map((task) => ({ id: task.id, title: task.title, date: task.date, placed: task.quadrant !== null, quadrant: task.quadrant, done: task.done, updatedAt: task.updatedAt }));
-  const deleted = all.filter((task) => task.deleted || task.carriedTo !== null).map((task) => task.id);
-  return { tasks, deleted };
+  // A pulled task keeps its reminder: the record left behind hands it over to the copy on the new day,
+  // so the reminder (and anything ticked or edited on it) follows instead of being deleted and remade.
+  const live = all.filter((task) => !task.deleted);
+  const relink = [];
+  const handed = new Set();
+  for (const record of live) {
+    if (record.carriedTo === null) continue;
+    const copy = live.find((task) => task.carriedFrom === record.id && task.carriedTo === null);
+    if (!copy) continue;
+    relink.push({ from: record.id, to: copy.id });
+    handed.add(record.id);
+  }
+  const deleted = all.filter((task) => (task.deleted || task.carriedTo !== null) && !handed.has(task.id)).map((task) => task.id);
+  return { tasks, deleted, relink };
 }
 
 /**
@@ -66,11 +78,11 @@ export function syncPayload(store, now = Date.now()) {
  */
 export async function syncWithReminders({ store, ui, i18n, silent = false }) {
   const { t } = i18n;
-  const { tasks, deleted } = syncPayload(store);
+  const { tasks, deleted, relink } = syncPayload(store);
 
   let result;
   try {
-    result = await call('/sync', { tasks, deleted, today: todayKey() });
+    result = await call('/sync', { tasks, deleted, relink, today: todayKey() });
   } catch {
     if (!silent) ui.toast(t('reminders.offline'), { duration: 10000 });
     return { offline: true };

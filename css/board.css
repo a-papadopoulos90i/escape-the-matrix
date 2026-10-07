@@ -1203,3 +1203,15 @@ body.has-timer-bar .toast-root {
     display: flex;
   }
 }
+
+/* The record of a pulled task is a button now: tapping it brings the task back to this day. */
+.board .task-card--record {
+  cursor: pointer;
+  text-align: left;
+}
+
+.board .task-card--record:hover,
+.board .task-card--record:focus-visible {
+  border-color: var(--line-strong);
+  opacity: 1;
+}

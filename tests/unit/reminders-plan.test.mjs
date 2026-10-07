@@ -178,3 +178,21 @@ test('a new task carries its box into the reminder as a priority', () => {
   assert.deepEqual(ops, [{ op: 'create', taskId: 'a', title: 'Task a', date: '2026-09-12', priority: 1 }]);
   assert.equal(state.a.quadrant, 'do');
 });
+
+test('a pulled task takes its reminder with it: the tag moves, nothing is deleted or made again', () => {
+  const ticked = reminder('a', { date: '2026-09-12', completed: true, priority: 1 });
+  const { ops, result, state } = planSync({
+    tasks: [task('b', { title: 'Task a', date: '2026-09-15', placed: true, quadrant: 'do', done: true })],
+    relink: [{ from: 'a', to: 'b' }],
+    reminders: [ticked],
+    state: { a: agreed({ rDate: '2026-09-12', lDate: '2026-09-12', placed: true, done: true, priority: 1, quadrant: 'do' }) },
+    today: TODAY,
+  });
+
+  assert.deepEqual(ops[0], { op: 'retag', id: 'R-a', taskId: 'b' }); // the same reminder, now the copy's
+  assert.equal(result.created, 0); // no second reminder for the same work
+  assert.equal(result.deleted, 0);
+  assert.deepEqual(ops.slice(1), [{ op: 'update', id: 'R-a', date: '2026-09-15' }]); // it simply moves day
+  assert.equal(state.a, undefined);
+  assert.equal(state.b.done, true); // what was ticked in Reminders stays ticked
+});
