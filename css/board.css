@@ -1215,3 +1215,8 @@ body.has-timer-bar .toast-root {
   border-color: var(--line-strong);
   opacity: 1;
 }
+
+/* A record whose task is finished is history: it is read-only. */
+.board .task-card--record.is-locked {
+  cursor: default;
+}

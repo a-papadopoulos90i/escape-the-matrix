@@ -559,7 +559,7 @@ test('13. stepper and ←/→ keys navigate with animated transitions; reduced m
   await settled(page);
   expect(await transitions(page)).toEqual(['panel--enter-forward', 'panel--exit-forward', 'panel--ghost']);
 
-  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('Shift+ArrowLeft'); // on Prioritize a plain arrow walks the days
   await expect(stageTitle(page)).toHaveText('Write it all down');
   await settled(page);
   expect(await transitions(page)).toContain('panel--enter-back');

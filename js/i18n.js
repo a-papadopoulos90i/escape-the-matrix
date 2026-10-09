@@ -279,6 +279,7 @@ export const strings = {
   'carry.toastOne': '1 task pulled here — the old day keeps a record',
   'carry.record': 'Pulled to {date}',
   'carry.pullBack': 'Bring it back to {date}',
+  'carry.recordLocked': 'Finished — this day keeps the record as it is',
   'carry.attempt': '×{n}',
   'carry.attemptTitle': '{n}th time on the plan',
   'carry.attemptTitle2': '2nd time on the plan',

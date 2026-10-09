@@ -283,27 +283,48 @@ function titleButton(task) {
  * A task pulled to a later day stays here as a record: faded red, not counted, nothing to tick
  * or start — it only shows how the day went and where the task continued.
  */
-/** What was left undone on this day and pulled to another one. Tapping it brings the task back here. */
+/**
+ * What was left undone on this day and pulled to another one. While the work is still open, tapping it
+ * brings the task back here — that is the way out of a pull made by mistake. Once the task has been
+ * finished, the record is locked: history of a finished job is not rewritten.
+ */
 function recordCard(task) {
   const { ui, i18n, dates } = ctx;
-  const label = i18n.t('carry.pullBack', { date: dates.formatShort(task.date) });
-  return ui.h(
-    'button',
-    { class: 'task-card task-card--record', type: 'button', dataset: { id: task.id }, title: label, 'aria-label': `${task.title} — ${label}`, onClick: () => pullBack(task) },
-    ui.h('span', { class: 'task-card__title task-card__title--record' }, attemptBadge(ctx, task), task.title),
-    recordLabel(ctx, task),
-  );
+  const chain = carriedChain(task);
+  const open = chain.last && !chain.last.done;
+  const label = open ? i18n.t('carry.pullBack', { date: dates.formatShort(task.date) }) : i18n.t('carry.recordLocked');
+  const inner = [ui.h('span', { class: 'task-card__title task-card__title--record' }, attemptBadge(ctx, task), task.title), recordLabel(ctx, task)];
+  return open
+    ? ui.h(
+        'button',
+        { class: 'task-card task-card--record', type: 'button', dataset: { id: task.id }, title: label, 'aria-label': `${task.title} — ${label}`, onClick: () => pullBack(task, chain) },
+        ...inner,
+      )
+    : ui.h('div', { class: 'task-card task-card--record is-locked', dataset: { id: task.id }, title: label }, ...inner);
 }
 
-/** Undoes a pull: the copy comes back to this day (one attempt fewer) and the record makes way. */
-function pullBack(record) {
+/** Follows the pulls from a record: every record on the way, and the task that carries the work now. */
+function carriedChain(record) {
+  const tasks = ctx.store.get().tasks.filter((task) => !task.deleted);
+  const records = [record];
+  let current = record;
+  while (true) {
+    const next = tasks.find((task) => task.carriedFrom === current.id);
+    if (!next || records.some((item) => item.id === next.id)) return { records, last: current === record ? null : current };
+    if (next.carriedTo === null) return { records, last: next };
+    records.push(next);
+    current = next;
+  }
+}
+
+/** Undoes a pull: the task comes back to this day, one attempt fewer, and the records make way. */
+function pullBack(record, chain = carriedChain(record)) {
   const { store, dates, i18n } = ctx;
-  const copy = store.get().tasks.find((task) => !task.deleted && task.carriedFrom === record.id && task.carriedTo === null);
   const token = store.undoable(() => {
-    if (!copy) return store.updateTask(record.id, { carriedTo: null }); // nothing to bring back: it lives here again
-    store.moveTaskToDate(copy.id, record.date);
-    store.updateTask(copy.id, { attempt: Math.max(1, copy.attempt - 1) });
-    store.removeTask(record.id);
+    if (!chain.last) return store.updateTask(record.id, { carriedTo: null }); // nothing to bring back: it lives here again
+    store.moveTaskToDate(chain.last.id, record.date);
+    store.updateTask(chain.last.id, { attempt: Math.max(1, chain.last.attempt - chain.records.length) });
+    for (const item of chain.records) store.removeTask(item.id);
   });
   undoToast(i18n.t('toast.pulledBack', { date: dates.formatShort(record.date) }), token);
 }

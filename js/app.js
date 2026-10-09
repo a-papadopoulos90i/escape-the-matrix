@@ -296,8 +296,12 @@ function bindKeyboard() {
   document.addEventListener('keydown', (event) => {
     if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
     if (isTyping(event.target) || ui.hasOpenOverlay()) return;
-    if (event.key === 'ArrowLeft' && state.stage > 1) goTo(state.stage - 1);
-    else if (event.key === 'ArrowRight' && !nextBlocked()) goTo(state.stage < STAGE_COUNT ? state.stage + 1 : 1);
+    const step = event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowRight' ? 1 : 0;
+    if (!step) return;
+    // On Prioritize the arrows walk the days, like the ‹ › beside the date; Shift keeps the stage shortcut.
+    if (state.stage === 3 && !event.shiftKey) setDate(dates.addDays(state.selectedDate, step));
+    else if (step === -1 && state.stage > 1) goTo(state.stage - 1);
+    else if (step === 1 && !nextBlocked()) goTo(state.stage < STAGE_COUNT ? state.stage + 1 : 1);
     else return;
     event.preventDefault();
   });

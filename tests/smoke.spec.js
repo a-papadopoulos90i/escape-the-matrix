@@ -206,7 +206,15 @@ test('keyboard arrows drive the shell', async ({ page }) => {
   await activeTitle(page).click(); // leave the input so the shortcut is live again
   await page.keyboard.press('ArrowRight');
   await expect(activeTitle(page)).toHaveText(TITLES[3]);
+
+  // On Prioritize the arrows walk the days instead; Shift + arrow still changes the stage.
+  const day = () => activePanel(page).locator('.stage-nav__day-label');
+  const started = await day().textContent();
+  await page.keyboard.press('ArrowRight');
+  await expect(day()).not.toHaveText(started);
   await page.keyboard.press('ArrowLeft');
+  await expect(day()).toHaveText(started);
+  await page.keyboard.press('Shift+ArrowLeft');
   await expect(activeTitle(page)).toHaveText(TITLES[2]);
 });
 

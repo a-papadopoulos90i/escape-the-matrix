@@ -421,6 +421,24 @@ test('the record left behind brings the task back when you tap it', async ({ pag
   });
 });
 
+test('once the task is finished, the record of a pulled day is locked', async ({ page }) => {
+  await page.clock.setFixedTime(new Date(2026, 2, 11, 9, 0, 0)); // today = Wed 11 Mar 2026
+  await seed(page, { tasks: [task('t_old', 'Old report', 'delegate', { date: '2026-03-09', tag: 'delegate' })] });
+  await page.goto('/');
+  await panel(page).getByRole('button', { name: 'Pull it here' }).click();
+  await quadrant(page, 'delegate').locator('.task-card', { hasText: 'Old report' }).locator('.task-card__check').check();
+
+  await panel(page).locator('.stage-nav__day-arrow').first().click();
+  await panel(page).locator('.stage-nav__day-arrow').first().click();
+  const record = panel(page).locator('.task-card--record', { hasText: 'Old report' });
+  await expect(record).toHaveClass(/is-locked/);
+  await expect(record).toHaveAttribute('title', 'Finished — this day keeps the record as it is');
+
+  await record.click(); // nothing happens: a finished job's history is not rewritten
+  await expect(record).toHaveCount(1);
+  await expect(page.locator('.toast', { hasText: 'Brought back' })).toHaveCount(0);
+});
+
 test('"Pull them here" is offered only on the real today, for unfinished work from the days before it', async ({ page }) => {
   await page.clock.setFixedTime(new Date(2026, 2, 11, 9, 0, 0)); // today = Wed 11 Mar 2026 (= DAY)
   await seed(page, { tasks: [...SORTED(), task('t_old', 'Old report', 'do', { date: '2026-03-09' })] });
