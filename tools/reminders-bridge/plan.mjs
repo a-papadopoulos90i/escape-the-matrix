@@ -25,7 +25,7 @@ export const priorityForQuadrant = (quadrant) => PRIORITY_OF[quadrant] ?? 0;
  * reminders: [{ id, title, body, completed, date, priority, created, modified }] (dates as keys, times in ms)
  * Returns { ops, result, state }: ops for the Reminders app, result for the browser, the next state.
  */
-export function planSync({ tasks = [], deleted = [], relink = [], reminders = [], state = {}, today }) {
+export function planSync({ tasks = [], deleted = [], relink = [], reminders = [], state = {}, today, resolve = {} }) {
   const byTask = new Map();
   for (const reminder of reminders) {
     const match = TAG.exec(reminder.body || '');
@@ -42,7 +42,7 @@ export function planSync({ tasks = [], deleted = [], relink = [], reminders = []
     byTask.set(to, reminder);
     if (state[from] && !state[to]) state[to] = state[from];
   }
-  const result = { created: 0, updated: 0, deleted: 0, completedInReminders: [], reopenedInReminders: [], changedInReminders: [], deletedInReminders: [], imports: [] };
+  const result = { created: 0, updated: 0, deleted: 0, completedInReminders: [], reopenedInReminders: [], changedInReminders: [], deletedInReminders: [], imports: [], conflicts: [] };
   const next = { ...state };
   for (const { from } of relink) delete next[from]; // the record is history in Levelix, not in Reminders
   const gone = new Set(deleted);
@@ -73,12 +73,27 @@ export function planSync({ tasks = [], deleted = [], relink = [], reminders = []
       !base && reminder.modified - reminder.created > EDITED_AFTER_CREATION_MS && reminder.modified > Date.parse(task.updatedAt);
     const patch = {};
     const change = {};
+    const clash = {}; // fields both sides changed: nothing is written until the user says which wins
+    const answered = resolve[task.id]; // 'levelix' | 'reminders', once the user has answered
+
+    /** Who decides this field: the only side that changed it, the user's answer, or nobody yet. */
+    const decide = (reminderChanged, levelixChanged) => {
+      if (!base) return reminderNewer ? 'reminders' : 'levelix'; // no record to compare against
+      if (answered) return answered;
+      if (reminderChanged && !levelixChanged) return 'reminders';
+      if (levelixChanged && !reminderChanged) return 'levelix';
+      return 'clash';
+    };
 
     let title = task.title;
     if (reminder.title !== task.title) {
-      const reminderWins = base ? reminder.title !== base.title && task.title === base.title : reminderNewer;
-      if (reminderWins) title = change.title = reminder.title;
-      else patch.title = task.title;
+      const side = decide(base && reminder.title !== base.title, base && task.title !== base.title);
+      if (side === 'reminders') title = change.title = reminder.title;
+      else if (side === 'levelix') patch.title = task.title;
+      else {
+        clash.title = { levelix: task.title, reminders: reminder.title };
+        title = base.title;
+      }
     }
 
     let rDate = reminder.date;
@@ -88,9 +103,8 @@ export function planSync({ tasks = [], deleted = [], relink = [], reminders = []
     const dayRemoved = rDate === null && (placed || lDate !== today) && (base ? base.rDate !== null : reminderNewer);
     const inSync = rDate === lDate || (!placed && rDate === null && !dayRemoved);
     if (!inSync) {
-      const reminderChanged = base ? rDate !== base.rDate : reminderNewer;
-      const levelixChanged = base ? lDate !== base.lDate || placed !== base.placed : !reminderNewer;
-      if (reminderChanged && !levelixChanged) {
+      const side = decide(base && rDate !== base.rDate, base && (lDate !== base.lDate || placed !== base.placed));
+      if (side === 'reminders') {
         if (rDate === null) {
           change.date = today;
           if (placed) change.unplace = true;
@@ -99,8 +113,13 @@ export function planSync({ tasks = [], deleted = [], relink = [], reminders = []
         } else {
           change.date = lDate = rDate;
         }
-      } else {
+      } else if (side === 'levelix') {
         patch.date = rDate = lDate;
+      } else {
+        clash.date = { levelix: lDate, reminders: rDate };
+        rDate = base.rDate;
+        lDate = base.lDate;
+        placed = base.placed;
       }
     }
 
@@ -109,27 +128,41 @@ export function planSync({ tasks = [], deleted = [], relink = [], reminders = []
     let quadrant = task.quadrant ?? null;
     const wantedPriority = priorityForQuadrant(quadrant);
     if (priority !== wantedPriority) {
-      const reminderDecides =
-        base?.priority === undefined ? reminderNewer : priority !== base.priority && quadrant === (base.quadrant ?? null);
-      if (reminderDecides) {
+      const side =
+        base?.priority === undefined
+          ? reminderNewer
+            ? 'reminders'
+            : 'levelix'
+          : decide(priority !== base.priority, quadrant !== (base.quadrant ?? null));
+      if (side === 'reminders') {
         quadrant = quadrantForPriority(priority);
         change.quadrant = quadrant;
-      } else {
+      } else if (side === 'levelix') {
         patch.priority = priority = wantedPriority;
+      } else {
+        clash.quadrant = { levelix: quadrant, reminders: quadrantForPriority(priority) };
+        priority = base.priority;
+        quadrant = base.quadrant ?? null;
       }
     }
 
-    // Ticks: a side that changed since the last sync wins; when both changed, Levelix wins. Without a record
-    // (older links), the reminder wins only when it was edited after the task.
+    // Ticks: the side that changed it decides; when both did, the user is asked.
     let done = task.done;
     if (task.done !== reminder.completed) {
-      const reminderWins =
-        base?.done === undefined ? reminder.modified > Date.parse(task.updatedAt) : reminder.completed !== base.done && task.done === base.done;
-      if (reminderWins) {
+      const side =
+        base?.done === undefined
+          ? reminder.modified > Date.parse(task.updatedAt)
+            ? 'reminders'
+            : 'levelix'
+          : decide(reminder.completed !== base.done, task.done !== base.done);
+      if (side === 'reminders') {
         done = reminder.completed;
         (done ? result.completedInReminders : result.reopenedInReminders).push(task.id);
-      } else {
+      } else if (side === 'levelix') {
         patch.completed = task.done;
+      } else {
+        clash.done = { levelix: task.done, reminders: reminder.completed };
+        done = base.done;
       }
     }
 
@@ -138,6 +171,7 @@ export function planSync({ tasks = [], deleted = [], relink = [], reminders = []
       result.updated += 1;
     }
     if (Object.keys(change).length) result.changedInReminders.push({ id: task.id, ...change });
+    if (Object.keys(clash).length) result.conflicts.push({ id: task.id, title: task.title, fields: clash });
     next[task.id] = { title, rDate, lDate, placed, done, priority, quadrant };
   }
 

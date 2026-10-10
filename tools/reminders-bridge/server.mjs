@@ -121,7 +121,7 @@ const server = http.createServer(async (req, res) => {
 
   try {
     const { pathname } = new URL(req.url, `http://127.0.0.1:${PORT}`);
-    if (req.method === 'GET' && pathname === '/health') return send(res, 200, { ok: true, list: 'Levelix', version: 6 }, allowed);
+    if (req.method === 'GET' && pathname === '/health') return send(res, 200, { ok: true, list: 'Levelix', version: 7 }, allowed);
     if (req.method === 'POST' && (pathname === '/sync' || pathname === '/link')) {
       const payload = JSON.parse((await readBody(req)) || '{}');
       const result = await exclusive(() => (pathname === '/sync' ? sync(payload) : link(payload)));

@@ -34,7 +34,8 @@ little after each change you make in Levelix. "Sync with Reminders" in the accou
 - Every open Levelix task (and tasks finished in the last 14 days) is written to the **Levelix** list.
   A task placed on a day gets that day as the reminder's due date, so it also shows in **Calendar**
   (enable Calendar → View → Show Reminders, or the Scheduled Reminders calendar).
-- Titles and days sync both ways: whichever side you changed since the last sync wins (if both, Levelix).
+- Titles, days, priority (= the box) and ticks sync both ways: whichever side you changed since the last
+  sync wins. When BOTH sides changed the same task, nothing is written and Levelix asks which one stands.
   Removing a reminder's day sends the task back to today's waiting list; a new day moves the task there.
 - Ticking a task in either app ticks it in the other.
 - Deleting in either app deletes in the other (a finished task deleted in Reminders stays in Levelix's history).

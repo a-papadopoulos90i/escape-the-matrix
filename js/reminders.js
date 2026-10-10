@@ -13,6 +13,8 @@ const EVERY_MS = 2 * 60_000;
 const AFTER_EDIT_MS = 20_000;
 const OFFLINE_BACKOFF_MS = 5 * 60_000; // the bridge is not running: stop trying for a while
 
+let pendingResolve = {}; // answers to "which side stands?", carried into the next sync
+
 /** ?reminders=on / ?reminders=off switches the opt-in for this browser, then drops the parameter.
  *  Returns the value it applied, so the shell can confirm it on screen. */
 export function captureRemindersFlag() {
@@ -107,7 +109,9 @@ export async function syncWithReminders({ store, ui, i18n, silent = false }) {
 
   let result;
   try {
-    result = await call('/sync', { tasks, deleted, relink, today: todayKey() });
+    const resolve = pendingResolve;
+    pendingResolve = {};
+    result = await call('/sync', { tasks, deleted, relink, resolve, today: todayKey() });
   } catch {
     if (!silent) ui.toast(t('reminders.offline'), { duration: 10000 });
     return { offline: true };
@@ -146,6 +150,7 @@ export async function syncWithReminders({ store, ui, i18n, silent = false }) {
     }
   }
   recordSync();
+  if (result.conflicts?.length) askWhichSideStands({ ui, i18n, conflicts: result.conflicts, retry: () => syncWithReminders({ store, ui, i18n, silent: true }) });
   const fromReminders =
     result.imports.length + result.changedInReminders.length + result.deletedInReminders.length + result.completedInReminders.length + result.reopenedInReminders.length;
   if (!silent || fromReminders > 0) {
@@ -161,6 +166,48 @@ export async function syncWithReminders({ store, ui, i18n, silent = false }) {
     );
   }
   return result;
+}
+
+/** "18 Sep" / "no day" / "done" — the two sides of one disagreement, in words. */
+function sideWords(fields, side, i18n) {
+  const { t } = i18n;
+  const words = [];
+  if (fields.title) words.push(fields.title[side]);
+  if (fields.date) words.push(fields.date[side] ?? t('reminders.noDay'));
+  if (fields.quadrant) words.push(fields.quadrant[side] ? i18n.quadrantLabel(fields.quadrant[side]) : t('reminders.noBox'));
+  if (fields.done !== undefined) words.push(t(fields.done[side] ? 'reminders.doneWord' : 'reminders.openWord'));
+  return words.join(' · ');
+}
+
+/**
+ * The same task was changed in Levelix and in Reminders since the last sync. Nothing was written on
+ * either side; the user says which one stands and the next sync carries that answer.
+ */
+function askWhichSideStands({ ui, i18n, conflicts, retry }) {
+  const { t } = i18n;
+  const { h } = ui;
+  const rows = conflicts.map((conflict) =>
+    h(
+      'div',
+      { class: 'conflict' },
+      h('p', { class: 'conflict__task' }, conflict.title),
+      h('p', { class: 'conflict__side' }, t('reminders.sideLevelix'), ' ', h('strong', null, sideWords(conflict.fields, 'levelix', i18n))),
+      h('p', { class: 'conflict__side' }, t('reminders.sideReminders'), ' ', h('strong', null, sideWords(conflict.fields, 'reminders', i18n))),
+    ),
+  );
+  const answer = (side) => {
+    pendingResolve = { ...pendingResolve, ...Object.fromEntries(conflicts.map((conflict) => [conflict.id, side])) };
+    retry();
+  };
+  ui.modal({
+    title: t('reminders.conflictTitle'),
+    content: h('div', { class: 'conflicts' }, h('p', { class: 'text-muted' }, t('reminders.conflictLead')), ...rows),
+    actions: [
+      { label: t('common.cancel') },
+      { label: t('reminders.keepReminders'), onClick: () => answer('reminders') },
+      { label: t('reminders.keepLevelix'), primary: true, onClick: () => answer('levelix') },
+    ],
+  });
 }
 
 /** Keeps both sides in step on their own. Started once at boot when this browser opted in. */

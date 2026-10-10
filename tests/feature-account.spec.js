@@ -488,6 +488,34 @@ test.describe('Google mode (fake Firebase SDK)', () => {
       .toBe(true); // ticked in Reminders, ticked here
   });
 
+  test('when both sides changed the same task, it asks which one stands and sends the answer', async ({ page }) => {
+    await seed(page, { ui: UI_STATE, doc: LOCAL_DOC });
+    const calls = [];
+    await page.route('http://127.0.0.1:47827/**', async (route) => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      const body = JSON.parse(request.postData() || '{}');
+      calls.push({ pathname, resolve: body.resolve });
+      const empty = { created: 0, updated: 0, deleted: 0, completedInReminders: [], reopenedInReminders: [], changedInReminders: [], deletedInReminders: [], imports: [] };
+      // The first sync reports the clash; once an answer arrives, it is settled.
+      const conflicts = body.resolve && Object.keys(body.resolve).length
+        ? []
+        : [{ id: 't_local', title: 'Local task', fields: { date: { levelix: '2026-03-12', reminders: '2026-03-20' }, done: { levelix: false, reminders: true } } }];
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ ...empty, conflicts }) });
+    });
+
+    await page.goto('/?reminders=on');
+    const dialog = page.getByRole('dialog', { name: 'Changed in both places' });
+    await expect(dialog).toBeVisible({ timeout: 20000 });
+    await expect(dialog).toContainText('Local task');
+    await expect(dialog).toContainText('2026-03-12'); // what Levelix says
+    await expect(dialog).toContainText('2026-03-20'); // what Reminders says
+
+    await dialog.getByRole('button', { name: 'Keep Reminders' }).click();
+    await expect.poll(() => calls.at(-1)?.resolve).toEqual({ t_local: 'reminders' });
+    await expect(page.getByRole('dialog', { name: 'Changed in both places' })).toHaveCount(0);
+  });
+
   test('Sync with Reminders tells you to restart an out-of-date bridge instead of claiming success', async ({ page }) => {
     await seed(page, { ui: UI_STATE, doc: LOCAL_DOC });
     await page.route('http://127.0.0.1:47827/**', (route) =>

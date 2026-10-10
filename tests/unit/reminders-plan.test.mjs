@@ -41,7 +41,7 @@ test('removing the day of a placed task in Reminders unplaces it too', () => {
   assert.deepEqual(result.changedInReminders, [{ id: 'a', date: TODAY, unplace: true }]);
 });
 
-test('a new day in Reminders moves the task; a new day in Levelix moves the reminder; both → Levelix wins', () => {
+test('a new day in Reminders moves the task; a new day in Levelix moves the reminder; both → it asks', () => {
   const base = { a: agreed({ rDate: '2026-09-12', placed: true }) };
   const fromReminders = planSync({ tasks: [task('a', { placed: true })], reminders: [reminder('a', { date: '2026-09-20' })], state: base, today: TODAY });
   assert.deepEqual(fromReminders.result.changedInReminders, [{ id: 'a', date: '2026-09-20' }]);
@@ -50,9 +50,34 @@ test('a new day in Reminders moves the task; a new day in Levelix moves the remi
   const fromLevelix = planSync({ tasks: [task('a', { placed: true, date: '2026-09-18' })], reminders: [reminder('a', { date: '2026-09-12' })], state: base, today: TODAY });
   assert.deepEqual(fromLevelix.ops, [{ op: 'update', id: 'R-a', date: '2026-09-18' }]);
 
+  // Changed on both sides: nothing is written either way and the user is asked which day stands.
   const both = planSync({ tasks: [task('a', { placed: true, date: '2026-09-18' })], reminders: [reminder('a', { date: '2026-09-20' })], state: base, today: TODAY });
-  assert.deepEqual(both.ops, [{ op: 'update', id: 'R-a', date: '2026-09-18' }]);
+  assert.deepEqual(both.ops, []);
   assert.deepEqual(both.result.changedInReminders, []);
+  assert.deepEqual(both.result.conflicts, [{ id: 'a', title: 'Task a', fields: { date: { levelix: '2026-09-18', reminders: '2026-09-20' } } }]);
+  assert.equal(both.state.a.rDate, '2026-09-12'); // still the agreed day, so it asks again until answered
+
+  // The answer settles it: "keep Levelix" pushes its day to the reminder…
+  const keepLevelix = planSync({
+    tasks: [task('a', { placed: true, date: '2026-09-18' })],
+    reminders: [reminder('a', { date: '2026-09-20' })],
+    state: base,
+    resolve: { a: 'levelix' },
+    today: TODAY,
+  });
+  assert.deepEqual(keepLevelix.ops, [{ op: 'update', id: 'R-a', date: '2026-09-18' }]);
+  assert.deepEqual(keepLevelix.result.conflicts, []);
+
+  // …and "keep Reminders" moves the task instead.
+  const keepReminders = planSync({
+    tasks: [task('a', { placed: true, date: '2026-09-18' })],
+    reminders: [reminder('a', { date: '2026-09-20' })],
+    state: base,
+    resolve: { a: 'reminders' },
+    today: TODAY,
+  });
+  assert.deepEqual(keepReminders.ops, []);
+  assert.deepEqual(keepReminders.result.changedInReminders, [{ id: 'a', date: '2026-09-20' }]);
 });
 
 test('a waiting task keeps no day in Reminders and nothing churns', () => {
