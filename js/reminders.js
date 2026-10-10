@@ -5,7 +5,7 @@ import { todayKey } from './dates.js';
 const FLAG = 'levelix:remindersBridge';
 const LAST_SYNC = 'levelix:remindersLastSync';
 const BRIDGE = 'http://127.0.0.1:47827';
-const RECENT_DONE_MS = 14 * 24 * 60 * 60 * 1000; // finished tasks older than this stay out of Reminders
+const RECENT_DONE_MS = 30 * 24 * 60 * 60 * 1000; // a month back: enough to fill in days that were worked offline
 // Sync runs by itself: shortly after the app opens, every few minutes, when the tab comes back, and a
 // little after each local change — so a tick in either app reaches the other without pressing anything.
 const FIRST_RUN_MS = 5_000;

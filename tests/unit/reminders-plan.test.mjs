@@ -69,6 +69,16 @@ test('titles: the side that changed wins', () => {
   assert.deepEqual(renamedHere.ops, [{ op: 'update', id: 'R-a', title: 'Renamed here' }]);
 });
 
+test('work finished before any sync still lands on its day, ticked', () => {
+  const { ops, result, state } = planSync({
+    tasks: [task('a', { placed: true, quadrant: 'do', done: true, date: '2026-09-14' })],
+    today: TODAY,
+  });
+  assert.deepEqual(ops, [{ op: 'create', taskId: 'a', title: 'Task a', date: '2026-09-14', priority: 1, completed: true }]);
+  assert.equal(result.created, 1);
+  assert.equal(state.a.done, true);
+});
+
 test('a reminder deleted in Reminders deletes its task (finished or not) and never recreates it', () => {
   const { ops, result, state } = planSync({
     tasks: [task('a'), task('b', { done: true })],

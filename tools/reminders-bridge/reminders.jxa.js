@@ -2,7 +2,7 @@
 // It only ever touches one Reminders list, "Levelix". All merge decisions live in plan.mjs; this script
 // only reads the list and carries out the operations it is given.
 //   read  <file>  — prints [{ id, title, body, completed, date, priority, created, modified }]
-//   apply <file>  — file holds { ops: [{ op: 'create', taskId, title, date, priority } | { op: 'update', id, title?, date?, completed?, priority? } | { op: 'retag', id, taskId } | { op: 'delete', id }] }
+//   apply <file>  — file holds { ops: [{ op: 'create', taskId, title, date, priority, completed? } | { op: 'update', id, title?, date?, completed?, priority? } | { op: 'retag', id, taskId } | { op: 'delete', id }] }
 //   link  <file>  — file holds { links: [{ reminderId, taskId }] }
 ObjC.import('Foundation');
 
@@ -68,6 +68,7 @@ function apply(app, list, ops) {
       const props = { name: op.title, body: `levelix:${op.taskId}` };
       if (op.date) props.alldayDueDate = toDate(op.date);
       if (op.priority) props.priority = op.priority;
+      if (op.completed) props.completed = true; // work finished before the first sync still lands on its day
       reminders.push(app.Reminder(props));
     } else if (op.op === 'update') {
       const reminder = reminders.byId(op.id);

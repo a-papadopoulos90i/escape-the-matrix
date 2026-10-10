@@ -59,11 +59,12 @@ export function planSync({ tasks = [], deleted = [], relink = [], reminders = []
         result.deletedInReminders.push(task.id);
         continue;
       }
-      if (task.done) continue;
+      // Finished before a sync ever saw it (a whole day's work done offline): it is still written onto
+      // its day and ticked there, so the day in Reminders matches the day in Levelix.
       const date = task.placed ? task.date : null;
       const priority = priorityForQuadrant(task.quadrant);
-      ops.push({ op: 'create', taskId: task.id, title: task.title, date, priority });
-      next[task.id] = { title: task.title, rDate: date, lDate: task.date, placed: task.placed, done: false, priority, quadrant: task.quadrant ?? null };
+      ops.push({ op: 'create', taskId: task.id, title: task.title, date, priority, ...(task.done ? { completed: true } : {}) });
+      next[task.id] = { title: task.title, rDate: date, lDate: task.date, placed: task.placed, done: task.done, priority, quadrant: task.quadrant ?? null };
       result.created += 1;
       continue;
     }
