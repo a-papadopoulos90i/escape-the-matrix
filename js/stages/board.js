@@ -7,6 +7,7 @@ import { QUADRANTS, isRecord } from '../store.js';
 import { carryStrip, attemptBadge, recordLabel, dayNav, QUAD_ICON, quadrantAxes, quadrantGlyph } from '../carry.js';
 import { fileWithTag, priorityButton, tagPlaces } from '../tags.js';
 import { canAddTask } from '../plan.js';
+import { parseTime } from '../report.js';
 
 const PRESET_MINUTES = [5, 15, 25, 45, 60];
 const TIP_ROOM = 150; // px free beside the matrix needed to put the "Done mark" bubble on the left
@@ -915,6 +916,63 @@ async function resumeFromPicker(task) {
   if (await timer.resume(task)) closePopover();
 }
 
+/** "Tracked so far: 12:30" — tap it to write in by hand how long the task really took. */
+function trackedButton(task, body) {
+  const { ui, i18n } = ctx;
+  const total = timer.tracked(task);
+  const label = total > 0 ? i18n.t('timer.tracked', { time: timer.formatTime(total) }) : i18n.t('timer.trackedNone');
+  return ui.h(
+    'button',
+    { class: 'timer-picker__tracked', type: 'button', title: i18n.t('timer.setTracked'), onClick: () => showTrackedEdit(task, body) },
+    ui.h('span', null, label),
+    ui.icon('pencil', { size: 13 }),
+  );
+}
+
+/** One field: the time the task took. Saving it stops any running timer and closes the picker. */
+function showTrackedEdit(task, body) {
+  const { ui, i18n, store } = ctx;
+  const input = ui.h('input', {
+    class: 'timer-picker__custom timer-picker__tracked-input',
+    type: 'text',
+    value: timer.formatTime(timer.tracked(task)),
+    'aria-label': i18n.t('timer.setTracked'),
+    title: i18n.t('analysis.timeHint'),
+    onKeydown: (event) => {
+      if (event.key === 'Enter') save();
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      showTimerPicker(task, body);
+    },
+  });
+  const save = () => {
+    const seconds = parseTime(input.value);
+    if (seconds === null) {
+      input.setAttribute('aria-invalid', 'true');
+      return input.focus();
+    }
+    store.setTrackedTime(task.id, seconds);
+    closePopover();
+    ui.toast(i18n.t('timer.trackedSaved', { time: timer.formatTime(seconds) }));
+  };
+  showView(
+    body,
+    [
+      editableTitle(task, body, () => showTimerPicker(task, body)),
+      ui.h('p', { class: 'timer-picker__tracked-hint text-muted' }, i18n.t('analysis.timeHint')),
+      ui.h(
+        'div',
+        { class: 'timer-picker__tracked-row' },
+        input,
+        ui.h('button', { class: 'btn btn-primary', type: 'button', onClick: save }, i18n.t('common.save')),
+      ),
+      ui.h('button', { class: 'btn btn-sm', type: 'button', onClick: () => showTimerPicker(task, body) }, i18n.t('common.cancel')),
+    ],
+    input,
+  );
+}
+
 function showTimerPicker(task, body) {
   const { ui, i18n } = ctx;
   const custom = ui.h('input', {
@@ -959,7 +1017,7 @@ function showTimerPicker(task, body) {
     [
       editableTitle(task, body, () => showTimerPicker(task, body)),
       continueBtn,
-      timer.tracked(task) > 0 ? ui.h('p', { class: 'timer-picker__tracked text-muted' }, i18n.t('timer.tracked', { time: timer.formatTime(timer.tracked(task)) })) : null,
+      trackedButton(task, body),
       stopwatch,
       ui.h(
         'fieldset',

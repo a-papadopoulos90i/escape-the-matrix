@@ -301,6 +301,32 @@ test('Repeat: a copy left unfinished on a day that has passed counts a miss and 
   await waitForSaved(page, (doc) => taskById(doc, 't_read').misses === 1 && taskById(doc, 't_copy').deleted === true);
 });
 
+test('the timer picker writes the time in by hand: tap "Tracked so far", type it, save', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await seed(page, { tasks: SORTED(), stage: 3 });
+  await page.goto('/');
+  const clock = () => card(page, 'Marketing Order A5').locator('.task-card__clock');
+
+  await openTimer(page, 'Marketing Order A5');
+  await popover(page).locator('.timer-picker__tracked').click();
+  const field = popover(page).locator('.timer-picker__tracked-input');
+  await expect(field).toBeFocused();
+
+  await field.fill('nonsense');
+  await popover(page).getByRole('button', { name: 'Save' }).click();
+  await expect(field).toHaveAttribute('aria-invalid', 'true'); // nothing is written from a typo
+
+  await field.fill('1:30:00');
+  await popover(page).getByRole('button', { name: 'Save' }).click();
+  await expect(page.locator('.toast', { hasText: 'Time set to 1:30:00' })).toBeVisible();
+  await expect(clock()).toHaveText('1:30:00');
+  await waitForSaved(page, (doc) => Math.round(taskById(doc, 't_1').timer?.elapsedSec ?? 0) === 5400);
+
+  // Re-opening shows what is on the clock now, ready to be corrected again.
+  await openTimer(page, 'Marketing Order A5');
+  await expect(popover(page).locator('.timer-picker__tracked')).toContainText('Tracked so far: 1:30:00');
+});
+
 test('a countdown that ran out offers a new timer, not "Continue", and the next one adds to the time', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 1000 });
   const spent = { mode: 'countdown', durationSec: 300, startedAt: null, elapsedSec: 311, baseSec: 0, running: false, stoppedAt: '2026-03-11T08:00:00.000Z', alarmedAt: '2026-03-11T08:00:00.000Z' };

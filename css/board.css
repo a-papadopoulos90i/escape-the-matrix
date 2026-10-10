@@ -1220,3 +1220,44 @@ body.has-timer-bar .toast-root {
 .board .task-card--record.is-locked {
   cursor: default;
 }
+
+/* The "tracked so far" line is a button: tap it to write the time in by hand. */
+.timer-picker__tracked {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--text-xs);
+  text-align: center;
+  cursor: pointer;
+}
+
+.timer-picker__tracked:hover,
+.timer-picker__tracked:focus-visible {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.timer-picker__tracked-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.timer-picker__tracked-input {
+  flex: 1;
+  text-align: center;
+}
+
+.timer-picker__tracked-hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  text-align: center;
+}
