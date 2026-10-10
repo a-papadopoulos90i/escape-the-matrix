@@ -8,7 +8,7 @@ import { firebaseConfig, authProviders } from './firebase-config.js';
 import { createEmptyDoc } from './store.js';
 import { createLocalAdapter } from './storage/local.js';
 import { createCloudAdapter } from './storage/cloud.js';
-import { remindersEnabled, syncWithReminders } from './reminders.js';
+import { lastSyncAgo, remindersEnabled, syncWithReminders } from './reminders.js';
 import { createBilling, listVouchers, makeVouchers, VoucherError } from './billing.js';
 import { openVoucherModal, vouchersEnabled } from './vouchers.js';
 
@@ -98,7 +98,9 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignO
   function openMenu(anchor) {
     if (menu) return closeMenu();
     const list = ui.h('div', { class: 'menu account-menu__actions', role: 'menu', 'aria-label': t('account.menu') },
-      remindersEnabled() && menuItem(t('reminders.sync'), onSyncReminders), // personal Mac bridge, opt-in only
+      // Personal Mac bridge, opt-in only. The label carries when it last went through, so a bridge that
+      // stopped days ago is visible at a glance.
+      remindersEnabled() && menuItem(lastSyncAgo() ? t('reminders.syncAgo', { ago: lastSyncAgo() }) : t('reminders.sync'), onSyncReminders),
       plan !== 'pro' && menuItem(t('plan.enterCode'), onRedeem),
       vouchersEnabled() && menuItem(t('vouchers.menu'), onVouchers), // owner only — the rules decide, not this switch
       menuItem(t('account.signOut'), onSignOut),

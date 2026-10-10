@@ -149,6 +149,7 @@ export const strings = {
   'plan.seePlans': 'See plans',
   'account.clearAccount': 'Clear account',
   'reminders.sync': 'Sync with Reminders',
+  'reminders.syncAgo': 'Sync with Reminders · {ago} ago',
   'reminders.enabled': 'Reminders sync is on in this browser — it now syncs on its own, and the account menu can force it.',
   'reminders.disabled': 'Reminders sync is off in this browser.',
   'reminders.done': 'Reminders synced — {sent} sent, {imported} imported, {changed} updated from Reminders, {completed} ticked, {deleted} removed.',

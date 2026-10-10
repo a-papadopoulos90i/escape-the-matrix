@@ -3,12 +3,13 @@
 import { todayKey } from './dates.js';
 
 const FLAG = 'levelix:remindersBridge';
+const LAST_SYNC = 'levelix:remindersLastSync';
 const BRIDGE = 'http://127.0.0.1:47827';
 const RECENT_DONE_MS = 14 * 24 * 60 * 60 * 1000; // finished tasks older than this stay out of Reminders
 // Sync runs by itself: shortly after the app opens, every few minutes, when the tab comes back, and a
 // little after each local change — so a tick in either app reaches the other without pressing anything.
 const FIRST_RUN_MS = 5_000;
-const EVERY_MS = 3 * 60_000;
+const EVERY_MS = 2 * 60_000;
 const AFTER_EDIT_MS = 20_000;
 const OFFLINE_BACKOFF_MS = 5 * 60_000; // the bridge is not running: stop trying for a while
 
@@ -27,6 +28,30 @@ export function captureRemindersFlag() {
   const query = params.toString();
   window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`);
   return value;
+}
+
+/** When the last sync went through, as a short "4m" / "2h" / "3d" — or null when there has been none. */
+export function lastSyncAgo(now = Date.now()) {
+  let at = 0;
+  try {
+    at = Number(localStorage.getItem(LAST_SYNC)) || 0;
+  } catch {
+    return null;
+  }
+  if (!at) return null;
+  const minutes = Math.max(0, Math.round((now - at) / 60_000));
+  if (minutes < 1) return 'now';
+  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 60 * 24) return `${Math.round(minutes / 60)}h`;
+  return `${Math.round(minutes / (60 * 24))}d`;
+}
+
+function recordSync(now = Date.now()) {
+  try {
+    localStorage.setItem(LAST_SYNC, String(now));
+  } catch {
+    /* storage blocked — the menu simply shows no time */
+  }
 }
 
 export function remindersEnabled() {
@@ -120,6 +145,7 @@ export async function syncWithReminders({ store, ui, i18n, silent = false }) {
       return { linkFailed: true };
     }
   }
+  recordSync();
   const fromReminders =
     result.imports.length + result.changedInReminders.length + result.deletedInReminders.length + result.completedInReminders.length + result.reopenedInReminders.length;
   if (!silent || fromReminders > 0) {
@@ -144,8 +170,9 @@ export function startRemindersAutoSync({ store, ui, i18n }) {
   let lastRun = 0;
   let timer = null;
 
+  // It keeps syncing while the tab sits in the background — that is where a working day is spent.
   const run = async () => {
-    if (running || document.hidden || Date.now() < quietUntil) return;
+    if (running || Date.now() < quietUntil) return;
     running = true;
     try {
       const result = await syncWithReminders({ store, ui, i18n, silent: true });
@@ -163,8 +190,10 @@ export function startRemindersAutoSync({ store, ui, i18n }) {
   soon(FIRST_RUN_MS);
   setInterval(run, EVERY_MS);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && Date.now() - lastRun > 60_000) soon(1000);
+    if (document.hidden) return void run(); // leaving the tab: push what was just done
+    if (Date.now() - lastRun > 60_000) soon(1000);
   });
+  window.addEventListener('pagehide', () => void run()); // closing the tab or the laptop lid
   store.subscribe((doc, meta) => {
     if (meta?.reason !== 'setSetting' && !running) soon(AFTER_EDIT_MS); // let a burst of edits settle first
   });
