@@ -437,9 +437,15 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
           // The new day keeps ONE entry per title: pulling the same thing forward again raises that
           // entry's attempt count instead of adding a second copy.
           const already = doc.tasks.find((other) => live(other) && !isRecord(other) && !other.done && other.date === date && other.title === task.title);
-          if (already) patchTask(already.id, () => ({ attempt: Math.max(already.attempt, task.attempt + 1) }), 'carryOver');
-          else store.addTask({ title: task.title, date, quadrant: task.quadrant, tag: task.tag ?? task.quadrant, attempt: task.attempt + 1, carriedFrom: task.id });
-          patchTask(id, () => ({ carriedTo: date }), 'carryOver');
+          // The time already spent travels with the work: the copy takes the clock (even a running one),
+          // the record keeps none, so the timer bar always points at a card you can see.
+          if (already) {
+            patchTask(already.id, () => ({ attempt: Math.max(already.attempt, task.attempt + 1), timer: already.timer ?? task.timer }), 'carryOver');
+          } else {
+            const copy = store.addTask({ title: task.title, date, quadrant: task.quadrant, tag: task.tag ?? task.quadrant, attempt: task.attempt + 1, carriedFrom: task.id });
+            if (task.timer) patchTask(copy.id, () => ({ timer: task.timer }), 'carryOver');
+          }
+          patchTask(id, () => ({ carriedTo: date, timer: null }), 'carryOver');
         }
       });
     },
@@ -458,6 +464,24 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
           doc.tasks.map((task) => (ids.has(task.id) ? { ...task, deleted: false, deletedAt: null, updatedAt: isoAt(ms) } : task)),
           { reason: 'restoreRecord' },
         );
+      });
+    },
+
+    /**
+     * Older pulls left the clock on the record. Hands it to the copy that carries the work now, so a
+     * running timer always belongs to a card that is on screen. Safe to run on every start.
+     */
+    handTimersToCopies() {
+      const stranded = doc.tasks.filter(
+        (task) => live(task) && isRecord(task) && task.timer && doc.tasks.some((other) => live(other) && other.carriedFrom === task.id),
+      );
+      if (!stranded.length) return null;
+      return undoable(() => {
+        for (const record of stranded) {
+          const copy = doc.tasks.find((other) => live(other) && other.carriedFrom === record.id);
+          patchTask(copy.id, (task) => ({ timer: task.timer ?? record.timer }), 'handTimer');
+          patchTask(record.id, () => ({ timer: null }), 'handTimer');
+        }
       });
     },
 

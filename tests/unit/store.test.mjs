@@ -677,3 +677,33 @@ test('a new timer adds to the time a task already collected; the countdown measu
   store.setTrackedTime(task.id, 60);
   assert.equal(Math.round(timerElapsed(store.findTask(task.id).timer, clock.now())), 60); // a hand-written time replaces it
 });
+
+test('pulling a task forward takes its clock with it — the record keeps none', () => {
+  const { store, clock } = makeStore();
+  const task = store.addTask({ title: 'Deep work', date: '2026-03-09', quadrant: 'do' });
+  store.startTimer(task.id, { mode: 'stopwatch' });
+  clock.tick(600); // ten minutes on the clock, still running
+
+  store.carryOver([task.id], DAY);
+  const copy = store.tasksForDate(DAY).find((item) => item.title === 'Deep work');
+  assert.equal(store.findTask(task.id).timer, null); // the record is left clean
+  assert.equal(copy.timer.running, true); // the clock keeps running, now on the copy
+  assert.equal(Math.round(timerElapsed(copy.timer, clock.now())), 600);
+  assert.equal(store.activeTimer().id, copy.id); // so the timer bar points at the card on the new day
+});
+
+test('handTimersToCopies rescues a clock left on a record by an older pull, once', () => {
+  const { store, clock } = makeStore();
+  const original = store.addTask({ title: 'Deep work', date: '2026-03-09', quadrant: 'do' });
+  store.carryOver([original.id], DAY);
+  const copy = store.tasksForDate(DAY).find((item) => item.title === 'Deep work');
+  // What an older version left behind: the clock still on the record.
+  store.startTimer(original.id, { mode: 'stopwatch' });
+  clock.tick(300);
+  store.pauseTimer(original.id);
+
+  store.handTimersToCopies();
+  assert.equal(store.findTask(original.id).timer, null);
+  assert.equal(Math.round(timerElapsed(store.findTask(copy.id).timer, clock.now())), 300);
+  assert.equal(store.handTimersToCopies(), null); // nothing left to rescue on the next start
+});
