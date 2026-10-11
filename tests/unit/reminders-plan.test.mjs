@@ -248,3 +248,39 @@ test('when the copy already has its own reminder, the record\'s leftover is dele
   assert.equal(state.a, undefined);
   assert.equal(state.b.rDate, '2026-09-15');
 });
+
+test('a reminder for work Levelix no longer has at all is cleared away', () => {
+  const { ops, result, state } = planSync({
+    tasks: [task('a')],
+    known: ['a'], // 'ghost' is not in Levelix any more, not even as a tombstone
+    reminders: [reminder('a'), reminder('ghost', { date: '2026-10-08' })],
+    state: { a: agreed(), ghost: agreed({ title: 'Task ghost', rDate: '2026-10-08' }) },
+    today: TODAY,
+  });
+  assert.deepEqual(ops, [{ op: 'delete', id: 'R-ghost' }]);
+  assert.equal(result.deleted, 1);
+  assert.equal(state.ghost, undefined);
+  assert.ok(state.a); // the task Levelix still has is untouched
+});
+
+test('without the full list of ids (an older page), nothing is cleared away', () => {
+  const { ops } = planSync({
+    tasks: [task('a')],
+    reminders: [reminder('a'), reminder('ghost')],
+    state: { a: agreed(), ghost: agreed({ title: 'Task ghost' }) },
+    today: TODAY,
+  });
+  assert.deepEqual(ops, []);
+});
+
+test('a reminder the bridge never made (someone typed it in Reminders) is imported, never deleted', () => {
+  const { ops, result } = planSync({
+    tasks: [],
+    known: [],
+    reminders: [{ id: 'R-new', title: 'Buy milk', body: '', completed: false, date: null, priority: 0, created: OLD, modified: OLD }],
+    state: {},
+    today: TODAY,
+  });
+  assert.deepEqual(ops, []);
+  assert.deepEqual(result.imports.map((item) => item.title), ['Buy milk']);
+});

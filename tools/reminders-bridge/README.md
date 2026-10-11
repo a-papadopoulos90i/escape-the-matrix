@@ -41,6 +41,8 @@ little after each change you make in Levelix. "Sync with Reminders" in the accou
 - Deleting in either app deletes in the other (a finished task deleted in Reminders stays in Levelix's history).
 - New reminders you add to the **Levelix** list come into Levelix's Write down list (dated with their
   due date, or today), then get linked so they are not imported twice.
+- The list belongs to Levelix: a reminder whose task Levelix no longer has anywhere is removed, so a
+  day in Reminders always matches the same day in Levelix.
 - Other Reminders lists are never read or changed.
 
 A reminder is linked to its task by a `levelix:<id>` line in the reminder's notes — leave that line in place.

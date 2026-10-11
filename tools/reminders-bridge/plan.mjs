@@ -20,12 +20,13 @@ export const priorityForQuadrant = (quadrant) => PRIORITY_OF[quadrant] ?? 0;
 
 /**
  * tasks:     [{ id, title, date, placed, quadrant, done, updatedAt }]  (what Levelix syncs)
+ * known:     [taskId] | null                                 (every id Levelix has; others are leftovers)
  * deleted:   [taskId]                                        (Levelix tombstones)
  * relink:    [{ from, to }]                                  (a pulled task hands its reminder over)
  * reminders: [{ id, title, body, completed, date, priority, created, modified }] (dates as keys, times in ms)
  * Returns { ops, result, state }: ops for the Reminders app, result for the browser, the next state.
  */
-export function planSync({ tasks = [], deleted = [], relink = [], reminders = [], state = {}, today, resolve = {} }) {
+export function planSync({ tasks = [], deleted = [], relink = [], known = null, reminders = [], state = {}, today, resolve = {} }) {
   const byTask = new Map();
   for (const reminder of reminders) {
     const match = TAG.exec(reminder.body || '');
@@ -189,6 +190,17 @@ export function planSync({ tasks = [], deleted = [], relink = [], reminders = []
       result.deleted += 1;
     }
     delete next[id];
+  }
+
+  // A reminder this bridge made for a task Levelix no longer has anywhere: the work is gone, so is it.
+  if (Array.isArray(known)) {
+    const alive = new Set(known);
+    for (const [taskId, reminder] of byTask) {
+      if (alive.has(taskId) || !state[taskId]) continue;
+      ops.push({ op: 'delete', id: reminder.id });
+      result.deleted += 1;
+      delete next[taskId];
+    }
   }
 
   for (const reminder of reminders) {

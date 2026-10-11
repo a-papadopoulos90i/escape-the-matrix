@@ -95,7 +95,10 @@ export function syncPayload(store, now = Date.now()) {
     handed.add(record.id);
   }
   const deleted = all.filter((task) => (task.deleted || task.carriedTo !== null) && !handed.has(task.id)).map((task) => task.id);
-  return { tasks, deleted, relink };
+  // Everything Levelix knows about, alive or tombstoned. A reminder the bridge made for a task that is
+  // on none of these lists belongs to work Levelix no longer has at all, and is cleared away.
+  const known = all.map((task) => task.id);
+  return { tasks, deleted, relink, known };
 }
 
 /**
@@ -105,13 +108,13 @@ export function syncPayload(store, now = Date.now()) {
  */
 export async function syncWithReminders({ store, ui, i18n, silent = false }) {
   const { t } = i18n;
-  const { tasks, deleted, relink } = syncPayload(store);
+  const { tasks, deleted, relink, known } = syncPayload(store);
 
   let result;
   try {
     const resolve = pendingResolve;
     pendingResolve = {};
-    result = await call('/sync', { tasks, deleted, relink, resolve, today: todayKey() });
+    result = await call('/sync', { tasks, deleted, relink, known, resolve, today: todayKey() });
   } catch {
     if (!silent) ui.toast(t('reminders.offline'), { duration: 10000 });
     return { offline: true };
