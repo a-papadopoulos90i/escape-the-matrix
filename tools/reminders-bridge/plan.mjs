@@ -32,17 +32,24 @@ export function planSync({ tasks = [], deleted = [], relink = [], reminders = []
     if (match && !byTask.has(match[1])) byTask.set(match[1], reminder);
   }
   const ops = [];
-  // Hand a reminder over to the task that took the work on, keeping everything already on it.
+  const result = { created: 0, updated: 0, deleted: 0, completedInReminders: [], reopenedInReminders: [], changedInReminders: [], deletedInReminders: [], imports: [], conflicts: [] };
+  // Hand a reminder over to the task that took the work on, keeping everything already on it. The
+  // record itself is Levelix's own history and never stays in Reminders — so if the copy already has
+  // a reminder of its own, the record's is a leftover of the same work and goes.
   for (const { from, to } of relink) {
     const reminder = byTask.get(from);
-    if (!reminder || byTask.has(to)) continue;
+    if (!reminder) continue;
+    byTask.delete(from);
+    if (byTask.has(to)) {
+      ops.push({ op: 'delete', id: reminder.id });
+      result.deleted += 1;
+      continue;
+    }
     ops.push({ op: 'retag', id: reminder.id, taskId: to });
     reminder.body = `levelix:${to}`;
-    byTask.delete(from);
     byTask.set(to, reminder);
     if (state[from] && !state[to]) state[to] = state[from];
   }
-  const result = { created: 0, updated: 0, deleted: 0, completedInReminders: [], reopenedInReminders: [], changedInReminders: [], deletedInReminders: [], imports: [], conflicts: [] };
   const next = { ...state };
   for (const { from } of relink) delete next[from]; // the record is history in Levelix, not in Reminders
   const gone = new Set(deleted);

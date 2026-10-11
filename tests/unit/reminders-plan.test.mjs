@@ -231,3 +231,20 @@ test('a pulled task takes its reminder with it: the tag moves, nothing is delete
   assert.equal(state.a, undefined);
   assert.equal(state.b.done, true); // what was ticked in Reminders stays ticked
 });
+
+test('when the copy already has its own reminder, the record\'s leftover is deleted — no twin in Calendar', () => {
+  const recordReminder = reminder('a', { date: '2026-09-12' });
+  const copyReminder = reminder('b', { date: '2026-09-15' });
+  const { ops, result, state } = planSync({
+    tasks: [task('b', { placed: true, date: '2026-09-15' })],
+    relink: [{ from: 'a', to: 'b' }],
+    reminders: [recordReminder, copyReminder],
+    state: { a: agreed({ rDate: '2026-09-12', lDate: '2026-09-12', placed: true }), b: agreed({ title: 'Task b', rDate: '2026-09-15', lDate: '2026-09-15', placed: true }) },
+    today: TODAY,
+  });
+  assert.deepEqual(ops, [{ op: 'delete', id: 'R-a' }]); // the old day's leftover goes
+  assert.equal(result.deleted, 1);
+  assert.equal(result.created, 0); // and the copy keeps the reminder it already had
+  assert.equal(state.a, undefined);
+  assert.equal(state.b.rDate, '2026-09-15');
+});
