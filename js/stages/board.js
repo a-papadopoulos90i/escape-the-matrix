@@ -292,7 +292,7 @@ function titleButton(task) {
 function recordCard(task) {
   const { ui, i18n, dates } = ctx;
   const chain = carriedChain(task);
-  const open = chain.last && !chain.last.done;
+  const open = Boolean(chain.last) && !chain.last.done; // no live task behind it: history only, nothing to bring back
   const label = open ? i18n.t('carry.pullBack', { date: dates.formatShort(task.date) }) : i18n.t('carry.recordLocked');
   const inner = [ui.h('span', { class: 'task-card__title task-card__title--record' }, attemptBadge(ctx, task), task.title), recordLabel(ctx, task)];
   return open
@@ -321,8 +321,8 @@ function carriedChain(record) {
 /** Undoes a pull: the task comes back to this day, one attempt fewer, and the records make way. */
 function pullBack(record, chain = carriedChain(record)) {
   const { store, dates, i18n } = ctx;
+  if (!chain.last) return; // the task was deleted: its record brings nothing back
   const token = store.undoable(() => {
-    if (!chain.last) return store.updateTask(record.id, { carriedTo: null }); // nothing to bring back: it lives here again
     store.moveTaskToDate(chain.last.id, record.date);
     store.updateTask(chain.last.id, { attempt: Math.max(1, chain.last.attempt - chain.records.length) });
     for (const item of chain.records) store.removeTask(item.id);

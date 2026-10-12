@@ -996,3 +996,21 @@ for (const [label, viewport] of Object.entries({ desktop: { width: 1280, height:
     await page.screenshot({ path: path.join(SHOTS, `${label}-stage4-timer.png`), fullPage: true, animations: 'disabled' });
   });
 }
+
+test('deleting pulled work leaves no record behind, and no record brings back what was deleted', async ({ page }) => {
+  await page.clock.setFixedTime(new Date(2026, 2, 11, 9, 0, 0)); // today = Wed 11 Mar 2026
+  await seed(page, { tasks: [task('t_old', 'Old report', 'delegate', { date: '2026-03-09', tag: 'delegate' })] });
+  await page.goto('/');
+  await panel(page).getByRole('button', { name: 'Pull it here' }).click();
+
+  const pulled = quadrant(page, 'delegate').locator('.task-card', { hasText: 'Old report' });
+  await pulled.locator('.task-card__delete').click();
+  await expect(pulled).toHaveCount(0);
+
+  // The day it was pulled from keeps nothing: the work is gone, so is its history.
+  await panel(page).locator('.stage-nav__day-arrow').first().click();
+  await panel(page).locator('.stage-nav__day-arrow').first().click();
+  await expect(panel(page).locator('.stage-nav__day-label')).toHaveText('Mon 9 Mar');
+  await expect(panel(page).locator('.task-card--record')).toHaveCount(0);
+  await waitForSaved(page, (doc) => doc.tasks.every((item) => item.deleted || item.title !== 'Old report'));
+});

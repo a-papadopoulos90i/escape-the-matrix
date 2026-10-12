@@ -356,6 +356,7 @@ async function boot() {
   store.settleRepeats(dates.todayKey()); // repeat copies left unfinished on a past day count a miss
   store.restoreCarriedRecords(); // a short-lived version dropped the "pulled to …" history; put it back
   store.handTimersToCopies(); // older pulls left the clock behind on the record
+  store.dropOrphanRecords(); // records whose task was deleted since
   restoreUiState();
   els.stepperNav.setAttribute('aria-label', t('stepper.label'));
   els.skipLink.textContent = t('app.skip');

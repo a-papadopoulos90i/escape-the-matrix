@@ -467,6 +467,17 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
       });
     },
 
+    /** Records whose work has since been deleted: history of nothing. Cleared away at start. */
+    dropOrphanRecords() {
+      const orphans = doc.tasks.filter(
+        (task) => live(task) && isRecord(task) && !doc.tasks.some((other) => live(other) && other.carriedFrom === task.id),
+      );
+      if (!orphans.length) return null;
+      return undoable(() => {
+        for (const record of orphans) store.removeTask(record.id);
+      });
+    },
+
     /**
      * Older pulls left the clock on the record. Hands it to the copy that carries the work now, so a
      * running timer always belongs to a card that is on screen. Safe to run on every start.
@@ -497,14 +508,25 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
       );
     },
 
-    /** Tombstones the task (stops its timer); the task disappears from every query. Returns an undo token. */
+    /**
+     * Tombstones the task (stops its timer); the task disappears from every query. The records of the
+     * days it was pulled from go with it — history of work that no longer exists helps nobody, and a
+     * record whose task is gone must not offer to bring anything back. Returns an undo token.
+     */
     removeTask(id) {
       return undoable(() => {
         if (!find(id)) return;
         const ms = now();
+        const gone = new Set([id]);
+        for (let from = find(id)?.carriedFrom; from; ) {
+          const record = doc.tasks.find((task) => task.id === from && live(task) && isRecord(task));
+          if (!record) break;
+          gone.add(record.id);
+          from = record.carriedFrom;
+        }
         commit(
           doc.tasks.map((task) =>
-            task.id === id
+            gone.has(task.id)
               ? {
                   ...task,
                   timer: task.timer && !task.timer.stoppedAt ? stoppedTimer(task.timer, ms) : task.timer,

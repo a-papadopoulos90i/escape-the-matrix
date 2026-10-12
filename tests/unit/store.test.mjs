@@ -707,3 +707,33 @@ test('handTimersToCopies rescues a clock left on a record by an older pull, once
   assert.equal(Math.round(timerElapsed(store.findTask(copy.id).timer, clock.now())), 300);
   assert.equal(store.handTimersToCopies(), null); // nothing left to rescue on the next start
 });
+
+test('deleting a task takes the records of the days it was pulled from with it', () => {
+  const { store } = makeStore();
+  const original = store.addTask({ title: 'Deep work', date: '2026-03-09', quadrant: 'do' });
+  store.carryOver([original.id], '2026-03-10');
+  const second = store.tasksForDate('2026-03-10').find((task) => task.title === 'Deep work');
+  store.carryOver([second.id], DAY);
+  const last = store.tasksForDate(DAY).find((task) => task.title === 'Deep work');
+  assert.equal(store.tasksForDate('2026-03-09').length, 1); // the record is there while the work lives
+
+  store.removeTask(last.id);
+  assert.equal(store.findTask(original.id), null);
+  assert.equal(store.findTask(second.id), null);
+  assert.deepEqual(store.tasksForDate('2026-03-09'), []);
+  assert.deepEqual(store.tasksForDate('2026-03-10'), []);
+});
+
+test('dropOrphanRecords clears records whose work was deleted by an older version, once', () => {
+  const { store } = makeStore();
+  const original = store.addTask({ title: 'Deep work', date: '2026-03-09', quadrant: 'do' });
+  store.carryOver([original.id], DAY);
+  const copy = store.tasksForDate(DAY).find((task) => task.title === 'Deep work');
+  // What an older version left: the copy deleted on its own, the record still standing.
+  store.updateTask(copy.id, { title: 'Deep work' });
+  store.replace({ ...store.get(), tasks: store.get().tasks.map((task) => (task.id === copy.id ? { ...task, deleted: true, deletedAt: '2026-03-11T09:00:00.000Z' } : task)) });
+
+  store.dropOrphanRecords();
+  assert.equal(store.findTask(original.id), null);
+  assert.equal(store.dropOrphanRecords(), null); // nothing left on the next start
+});
