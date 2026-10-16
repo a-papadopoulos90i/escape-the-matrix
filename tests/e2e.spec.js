@@ -59,7 +59,7 @@ function seed(page, { tasks = [], stage = 1, date = TODAY, tipsSeen = true, sett
     ({ uiKey, docKey, ui, doc }) => {
       if (sessionStorage.getItem('seeded')) return;
       sessionStorage.setItem('seeded', '1');
-      localStorage.setItem(uiKey, JSON.stringify(ui));
+      localStorage.setItem(uiKey, JSON.stringify({ savedAt: Date.now(), ...ui }));
       localStorage.setItem(docKey, JSON.stringify(doc));
     },
     { uiKey: UI_KEY, docKey: DOC_KEY, ui: { selectedDate: date, stage, calendarMonth: date.slice(0, 7) }, doc },

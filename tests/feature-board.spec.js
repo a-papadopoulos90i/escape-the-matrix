@@ -39,7 +39,7 @@ function seed(page, { tasks, stage = 3, date = DAY, settings = {} }) {
     ({ uiKey, docKey, ui, doc }) => {
       if (sessionStorage.getItem('seeded')) return; // init scripts re-run on reload: seed once per tab
       sessionStorage.setItem('seeded', '1');
-      localStorage.setItem(uiKey, JSON.stringify(ui));
+      localStorage.setItem(uiKey, JSON.stringify({ savedAt: Date.now(), ...ui }));
       localStorage.setItem(docKey, JSON.stringify(doc));
     },
     { uiKey: UI_KEY, docKey: DOC_KEY, ui: { selectedDate: date, stage, calendarMonth: date.slice(0, 7) }, doc },

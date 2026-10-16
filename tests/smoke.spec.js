@@ -23,7 +23,7 @@ function collectErrors(page) {
 function seed(page, { ui, doc } = {}) {
   return page.addInitScript(
     ({ uiKey, docKey, ui, doc }) => {
-      if (ui) localStorage.setItem(uiKey, JSON.stringify(ui));
+      if (ui) localStorage.setItem(uiKey, JSON.stringify({ savedAt: Date.now(), ...ui }));
       if (doc) localStorage.setItem(docKey, JSON.stringify(doc));
     },
     { uiKey: UI_KEY, docKey: DOC_KEY, ui, doc },
@@ -257,6 +257,35 @@ test('per-device UI state (stage + selected day) is restored on reload', async (
   // The day it restored is the one whose tasks show on the board.
   await page.locator('#stepper .step').nth(2).click();
   await expect(activePanel(page).locator('.task-card')).toContainText(['A']);
+});
+
+const DAY_DOC = (date) => ({
+  version: 1,
+  updatedAt: `${date}T08:00:00.000Z`,
+  settings: { showWeekends: false, bannerDismissed: true, tipsSeen: { 1: true, 2: true, 3: true, 4: true } },
+  tasks: [{ id: 't_a', title: 'A', date, quadrant: 'do', order: 1, done: false, doneAt: null, createdAt: 'x', updatedAt: 'x', timer: null }],
+});
+
+test('coming back on another day opens on today; the stage you left is still restored', async ({ page }) => {
+  await seed(page, {
+    ui: { selectedDate: '2026-03-09', stage: 3, calendarMonth: '2026-03', savedAt: new Date(2026, 2, 9, 18, 0, 0).getTime() },
+    doc: DAY_DOC('2026-03-09'),
+  });
+  await page.clock.setFixedTime(new Date(2026, 2, 11, 9, 0, 0)); // two days later
+  await page.goto('/');
+  await expect(activePanel(page)).toHaveAttribute('data-stage', '3');
+  await expect(activePanel(page).locator('.stage-nav__day-label')).toHaveText('Wed 11 Mar');
+});
+
+test('a tab left open overnight follows the day: looking at it again shows today', async ({ page }) => {
+  await page.clock.install({ time: new Date(2026, 2, 11, 23, 50, 0) });
+  await seed(page, { ui: { selectedDate: '2026-03-11', stage: 3, calendarMonth: '2026-03' }, doc: DAY_DOC('2026-03-11') });
+  await page.goto('/');
+  await expect(activePanel(page).locator('.stage-nav__day-label')).toHaveText('Wed 11 Mar');
+
+  await page.clock.fastForward('00:20:00'); // past midnight, with the tab still open
+  await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+  await expect(activePanel(page).locator('.stage-nav__day-label')).toHaveText('Thu 12 Mar');
 });
 
 test('the sign-in chooser → Continue with Google opens the not-connected modal when firebaseConfig is null', async ({ page }) => {

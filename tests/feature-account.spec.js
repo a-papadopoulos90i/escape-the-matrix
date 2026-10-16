@@ -21,7 +21,7 @@ const UI_STATE = { selectedDate: '2026-03-11', stage: 3, calendarMonth: '2026-03
 function seed(page, { ui, doc } = {}) {
   return page.addInitScript(
     ({ uiKey, docKey, ui, doc }) => {
-      if (ui) localStorage.setItem(uiKey, JSON.stringify(ui));
+      if (ui) localStorage.setItem(uiKey, JSON.stringify({ savedAt: Date.now(), ...ui }));
       if (doc) localStorage.setItem(docKey, JSON.stringify(doc));
     },
     { uiKey: UI_KEY, docKey: DOC_KEY, ui, doc },

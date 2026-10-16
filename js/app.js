@@ -50,12 +50,34 @@ function restoreUiState() {
   const saved = local.loadUi();
   const stage = Number(saved.stage);
   if (Number.isInteger(stage) && stage >= HOME) state.stage = Math.min(stage, STAGE_COUNT); // older saves may point at a stage that no longer exists
-  if (dates.isValidKey(saved.selectedDate)) state.selectedDate = saved.selectedDate;
-  state.calendarMonth = dates.isValidMonthKey(saved.calendarMonth) ? saved.calendarMonth : dates.monthOfKey(state.selectedDate);
+  // The day you were looking at is only held for the day itself: a reload keeps your place, but
+  // coming back on another day opens on today — that is where the work is, not where you left off.
+  const sameDay = Number.isFinite(saved.savedAt) && dates.todayKey(new Date(saved.savedAt)) === dates.todayKey();
+  if (sameDay && dates.isValidKey(saved.selectedDate)) state.selectedDate = saved.selectedDate;
+  state.calendarMonth = sameDay && dates.isValidMonthKey(saved.calendarMonth) ? saved.calendarMonth : dates.monthOfKey(state.selectedDate);
 }
 
 function persistUiState() {
-  local.saveUi({ selectedDate: state.selectedDate, stage: state.stage, calendarMonth: state.calendarMonth });
+  local.saveUi({ selectedDate: state.selectedDate, stage: state.stage, calendarMonth: state.calendarMonth, savedAt: Date.now() });
+}
+
+/**
+ * A tab left open for days (a phone rarely reloads one) is still "coming back" when it is opened
+ * again: if the date has rolled over since the last look, the day shown rolls over with it.
+ */
+function followTheDay() {
+  let seen = dates.todayKey();
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    const today = dates.todayKey();
+    if (today === seen) return;
+    seen = today;
+    store.settleRepeats(today); // yesterday's repeat copies count their miss on the way
+    state.selectedDate = today;
+    state.calendarMonth = dates.monthOfKey(today);
+    persistUiState();
+    mountStage(state.stage, null);
+  });
 }
 
 // ---------- Header ----------
@@ -376,6 +398,7 @@ async function boot() {
   renderBrand();
   renderBanner();
   mountStage(state.stage, null);
+  followTheDay();
   bindKeyboard();
   initAuth();
 }
