@@ -172,6 +172,17 @@ const centre = async (loc) => {
   return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
 };
 
+/** Presses on `grab`, drags past the lift threshold and drops on `target`. */
+async function dragTo(page, grab, target) {
+  const from = await centre(grab);
+  const to = await centre(target);
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 6 });
+  await page.mouse.move(to.x, to.y, { steps: 6 });
+  await page.mouse.up();
+}
+
 test('the card title opens rename in place; the ⏩ opens the schedule picker', async ({ page }) => {
   const errors = collectErrors(page);
   await seed(page, { tasks: SORTED(), stage: 3 });
@@ -1013,4 +1024,46 @@ test('deleting pulled work leaves no record behind, and no record brings back wh
   await expect(panel(page).locator('.stage-nav__day-label')).toHaveText('Mon 9 Mar');
   await expect(panel(page).locator('.task-card--record')).toHaveCount(0);
   await waitForSaved(page, (doc) => doc.tasks.every((item) => item.deleted || item.title !== 'Old report'));
+});
+
+test('a finished card dragged out of its box is reopened, not swallowed: it lands in the waiting list', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 1100 });
+  await seed(page, {
+    tasks: [task('t_1', 'Finished thing', 'do', { done: true, doneAt: '2026-03-11T09:00:00.000Z' }), task('t_9', 'Loose end', null)],
+  });
+  await page.goto('/');
+  const finished = card(page, 'Finished thing');
+  await expect(finished.locator('.task-card__check')).toBeChecked();
+
+  // Dropped on the waiting list it comes back as a live item — the tick is cleared in the same move.
+  await dragTo(page, finished.locator('.task-card__title'), panel(page).locator('.waiting'));
+  await expect(quadrant(page, 'do').locator('.task-card')).toHaveCount(0);
+  const waiting = panel(page).locator('.waiting-card', { hasText: 'Finished thing' });
+  await expect(waiting).toHaveCount(1);
+  await expect(waiting.locator('.task-card__check')).not.toBeChecked();
+  await waitForSaved(page, (doc) => taskById(doc, 't_1').quadrant === null && taskById(doc, 't_1').done === false && taskById(doc, 't_1').doneAt === null);
+});
+
+test('"No priority" on a finished card sends it back to the waiting list, reopened', async ({ page }) => {
+  await seed(page, { tasks: [task('t_1', 'Finished thing', 'do', { done: true, doneAt: '2026-03-11T09:00:00.000Z', tag: 'do' })] });
+  await page.goto('/');
+
+  await card(page, 'Finished thing').locator('.task-card__priority').click();
+  await page.getByRole('menuitem', { name: 'No priority' }).click();
+  const back = panel(page).locator('.waiting-card', { hasText: 'Finished thing' });
+  await expect(back).toHaveCount(1);
+  await expect(back.locator('.task-card__check')).not.toBeChecked();
+  await waitForSaved(page, (doc) => taskById(doc, 't_1').quadrant === null && taskById(doc, 't_1').done === false);
+
+});
+
+test('a finished card dropped on Repeat becomes a standing task without the stale tick', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 1100 });
+  await seed(page, { tasks: [task('t_1', 'Finished thing', 'do', { done: true, doneAt: '2026-03-11T09:00:00.000Z' })] });
+  await page.goto('/');
+
+  await dragTo(page, card(page, 'Finished thing').locator('.task-card__title'), panel(page).locator('.repeat__label'));
+  await expect(panel(page).locator('.repeat-card', { hasText: 'Finished thing' })).toHaveCount(1);
+  await expect(panel(page).locator('.repeat')).toContainText('Repeat (1)');
+  await waitForSaved(page, (doc) => taskById(doc, 't_1').repeat === true && taskById(doc, 't_1').done === false);
 });

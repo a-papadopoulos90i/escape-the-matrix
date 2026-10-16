@@ -886,11 +886,18 @@ function autoScroll(current) {
 function dropOnto(id, target) {
   const task = findTask(id);
   if (!task) return;
-  if (target.classList.contains('repeat')) return task.repeat ? undefined : ctx.store.setRepeat(task.id, true);
-  const quadrant = target.classList.contains('waiting') ? null : target.dataset.quadrant ?? null;
-  if (task.repeat) return quadrant ? putOnDay(task, quadrant) : ctx.store.setRepeat(task.id, false); // out of the section, or a copy on the day
+  const { store } = ctx;
+  const toRepeat = target.classList.contains('repeat');
+  if (toRepeat && task.repeat) return;
+  const quadrant = toRepeat || target.classList.contains('waiting') ? null : target.dataset.quadrant ?? null;
+  // Dragged out of the four boxes, finished work goes back on hold: the tick is cleared in the same
+  // move, so the card shows up in the list it was dropped in instead of vanishing from the day.
+  const reopen = () => (quadrant === null && task.done ? store.toggleDone(task.id, false) : undefined);
+  if (toRepeat) return store.undoable(() => (reopen(), store.setRepeat(task.id, true)));
+  // A repeat task: out of the section, or a copy on the day it was dropped on.
+  if (task.repeat) return quadrant ? putOnDay(task, quadrant) : store.undoable(() => (reopen(), store.setRepeat(task.id, false)));
   if (task.quadrant === quadrant) return;
-  moveToQuadrant(task, quadrant);
+  store.undoable(() => (reopen(), moveToQuadrant(task, quadrant)));
 }
 
 function endDrag() {

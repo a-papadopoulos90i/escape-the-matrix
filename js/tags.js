@@ -85,6 +85,7 @@ export function fileWithTag(ctx, task, quadrant) {
       store.setQuadrant(task.id, quadrant, ctx.getDate());
       store.reorderTask(task.id, last);
     } else {
+      if (task.done) store.toggleDone(task.id, false); // back on hold: a finished task is reopened, not hidden
       store.setQuadrant(task.id, null);
     }
     store.setTag(task.id, quadrant);
