@@ -377,6 +377,27 @@
   color: var(--muted);
 }
 
+/* "Already paid? I have a code" — quiet line under the plans. */
+.home-pricing__paid {
+  margin: var(--space-5) 0 0;
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  text-decoration: none;
+}
+
 .home-plans {
   list-style: none;
   margin: var(--space-6) 0 0;

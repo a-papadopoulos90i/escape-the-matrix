@@ -288,6 +288,27 @@ test('a tab left open overnight follows the day: looking at it again shows today
   await expect(activePanel(page).locator('.stage-nav__day-label')).toHaveText('Thu 12 Mar');
 });
 
+test('back from Stripe: ?pro=thanks says the payment landed and leads to the code box', async ({ page }) => {
+  await page.goto('/?pro=thanks');
+  const paid = page.getByRole('dialog', { name: 'Payment received — thank you!' });
+  await expect(paid).toBeVisible();
+  await expect(paid).toContainText('on its way to the email you paid with');
+  await expect(page).toHaveURL(/\/$/); // the parameter is read once and dropped
+
+  await paid.getByRole('button', { name: 'I have a code' }).click();
+  await expect(page.getByRole('dialog', { name: 'Unlock Levelix Pro' })).toBeVisible();
+});
+
+test('Home: "Already paid?" opens the code box without hunting through the account menu', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('.brand').click();
+  const paid = activePanel(page).locator('.home-pricing__paid');
+  await paid.scrollIntoViewIfNeeded();
+  await expect(paid).toContainText('Already paid?');
+  await paid.getByRole('button', { name: 'I have a code' }).click();
+  await expect(page.getByRole('dialog', { name: 'Unlock Levelix Pro' })).toBeVisible();
+});
+
 test('the sign-in chooser → Continue with Google opens the not-connected modal when firebaseConfig is null', async ({ page }) => {
   await page.goto('/');
   await page.locator('#account button').click();

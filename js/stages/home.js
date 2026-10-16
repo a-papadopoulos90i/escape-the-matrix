@@ -1,7 +1,7 @@
 // Home — what the planner is, its three steps (a screenshot beside each, alternating sides), the
 // purpose behind it and why it is free. The logo opens it; it is not one of the stepper tabs.
 import { QUADRANTS } from '../store.js';
-import { payLinks } from '../billing-links.js';
+import { askForCodeBox, payLinks } from '../billing-links.js';
 import { quadrantGlyph } from '../carry.js';
 
 const STEPS = [
@@ -157,6 +157,14 @@ export function mount(container, ctx) {
       plan({ key: 'free', features: ['tasks100', 'stages', 'noCard'], cta: h('button', { class: 'btn', type: 'button', onClick: () => ctx.goTo(1) }, t('home.pricing.startFree')) }),
       plan({ key: 'monthly', featured: true, features: proFeatures, cta: proButton('monthly', 'btn btn-primary') }),
       plan({ key: 'yearly', features: proFeatures, cta: proButton('yearly', 'btn') }),
+    ),
+    // Whoever has paid lands back here: the code box is one tap away, not buried in the account menu.
+    h(
+      'p',
+      { class: 'home-pricing__paid' },
+      t('home.pricing.paid'),
+      ' ',
+      h('button', { class: 'link-button', type: 'button', onClick: () => askForCodeBox() }, t('plan.enterCode')),
     ),
   );
 

@@ -51,7 +51,9 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['plan', 'voucher', 'period', 'currentPeriodEnd', 'updatedAt'])
         && request.resource.data.plan == 'pro'
         && request.resource.data.voucher is string
-        && get(/databases/$(database)/documents/vouchers/$(request.resource.data.voucher)).data.redeemedBy == request.auth.uid;
+        && get(/databases/$(database)/documents/vouchers/$(request.resource.data.voucher)).data.redeemedBy == request.auth.uid
+        // The paid period is the one written on the voucher — an account cannot grant itself more.
+        && request.resource.data.currentPeriodEnd == get(/databases/$(database)/documents/vouchers/$(request.resource.data.voucher)).data.get('until', null);
       allow delete: if false;
     }
 

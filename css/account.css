@@ -389,9 +389,14 @@
 }
 
 .vouchers__period-tag,
-.vouchers__state {
+.vouchers__state,
+.vouchers__until {
   color: var(--muted);
   font-size: var(--text-xs);
+}
+
+.vouchers__until {
+  white-space: nowrap;
 }
 
 /* "Changed in both places": one block per task, the two sides under each other. */

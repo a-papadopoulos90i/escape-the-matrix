@@ -11,6 +11,7 @@ import { createCloudAdapter } from './storage/cloud.js';
 import { lastSyncAgo, remindersEnabled, syncWithReminders } from './reminders.js';
 import { createBilling, listVouchers, makeVouchers, VoucherError } from './billing.js';
 import { openVoucherModal, vouchersEnabled } from './vouchers.js';
+import { capturePayReturn, REDEEM_EVENT } from './billing-links.js';
 
 const SDK_BASE = 'https://www.gstatic.com/firebasejs/10.14.1/';
 const SDK_MODULES = ['firebase-app.js', 'firebase-auth.js', 'firebase-firestore.js'];
@@ -458,7 +459,7 @@ export function openRedeemModal({ ui, i18n, session }) {
       api.close();
       ui.toast(t('plan.unlocked'), { duration: 8000 });
     } catch (error) {
-      const reason = ['invalid', 'unknown', 'used'].includes(error?.reason) ? error.reason : 'failed';
+      const reason = ['invalid', 'unknown', 'used', 'expired'].includes(error?.reason) ? error.reason : 'failed';
       ui.toast(t(`plan.code${reason[0].toUpperCase()}${reason.slice(1)}`), { duration: 8000 });
       input.focus();
     }
@@ -474,6 +475,22 @@ export function openRedeemModal({ ui, i18n, session }) {
   input.addEventListener('keydown', (event) => event.key === 'Enter' && submit(modal));
   input.focus();
   return modal;
+}
+
+/**
+ * Back from Stripe: the payment is through, the code is not here yet. It says what happens next and
+ * opens the code box, so the customer never has to hunt for where the code goes.
+ */
+export function openPaidModal({ ui, i18n, session }) {
+  const { t } = i18n;
+  return ui.modal({
+    title: t('plan.paidTitle'),
+    content: ui.h('div', { class: 'redeem' }, ui.h('p', null, t('plan.paidBody')), ui.h('p', { class: 'text-muted' }, t('plan.paidHint'))),
+    actions: [
+      { label: t('common.close') },
+      { label: t('plan.enterCode'), primary: true, onClick: () => void openRedeemModal({ ui, i18n, session }) },
+    ],
+  });
 }
 
 // ---------- Entry point ----------
@@ -523,6 +540,9 @@ export async function initAuth({ store, ui, i18n, slot, setSignedIn, config = fi
 
   view.showSignedOut();
   setSignedIn(false);
+  // The pricing section (and the modal below) ask for the code box from outside this module.
+  document.addEventListener(REDEEM_EVENT, () => openRedeemModal({ ui, i18n, session }));
+  if (capturePayReturn()) openPaidModal({ ui, i18n, session });
   if (!config) return;
   await session().catch(() => {}); // offline first visit: stay in free mode, the button retries
 }

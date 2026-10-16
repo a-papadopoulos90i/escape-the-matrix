@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { canAddTask, FREE_TASK_LIMIT, isPro, openTaskCount, setPlan } from '../../js/plan.js';
-import { createBilling, listVouchers, makeCode, makeVouchers, normalizeCode, VoucherError } from '../../js/billing.js';
+import { createBilling, listVouchers, makeCode, makeVouchers, normalizeCode, untilFor, VoucherError } from '../../js/billing.js';
 
 const fakeStore = (tasks) => ({ get: () => ({ tasks }) });
 const task = (extra = {}) => ({ deleted: false, carriedTo: null, done: false, ...extra });
@@ -106,4 +106,34 @@ test('made codes are unambiguous and each one lands in the vouchers collection u
   const rows = await listVouchers({ db: {}, firestore });
   assert.deepEqual(rows.map((row) => row.code).sort(), [...codes].sort());
   assert.deepEqual(rows.map((row) => row.redeemedBy), [null, null, null]);
+});
+
+test('a code carries the period it buys: Pro runs out when the paid days do', async () => {
+  const firestore = fakeFirestore();
+  const [code] = await makeVouchers({ db: {}, firestore, count: 1, period: 'monthly' });
+  const until = Date.parse(firestore.store.vouchers[code].until);
+  const days = Math.round((until - Date.now()) / 86_400_000);
+  assert.ok(days >= 31 && days <= 35, `a month plus a few days over, got ${days}`);
+  assert.equal(untilFor('forever'), null); // an open-ended code never runs out
+
+  const billing = createBilling({ db: {}, uid: 'u1', firestore });
+  const redeemed = await billing.redeem(code);
+  assert.equal(redeemed.until, firestore.store.vouchers[code].until);
+  assert.equal(firestore.store.billing.u1.currentPeriodEnd, firestore.store.vouchers[code].until);
+  assert.equal(isPro(), true);
+  billing.dispose();
+});
+
+test('a billing document whose paid period has passed is Free again; a code made too long ago is refused', async () => {
+  const past = new Date(Date.now() - 86_400_000).toISOString();
+  const firestore = fakeFirestore({
+    vouchers: { LVXOLDCODE1: { redeemedBy: null, period: 'monthly', until: past } },
+    billing: { u1: { plan: 'pro', voucher: 'LVXGONE', period: 'monthly', currentPeriodEnd: past } },
+  });
+  const billing = createBilling({ db: {}, uid: 'u1', firestore });
+  assert.equal(isPro(), false); // the document says pro, the period says otherwise
+
+  await assert.rejects(() => billing.redeem('LVXOLDCODE1'), (error) => error.reason === 'expired');
+  assert.equal(firestore.store.vouchers.LVXOLDCODE1.redeemedBy, null); // nothing was claimed
+  billing.dispose();
 });
