@@ -64,7 +64,7 @@ async function startFakeSession(page, { remote = REMOTE_ENVELOPE, signedIn = fal
         import('./js/ui.js'),
         import('./js/i18n.js'),
       ]);
-      const user = { uid: 'u1', displayName: 'Andreas Papadopoulos', email: 'andreas@example.com', photoURL };
+      const user = { uid: 'u1', displayName: 'Andreas Papadopoulos', email: 'andreas@example.com', photoURL, providerData: [{ providerId: 'google.com' }] };
       const fake = {
         user, current: signedIn ? user : null, remote, writes: [], authListeners: [], snapshotListeners: [],
         signOuts: 0, redirects: 0, popupError: null, providerParams: null, signedIn: [], failLoads,
@@ -137,6 +137,26 @@ async function startFakeSession(page, { remote = REMOTE_ENVELOPE, signedIn = fal
           if (fake.popupError) throw Object.assign(new Error('popup'), { code: fake.popupError });
           fake.current = fake.user; // a test may swap in another account before signing in
           fake.authListeners.forEach((callback) => callback(fake.user));
+        },
+        // Connecting another sign-in method, and deleting the account (with a fresh sign-in when asked).
+        linkWithPopup: async (who, provider) => {
+          if (fake.linkError) throw Object.assign(new Error('link'), { code: fake.linkError });
+          who.providerData = [...(who.providerData ?? []), { providerId: provider?.providerId ?? 'google.com' }];
+          fake.linked = provider?.providerId ?? 'google.com';
+          return { user: who };
+        },
+        linkWithRedirect: async () => {},
+        deleteUser: async () => {
+          if (fake.deleteNeedsLogin > 0) {
+            fake.deleteNeedsLogin -= 1;
+            throw Object.assign(new Error('old login'), { code: 'auth/requires-recent-login' });
+          }
+          fake.deletedUsers = (fake.deletedUsers ?? 0) + 1;
+          fake.current = null;
+          fake.authListeners.forEach((callback) => callback(null));
+        },
+        reauthenticateWithPopup: async (who, provider) => {
+          fake.reauthenticated = provider?.providerId ?? 'google.com';
         },
         signInWithRedirect: async () => {
           fake.redirects += 1;
@@ -327,9 +347,13 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await expect(gear).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(gear).toHaveAttribute('aria-expanded', 'true');
+    await expect(menu.getByRole('menuitem', { name: 'Connect Apple' })).toBeFocused(); // signed in with Google: Apple can join
+    await page.keyboard.press('ArrowDown');
     await expect(menu.getByRole('menuitem', { name: 'Clear account' })).toBeFocused();
     await page.keyboard.press('ArrowDown');
     await expect(menu.getByRole('menuitem', { name: 'Sign out & clear this device' })).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(menu.getByRole('menuitem', { name: 'Delete account' })).toBeFocused();
     await expect(menu).toHaveCSS('opacity', '1');
     await page.screenshot({ path: path.join(OUT, 'account-menu-desktop.png') });
     await page.keyboard.press('Escape');
@@ -701,6 +725,63 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await signInGoogle(page);
     await expect(account.locator('.account-name')).toHaveText('Andreas');
     await expect.poll(() => storeIds(page)).toEqual(['t_local', 't_remote']);
+  });
+
+  test('Connect Apple from behind the gear: either button then opens this account; a login with its own account is refused', async ({ page }) => {
+    await seed(page, { ui: UI_STATE });
+    await page.goto('/');
+    await startFakeSession(page, { signedIn: true });
+    const button = page.locator('#account .account-btn');
+    const menu = page.locator('.popover--account');
+    const gear = async () => {
+      await button.click();
+      await menu.getByRole('menuitem', { name: 'More account options' }).click();
+    };
+
+    await gear();
+    await expect(menu.getByRole('menuitem', { name: 'Connect Google' })).toHaveCount(0); // it signed in with Google
+    await page.evaluate(() => (window.__fake.linkError = 'auth/credential-already-in-use'));
+    await menu.getByRole('menuitem', { name: 'Connect Apple' }).click();
+    await expect(page.locator('.toast', { hasText: 'That Apple login already has its own Levelix account' })).toBeVisible();
+
+    await page.evaluate(() => (window.__fake.linkError = null));
+    await gear();
+    await menu.getByRole('menuitem', { name: 'Connect Apple' }).click();
+    await expect(page.locator('.toast', { hasText: 'Apple is connected — either button now opens this account.' })).toBeVisible();
+    expect(await fakeValue(page, 'fake.linked')).toBe('apple.com');
+    await gear();
+    await expect(menu.getByRole('menuitem', { name: 'Connect Apple' })).toHaveCount(0);
+  });
+
+  test('Delete account: asked first (signing in again when Google wants it), then the account and this device are cleared', async ({ page }) => {
+    await seed(page, { ui: UI_STATE, doc: LOCAL_DOC });
+    await page.addInitScript(() => localStorage.setItem('escape-the-matrix:owner', 'u1'));
+    await page.goto('/');
+    await startFakeSession(page, { signedIn: true });
+    const button = page.locator('#account .account-btn');
+    const menu = page.locator('.popover--account');
+    const askToDelete = async () => {
+      await button.click();
+      await menu.getByRole('menuitem', { name: 'More account options' }).click();
+      await menu.getByRole('menuitem', { name: 'Delete account' }).click();
+      return page.getByRole('dialog', { name: 'Delete your Levelix account?' });
+    };
+
+    let dialog = await askToDelete();
+    await expect(dialog).toContainText('The account andreas@example.com is deleted for good');
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(button).toBeVisible();
+    expect(await fakeValue(page, 'fake.deletedUsers ?? 0')).toBe(0);
+
+    await page.evaluate(() => (window.__fake.deleteNeedsLogin = 1)); // the last sign-in is too old
+    dialog = await askToDelete();
+    await dialog.getByRole('button', { name: 'Delete my account' }).click();
+    await expect(page.locator('.toast', { hasText: 'Your account has been deleted.' })).toBeVisible();
+    expect(await fakeValue(page, 'fake.reauthenticated')).toBe('google.com');
+    expect(await fakeValue(page, 'fake.deletedUsers')).toBe(1);
+    await expect(signInBtn(page)).toBeVisible();
+    expect(await storeIds(page)).toEqual([]);
+    expect(await page.evaluate(() => [localStorage.getItem('escape-the-matrix:v1'), localStorage.getItem('escape-the-matrix:owner')])).toEqual([null, null]);
   });
 
   test('Go Pro on Home while signed out: sign in first, then straight on to the checkout with the account', async ({ page }) => {

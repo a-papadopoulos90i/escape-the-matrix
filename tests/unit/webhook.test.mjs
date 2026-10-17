@@ -243,3 +243,12 @@ test('a full refund ends what it paid for: an unused code stops working, a redee
   assert.equal(direct.db.data['billing/user_abc123'].currentPeriodEnd, NOW.toISOString());
   assert.equal(direct.db.data['sales/cs_1'].refundedAt, NOW.toISOString());
 });
+
+test('deleting an account removes its planner and Pro state, nothing else', async () => {
+  const { createCleanup } = await import('../../functions/account.js');
+  const deleted = [];
+  const db = { collection: (name) => ({ doc: (id) => ({ delete: async () => deleted.push(`${name}/${id}`) }) }) };
+  assert.deepEqual(await createCleanup({ db })('user_abc123'), ['users/user_abc123', 'billing/user_abc123']);
+  assert.deepEqual(deleted, ['users/user_abc123', 'billing/user_abc123']); // sales and vouchers stay
+  assert.deepEqual(await createCleanup({ db })(''), []);
+});

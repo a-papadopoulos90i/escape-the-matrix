@@ -63,6 +63,15 @@ function storage(action) {
 
 /** Signed up with an email and password (not only Google or Apple), so there is a password to change. */
 const hasPassword = (user) => (user?.providerData ?? []).some((info) => info?.providerId === 'password');
+/** The sign-in methods this account already has: 'google', 'apple', 'password'. */
+const linkedProviders = (user) =>
+  (user?.providerData ?? []).map((info) => ({ 'google.com': 'google', 'apple.com': 'apple', password: 'password' })[info?.providerId]).filter(Boolean);
+const LINK_ERRORS = {
+  'auth/credential-already-in-use': 'account.linkTaken',
+  'auth/email-already-in-use': 'account.linkTaken',
+  'auth/account-exists-with-different-credential': 'account.linkTaken',
+  'auth/provider-already-linked': 'account.linkAlready',
+};
 
 function firstName(user) {
   const name = (user.displayName || '').trim();
@@ -75,7 +84,7 @@ function firstName(user) {
  * Renders the account slot. showSignedOut() → Google button; showSignedIn(user, status) → avatar,
  * first name and a status dot that opens the account menu. setStatus() updates in place.
  */
-export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut, onSignOutClear, onClearAccount, onChangePassword, onSyncReminders, onGoPro, onSyncGuest, providers = ['google', 'apple', 'email'] }) {
+export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut, onSignOutClear, onClearAccount, onChangePassword, onSyncReminders, onGoPro, onSyncGuest, onLink, onDeleteAccount, providers = ['google', 'apple', 'email'] }) {
   let plan = 'free'; // shown in the menu; the real answer lives in Firestore
   const { t } = i18n;
   let user = null;
@@ -133,9 +142,14 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut
     const danger = ui.h(
       'div',
       { class: 'account-menu__danger', id: 'account-danger', hidden: true },
+      // Another way into the same account: Google and Apple, whichever it does not have yet.
+      ...['google', 'apple']
+        .filter((provider) => providers.includes(provider) && !linkedProviders(user).includes(provider))
+        .map((provider) => menuItem(t(provider === 'apple' ? 'account.connectApple' : 'account.connectGoogle'), () => onLink(provider))),
       hasPassword(user) && menuItem(t('account.changePassword'), onChangePassword),
       menuItem(t('account.clearAccount'), onClearAccount, true),
       menuItem(t('account.signOutClear'), onSignOutClear, true),
+      menuItem(t('account.deleteAccount'), onDeleteAccount, true),
     );
     const gear = ui.h(
       'button',
@@ -525,6 +539,83 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
     return 'signed-in';
   }
 
+  /**
+   * Connect Google or Apple to the signed-in account, so either button opens it. A Google or Apple
+   * login that already has its own Levelix account cannot be joined in — that account goes first.
+   */
+  async function linkProvider(provider) {
+    const authProvider = provider === 'apple' ? appleProvider() : googleProvider();
+    try {
+      const result = await sdk.linkWithPopup(auth.currentUser, authProvider);
+      view.updateUser(result?.user ?? auth.currentUser);
+      ui.toast(t(provider === 'apple' ? 'account.linkedApple' : 'account.linkedGoogle'), { duration: 8000 });
+    } catch (error) {
+      if (CANCELLED_CODES.has(error?.code)) return;
+      if (error?.code === 'auth/popup-blocked') return sdk.linkWithRedirect(auth.currentUser, authProvider);
+      ui.toast(t(LINK_ERRORS[error?.code] ?? 'account.linkFailed', { provider: provider === 'apple' ? 'Apple' : 'Google' }), { duration: 12000 });
+    }
+  }
+
+  /** Google's rule for deleting an account: a recent sign-in. Asks for it the way this account signs in. */
+  async function signInAgain(user) {
+    const methods = linkedProviders(user);
+    if (methods.includes('google') || methods.includes('apple')) {
+      return sdk.reauthenticateWithPopup(user, methods.includes('google') ? googleProvider() : appleProvider());
+    }
+    const password = await askPassword();
+    if (!password) throw Object.assign(new Error('cancelled'), { code: 'auth/user-cancelled' });
+    return sdk.reauthenticateWithCredential(user, sdk.EmailAuthProvider.credential(user.email, password));
+  }
+
+  function askPassword() {
+    return new Promise((resolve) => {
+      let value = null;
+      const input = ui.h('input', { class: 'signin__field', type: 'password', autocomplete: 'current-password', placeholder: t('account.passwordPlaceholder'), 'aria-label': t('account.password') });
+      ui.modal({
+        title: t('account.confirmPasswordTitle'),
+        content: ui.h('div', { class: 'signin' }, ui.h('p', { class: 'signin__subtitle text-muted' }, t('account.confirmPasswordBody')), input),
+        actions: [{ label: t('common.cancel') }, { label: t('common.confirm'), primary: true, onClick: () => { value = input.value || null; } }],
+        className: 'modal--signin',
+        onClose: () => resolve(value),
+      });
+      input.focus();
+    });
+  }
+
+  /**
+   * Delete account: the account and everything in it go for good (the cloud copy is removed by the
+   * cleanupAccount function as the account is deleted), and this device is cleared. Purchase records
+   * stay, as tax law requires.
+   */
+  async function deleteAccount() {
+    const user = auth.currentUser;
+    if (!user) return;
+    const ok = await ui.confirm(t('account.deleteConfirm', { email: user.email || t('account.thisAccount') }), {
+      title: t('account.deleteTitle'),
+      okLabel: t('account.deleteOk'),
+      danger: true,
+    });
+    if (!ok) return;
+    await disconnect(); // stop syncing first: nothing may be written to an account being deleted
+    try {
+      try {
+        await sdk.deleteUser(user);
+      } catch (error) {
+        if (error?.code !== 'auth/requires-recent-login') throw error;
+        await signInAgain(user);
+        await sdk.deleteUser(user);
+      }
+    } catch (error) {
+      await connect(user); // not deleted after all: back to the account as it was
+      if (CANCELLED_CODES.has(error?.code)) return;
+      throw error;
+    }
+    store.replace(createEmptyDoc());
+    await store.flush();
+    local.clear(); // last, so nothing writes the account's copy back
+    ui.toast(t('account.deleted'), { duration: 8000 });
+  }
+
   /** Change password: the same safe route as "Forgot password?" — a link to the account's own address. */
   async function changePassword() {
     const email = auth.currentUser?.email;
@@ -620,6 +711,8 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
   return {
     signIn,
     syncGuest,
+    linkProvider,
+    deleteAccount,
     emailAuth,
     changePassword,
     signOut,
@@ -770,6 +863,8 @@ export async function initAuth({ store, ui, i18n, slot, setSignedIn, config = fi
     },
     onChangePassword: () => run(async () => (await session()).changePassword()),
     onSyncGuest: () => run(async () => (await session()).syncGuest()),
+    onLink: (provider) => run(async () => (await session()).linkProvider(provider)),
+    onDeleteAccount: () => run(async () => (await session()).deleteAccount()),
     onSignOut: () => run(async () => (await session()).signOut()),
     onSignOutClear: () => run(async () => (await session()).signOut({ clear: true })),
     onClearAccount: () => run(async () => (await session()).clearAccount()),

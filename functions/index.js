@@ -1,5 +1,6 @@
-// Levelix Pro — the Stripe webhook. Stripe calls it when a payment link is paid or refunded; it turns
-// Pro on (or emails a code) and takes it back on a refund. The flow itself lives in webhook.js.
+// Levelix's two functions. stripeWebhook: Stripe calls it when a payment link is paid or refunded; it
+// turns Pro on (or emails a code) and takes it back on a refund (webhook.js). cleanupAccount: when an
+// account is deleted, its planner and Pro state go with it (account.js).
 //
 // Secrets (set once from a terminal, never in the repo):
 //   firebase functions:secrets:set STRIPE_WEBHOOK_SECRET   — the "signing secret" of the webhook in Stripe
@@ -11,7 +12,9 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions';
 import { defineInt, defineSecret, defineString } from 'firebase-functions/params';
 import { onRequest } from 'firebase-functions/v2/https';
+import * as v1 from 'firebase-functions/v1';
 import nodemailer from 'nodemailer';
+import { createCleanup } from './account.js';
 import { createWebhook } from './webhook.js';
 
 const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET');
@@ -39,3 +42,12 @@ export const stripeWebhook = onRequest({ region: 'europe-west1', secrets: [STRIP
   handle ??= createWebhook({ db: getFirestore(), auth: getAuth(), sendMail, secret: () => STRIPE_WEBHOOK_SECRET.value(), log: logger });
   return handle(req, res);
 });
+
+// Auth's "account deleted" event exists only as a first-generation trigger.
+export const cleanupAccount = v1
+  .region('europe-west1')
+  .auth.user()
+  .onDelete(async (user) => {
+    const gone = await createCleanup({ db: getFirestore() })(user.uid);
+    logger.info('account deleted, cleaned', gone);
+  });
