@@ -16,7 +16,8 @@ const STATE_FILE = process.env.LEVELIX_BRIDGE_STATE || path.join(homedir(), 'Lib
 const ORIGINS = new Set([
   'https://levelix.eu',
   'https://www.levelix.eu',
-  'https://levelix.web.app',
+  'https://levelix-app.web.app',
+  'https://levelix.web.app', // the old project's site, until it is gone
   'https://a-papadopoulos90i.github.io',
   'http://localhost:4173',
   'http://127.0.0.1:4173',

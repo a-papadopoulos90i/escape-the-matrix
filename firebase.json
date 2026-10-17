@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "levelix",
+    "site": "levelix-app",
     "public": ".",
     "cleanUrls": true,
     "ignore": [

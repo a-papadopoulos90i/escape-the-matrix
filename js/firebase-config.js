@@ -12,19 +12,19 @@
 // };
 //
 // See SETUP.md for the full walkthrough (providers, authorized domains, Firestore rules).
-// Firebase project "Escape the Matrix" (project ID katopsi-elite — the ID is permanent).
+// Firebase project "Levelix" (project ID levelix; its hosting site is levelix-app, behind levelix.eu).
 export const firebaseConfig = {
-  apiKey: 'AIzaSyBohjbgd-ehrSxRDZi-GaalzhNxNBa2bkQ',
+  apiKey: 'AIzaSyCy40N3IG7oE9R70f3pqIe81cAmNmh7vxo',
   // Sign in through the domain the visitor is already on (its /__/auth/handler is served by Firebase
   // Hosting there too), so sign-in never depends on another domain resolving and Google's window names
   // our own address. Anywhere else (e.g. GitHub Pages) it falls back to the project's firebaseapp.com.
-  authDomain: ['levelix.eu', 'www.levelix.eu', 'levelix.web.app'].includes(globalThis.location?.hostname)
+  authDomain: ['levelix.eu', 'www.levelix.eu', 'levelix-app.web.app'].includes(globalThis.location?.hostname)
     ? globalThis.location.hostname
-    : 'katopsi-elite.firebaseapp.com',
-  projectId: 'katopsi-elite',
-  storageBucket: 'katopsi-elite.firebasestorage.app',
-  messagingSenderId: '542908804568',
-  appId: '1:542908804568:web:3a01f898440b84c1da56ad',
+    : 'levelix-b42f1.firebaseapp.com',
+  projectId: 'levelix',
+  storageBucket: 'levelix.firebasestorage.app',
+  messagingSenderId: '658479226766',
+  appId: '1:658479226766:web:a3fdffbddf59f5cb1acedf',
 };
 
 // Sign-in options shown in the chooser. Add 'apple' once Apple is configured (SETUP.md, Part B3).
