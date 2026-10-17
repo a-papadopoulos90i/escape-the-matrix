@@ -397,6 +397,17 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
         }
       },
     });
+    // One browser, several accounts: this browser's copy joins the account only if it is that
+    // account's own, or was written signed out. Another account's copy is set aside — never mixed in —
+    // and handed back when that account signs in here again.
+    const owner = local.owner();
+    if (owner && owner !== user.uid) {
+      local.stash(owner, store.get());
+      store.replace(createEmptyDoc());
+    }
+    const stashed = local.takeStash(user.uid);
+    if (stashed) store.replace(store.mergeDocs(store.get(), stashed));
+    local.setOwner(user.uid);
     const remote = await cloud.load();
     if (current !== generation) return cloud.dispose(); // signed out meanwhile
     if (remote) store.replace(store.mergeDocs(store.get(), remote));

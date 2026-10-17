@@ -5,6 +5,10 @@
 
 export const DOC_KEY = 'escape-the-matrix:v1';
 export const UI_KEY = 'escape-the-matrix:ui';
+// Which account this browser's copy belongs to, and the copies of other accounts that signed in here
+// before (set aside, never mixed in, handed back when that account signs in again).
+export const OWNER_KEY = 'escape-the-matrix:owner';
+const STASH_PREFIX = 'escape-the-matrix:v1:';
 
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const isDocLike = (value) => isObject(value) && Array.isArray(value.tasks);
@@ -75,10 +79,50 @@ export function createLocalAdapter() {
       writeJson(storage, UI_KEY, ui);
     },
 
+    /** The uid this browser's copy belongs to (null: tasks written signed out, never tied to an account). */
+    owner() {
+      try {
+        return storage.getItem(OWNER_KEY) || null;
+      } catch {
+        return null;
+      }
+    },
+
+    setOwner(uid) {
+      try {
+        storage.setItem(OWNER_KEY, uid);
+      } catch {
+        /* storage blocked — nothing to remember */
+      }
+    },
+
+    /** Sets another account's copy aside until it signs in here again. */
+    stash(uid, doc) {
+      writeJson(storage, STASH_PREFIX + uid, doc);
+    },
+
+    /** The copy set aside for this account (once), or null. */
+    takeStash(uid) {
+      const doc = readJson(storage, STASH_PREFIX + uid);
+      try {
+        storage.removeItem(STASH_PREFIX + uid);
+      } catch {
+        /* nothing to remove */
+      }
+      return isDocLike(doc) ? doc : null;
+    },
+
     clear() {
       try {
         storage.removeItem(DOC_KEY);
         storage.removeItem(UI_KEY);
+        storage.removeItem(OWNER_KEY);
+        // Every account's set-aside copy goes too: "clear this device" means all of it.
+        if (native) {
+          const stashed = [];
+          for (let i = 0; i < native.length; i += 1) if (native.key(i)?.startsWith(STASH_PREFIX)) stashed.push(native.key(i));
+          stashed.forEach((key) => native.removeItem(key));
+        }
       } catch {
         /* nothing to clear */
       }

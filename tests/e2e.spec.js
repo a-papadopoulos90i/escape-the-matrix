@@ -675,7 +675,7 @@ test('18. no console errors on any stage and no network needed after the first l
 
   expect(errors).toEqual([]);
   expect(requests.length).toBe(loaded);
-  expect(requests.every((url) => url.startsWith('http://localhost:4173/'))).toBe(true);
+  expect(requests.every((url) => url.startsWith(new URL('/', page.url()).href))).toBe(true);
 });
 
 test('19. every asset URL is relative: the app boots unchanged under a /escape-the-matrix/ sub-path', async ({ page }) => {
@@ -700,6 +700,6 @@ test('19. every asset URL is relative: the app boots unchanged under a /escape-t
   await goToStage(page, 3);
   await expect(panel(page).locator('.quadrant__label')).toHaveCount(4);
   expect(requests.length).toBeGreaterThan(15);
-  expect(requests.every((url) => url.startsWith('http://localhost:4173/escape-the-matrix/'))).toBe(true);
+  expect(requests.every((url) => url.startsWith(new URL('/escape-the-matrix/', page.url()).href))).toBe(true);
   expect(errors).toEqual([]);
 });

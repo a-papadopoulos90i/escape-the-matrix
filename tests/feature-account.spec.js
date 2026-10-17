@@ -135,8 +135,8 @@ async function startFakeSession(page, { remote = REMOTE_ENVELOPE, signedIn = fal
           fake.lastProvider = provider?.providerId ?? 'google.com';
           fake.lastScopes = provider?.scopes ?? [];
           if (fake.popupError) throw Object.assign(new Error('popup'), { code: fake.popupError });
-          fake.current = user;
-          fake.authListeners.forEach((callback) => callback(user));
+          fake.current = fake.user; // a test may swap in another account before signing in
+          fake.authListeners.forEach((callback) => callback(fake.user));
         },
         signInWithRedirect: async () => {
           fake.redirects += 1;
@@ -638,6 +638,48 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await dialog.getByRole('button', { name: 'Unlock' }).click();
     await expect(page.locator('.toast', { hasText: 'That does not look like a code' })).toBeVisible();
     await expect(dialog).toBeVisible(); // the dialog stays open so the code can be corrected
+  });
+
+  test('two accounts on one browser never mix: each signs in to its own tasks, and guest work joins the first', async ({ page }) => {
+    await seed(page, { ui: UI_STATE, doc: LOCAL_DOC }); // t_local: written signed out, belongs to nobody yet
+    await page.goto('/');
+    await startFakeSession(page);
+    const account = page.locator('#account');
+    const menu = page.locator('.popover--account');
+    const signOut = async () => {
+      await account.locator('.account-btn').click();
+      await menu.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
+      await expect(signInBtn(page)).toBeVisible();
+    };
+
+    // Account A (Google): the guest task joins it, alongside what A already had.
+    await signInGoogle(page);
+    await expect(account.locator('.account-btn')).toBeVisible();
+    await expect.poll(() => storeIds(page)).toEqual(['t_local', 't_remote']);
+    await signOut();
+
+    // Account B (say, Apple with a hidden email) signs in on the same browser: only B's own tasks.
+    await page.evaluate(() => {
+      const other = { id: 't_other', title: 'Only B has this', date: '2026-03-11', quadrant: 'do', order: 1, done: false, doneAt: null, createdAt: 'x', updatedAt: '2026-03-10T00:00:00.000Z', timer: null };
+      window.__fake.user = { uid: 'u9', displayName: 'Someone Else', email: 'w8j@privaterelay.appleid.com', photoURL: null };
+      window.__fake.remote = { doc: { version: 1, updatedAt: '2026-03-10T00:00:00.000Z', settings: {}, tasks: [other] }, updatedAt: '2026-03-10T00:00:00.000Z', email: 'w8j@privaterelay.appleid.com' };
+      window.__fake.writes.length = 0;
+    });
+    await signInGoogle(page);
+    await expect(account.locator('.account-name')).toHaveText('Someone');
+    await expect.poll(() => storeIds(page)).toEqual(['t_other']);
+    // Nothing of A's was written into B's account.
+    await expect.poll(() => fakeValue(page, 'fake.writes.every((w) => w.doc.tasks.every((t) => t.id === "t_other"))')).toBe(true);
+    await signOut();
+
+    // A again: A's copy (set aside on this browser) comes back, and B's task does not follow.
+    await page.evaluate(() => {
+      window.__fake.user = { uid: 'u1', displayName: 'Andreas Papadopoulos', email: 'andreas@example.com', photoURL: null };
+      window.__fake.remote = null; // even with nothing to read from the server, A's own copy is here
+    });
+    await signInGoogle(page);
+    await expect(account.locator('.account-name')).toHaveText('Andreas');
+    await expect.poll(() => storeIds(page)).toEqual(['t_local', 't_remote']);
   });
 
   test('Go Pro on Home while signed out: sign in first, then straight on to the checkout with the account', async ({ page }) => {
