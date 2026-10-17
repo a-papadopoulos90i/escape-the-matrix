@@ -2,7 +2,7 @@ import { test as base, expect } from 'playwright/test';
 
 // The deployed site carries a real Firebase config. Tests run the app in free mode (no network, no
 // real sign-in) by serving a null config; account specs inject their own fake Firebase session.
-export const FREE_MODE_CONFIG ="export const firebaseConfig = null;\nexport const authProviders = ['google', 'email'];\n";
+export const FREE_MODE_CONFIG ="export const firebaseConfig = null;\nexport const authProviders = ['google', 'apple', 'email'];\n";
 
 export const test = base.extend({
   context: async ({ context }, use) => {

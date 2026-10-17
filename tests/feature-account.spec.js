@@ -194,7 +194,7 @@ async function startFakeSession(page, { remote = REMOTE_ENVELOPE, signedIn = fal
 }
 
 test.describe('free mode (firebaseConfig = null)', () => {
-  test('renders a compact account icon that opens a sign-in chooser (Google + email; Apple hidden until configured), and the free-mode banner', async ({ page }) => {
+  test('renders a compact account icon that opens a sign-in chooser (Google, Apple and email), and the free-mode banner', async ({ page }) => {
     const errors = collectErrors(page);
     await page.goto('/');
     const button = signInBtn(page);
@@ -205,7 +205,7 @@ test.describe('free mode (firebaseConfig = null)', () => {
     await button.click();
     const dialog = page.locator('[role="dialog"]');
     await expect(dialog.getByRole('button', { name: 'Continue with Google' }).locator('svg.icon--google')).toHaveCount(1);
-    await expect(dialog.getByRole('button', { name: 'Continue with Apple' })).toHaveCount(0); // not in authProviders yet
+    await expect(dialog.getByRole('button', { name: 'Continue with Apple' }).locator('svg.icon--apple')).toHaveCount(1);
     await expect(dialog.getByRole('textbox', { name: 'Email' })).toBeVisible();
     await expect(dialog.getByLabel('Password')).toBeVisible();
     await expect(dialog.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();

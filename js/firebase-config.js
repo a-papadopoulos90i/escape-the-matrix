@@ -27,5 +27,5 @@ export const firebaseConfig = {
   appId: '1:658479226766:web:a3fdffbddf59f5cb1acedf',
 };
 
-// Sign-in options shown in the chooser. Add 'apple' once Apple is configured (SETUP.md, Part B3).
-export const authProviders = ['google', 'email'];
+// Sign-in options shown in the chooser. Apple: Services ID eu.levelix.signin (team 3G9A4SBY5C).
+export const authProviders = ['google', 'apple', 'email'];
