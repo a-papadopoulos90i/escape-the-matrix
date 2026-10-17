@@ -360,9 +360,12 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await page.keyboard.press('ArrowDown');
     await expect(menu.getByRole('menuitem', { name: 'Clear account' })).toBeFocused();
     await page.keyboard.press('ArrowDown');
-    await expect(menu.getByRole('menuitem', { name: 'Sign out & clear this device' })).toBeFocused();
-    await page.keyboard.press('ArrowDown');
     await expect(menu.getByRole('menuitem', { name: 'Delete account' })).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    // The long one closes the menu, and every red item carries its own picture.
+    await expect(menu.getByRole('menuitem', { name: 'Sign out & clear this device' })).toBeFocused();
+    await expect(menu.locator('.menu__item--danger svg')).toHaveCount(3);
+    await expect(menu.getByRole('menuitem', { name: 'Connect Google' })).toHaveCount(0);
     await expect(menu).toHaveCSS('opacity', '1');
     await page.screenshot({ path: path.join(OUT, 'account-menu-desktop.png') });
     await page.keyboard.press('Escape');

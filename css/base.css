@@ -84,6 +84,13 @@ a {
   outline: none;
 }
 
+/* The green ring is for people moving with the keyboard (Tab, or arrows inside a menu): it never shows
+   after a click, nor where the app moves focus itself (a menu's first item, a dialog's button, the stage
+   title). Fields keep theirs — the caret needs it. js/app.js sets .kbd-nav. */
+html:not(.kbd-nav) :focus-visible:not(input, textarea, select) {
+  outline: none;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -1117,7 +1124,7 @@ body.has-modal {
 }
 
 .menu__item:hover,
-.menu__item:focus-visible {
+.kbd-nav .menu__item:focus-visible {
   background: var(--hover);
 }
 

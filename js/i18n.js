@@ -176,6 +176,8 @@ export const strings = {
   'account.offline': 'Offline',
   'account.signOut': 'Sign out',
   'account.signOutClear': 'Sign out & clear this device',
+  'plan.overLimit': 'Free holds {n} open tasks and you have {open}. Finish or delete {over} to change tasks again — or go Pro.',
+  'plan.reopenLimit': 'Free holds {n} open tasks. Finish or delete one to reopen this — or go Pro.',
   'plan.pro': 'Pro',
   'plan.enterCode': 'I have a code',
   'plan.goPro': 'Go Pro',

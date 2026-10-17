@@ -39,3 +39,25 @@ export function canAddTask({ store, ui, i18n, onSeePlans }) {
   });
   return false;
 }
+
+/**
+ * Free above the limit: what was made while Pro stays, but it is not reshaped into new work. Finishing
+ * and deleting always work (they bring the list down); renaming, re-filing, moving to another day and
+ * reopening finished work wait until the open tasks are back within the limit. Wires the store's edit
+ * guard and says why when an action is refused.
+ */
+export function guardFreeLimit({ store, ui, i18n, onSeePlans }) {
+  store.setEditGuard((kind) => {
+    if (isPro()) return true;
+    const open = openTaskCount(store);
+    return kind === 'reopen' ? open < LIMIT : open <= LIMIT;
+  });
+  store.onEditBlocked((kind) => {
+    const open = openTaskCount(store);
+    const message =
+      kind === 'reopen' && open <= LIMIT
+        ? i18n.t('plan.reopenLimit', { n: LIMIT })
+        : i18n.t('plan.overLimit', { n: LIMIT, open, over: open - LIMIT });
+    ui.toast(message, { duration: 12000, action: onSeePlans ? { label: i18n.t('plan.seePlans'), onClick: onSeePlans } : undefined });
+  });
+}

@@ -129,10 +129,11 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut
     menu = null;
   }
 
-  function menuItem(label, handler, danger = false) {
+  function menuItem(label, handler, danger = false, iconName = null) {
     return ui.h(
       'button',
       { class: `menu__item ${danger ? 'menu__item--danger' : ''}`.trim(), type: 'button', role: 'menuitem', onClick: () => { closeMenu(); handler(); } },
+      iconName && ui.icon(iconName, { size: 16 }),
       label,
     );
   }
@@ -143,15 +144,13 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut
     const danger = ui.h(
       'div',
       { class: 'account-menu__danger', id: 'account-danger', hidden: true },
-      // Another way into the same account: Google and Apple, whichever it does not have yet.
-      ...['google', 'apple']
-        .filter((provider) => providers.includes(provider) && !linkedProviders(user).includes(provider))
-        .map((provider) => menuItem(t(provider === 'apple' ? 'account.connectApple' : 'account.connectGoogle'), () => onLink(provider))),
+      // Another way into the same account: Apple, for an account that does not have it yet.
+      providers.includes('apple') && !linkedProviders(user).includes('apple') && menuItem(t('account.connectApple'), () => onLink('apple')),
       hasPassword(user) && menuItem(t('account.changePassword'), onChangePassword),
       plan === 'pro' && menuItem(t('refund.menu'), onRefund), // within 14 days of paying; the server decides
-      menuItem(t('account.clearAccount'), onClearAccount, true),
-      menuItem(t('account.signOutClear'), onSignOutClear, true),
-      menuItem(t('account.deleteAccount'), onDeleteAccount, true),
+      menuItem(t('account.clearAccount'), onClearAccount, true, 'broom'),
+      menuItem(t('account.deleteAccount'), onDeleteAccount, true, 'trash'),
+      menuItem(t('account.signOutClear'), onSignOutClear, true, 'logout'), // the longest, last
     );
     const gear = ui.h(
       'button',

@@ -278,8 +278,31 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
    * Returns a token for undo(token), or null when nothing changed. Nested calls fold into the
    * outermost one so a batch reverts as a single step.
    */
+  // The app may refuse edits (the Free plan's limit). One answer per user action: the first guarded
+  // change in an action asks, and every other change in that action follows it — all or nothing.
+  let editGuard = null; // (kind: 'edit' | 'reopen') => boolean
+  const blockedListeners = new Set();
+  let verdict = null;
+
+  /** True when this change may happen; tells the blocked-listeners (once per action) when it may not. */
+  function allowed(kind) {
+    if (!editGuard) return true;
+    if (verdict === null) {
+      verdict = editGuard(kind) !== false;
+      if (!verdict) for (const listener of blockedListeners) listener(kind);
+    }
+    return verdict;
+  }
+
+  /** allowed() for a change that may come outside undoable(): on its own, it is a whole action. */
+  function undoableAllowed(kind) {
+    if (undoDepth === 0) verdict = null;
+    return allowed(kind);
+  }
+
   function undoable(mutate) {
     const before = doc.tasks;
+    if (undoDepth === 0) verdict = null; // a new action: ask again
     undoDepth += 1;
     try {
       mutate();
@@ -351,6 +374,17 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
   }
 
   const store = {
+    /** Lets the app refuse edits: guard(kind) → false blocks the whole action ('edit' | 'reopen'). */
+    setEditGuard(guard) {
+      editGuard = guard;
+    },
+
+    /** Called once per refused action, with its kind. Returns an unsubscribe. */
+    onEditBlocked(listener) {
+      blockedListeners.add(listener);
+      return () => blockedListeners.delete(listener);
+    },
+
     get: () => doc,
 
     subscribe(listener) {
@@ -431,6 +465,7 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
     carryOver(ids, date) {
       if (!isDateKey(date)) throw new Error(`carryOver: invalid date "${date}"`);
       return undoable(() => {
+        if (!allowed('edit')) return;
         for (const id of ids) {
           const task = find(id);
           if (!task || isRecord(task) || task.date >= date) continue;
@@ -498,6 +533,9 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
 
     /** Generic patch; unknown fields are dropped and invalid values are ignored. */
     updateTask(id, patch) {
+      // Renaming, moving or re-filing a task is an edit; bookkeeping (attempts, timers) is not.
+      const edits = ['title', 'date', 'quadrant', 'tag', 'repeat'].some((key) => key in (patch ?? {}));
+      if (edits && !undoableAllowed('edit')) return null;
       return patchTask(
         id,
         (task) => {
@@ -569,20 +607,23 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
     // (quadrant null) leaves its date untouched.
     setQuadrant(id, quadrant, date = null) {
       const next = QUADRANTS.includes(quadrant) ? quadrant : null;
-      return undoable(() => patchTask(id, () => (next !== null && isDateKey(date) ? { quadrant: next, date } : { quadrant: next }), 'setQuadrant'));
+      return undoable(() => allowed('edit') && patchTask(id, () => (next !== null && isDateKey(date) ? { quadrant: next, date } : { quadrant: next }), 'setQuadrant'));
     },
 
     /** Sets (or clears, with null) the task's priority label. Never touches its quadrant or date —
      *  tagging is a characterisation, not a placement. */
     setTag(id, tag) {
       const next = QUADRANTS.includes(tag) ? tag : null;
-      return undoable(() => patchTask(id, () => ({ tag: next }), 'setTag'));
+      return undoable(() => allowed('edit') && patchTask(id, () => ({ tag: next }), 'setTag'));
     },
 
     /** Marking done also stops a live timer on that task — and, on a repeat copy, counts a hit. */
     toggleDone(id, done) {
       let updated = null;
       undoable(() => {
+        // Reopening finished work adds an open task: it asks like an edit that grows the list.
+        const reopening = done === false || (done === undefined && find(id)?.done);
+        if (reopening && !allowed('reopen')) return;
         updated = patchTask(
           id,
           (task) => {
@@ -603,7 +644,7 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
 
     /** Moves a task into the repeat section (it leaves any quadrant), or back out of it. */
     setRepeat(id, on) {
-      return undoable(() => patchTask(id, () => (on ? { repeat: true, quadrant: null } : { repeat: false }), 'setRepeat'));
+      return undoable(() => allowed('edit') && patchTask(id, () => (on ? { repeat: true, quadrant: null } : { repeat: false }), 'setRepeat'));
     },
 
     /** The standing repeat tasks — shown in their own section, never in the waiting list. */
@@ -630,7 +671,7 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
 
     moveTaskToDate(id, date) {
       if (!isDateKey(date)) throw new Error(`moveTaskToDate: invalid date "${date}"`);
-      return undoable(() => patchTask(id, () => ({ date }), 'moveTaskToDate'));
+      return undoable(() => allowed('edit') && patchTask(id, () => ({ date }), 'moveTaskToDate'));
     },
 
     /** Sets the time tracked on a task by hand (0 clears it). Any running timer stops. */

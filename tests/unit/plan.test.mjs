@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { canAddTask, FREE_TASK_LIMIT, isPro, openTaskCount, setPlan } from '../../js/plan.js';
+import { canAddTask, FREE_TASK_LIMIT, guardFreeLimit, isPro, openTaskCount, setPlan } from '../../js/plan.js';
+import { createEmptyDoc, createStore } from '../../js/store.js';
 import { createBilling, normalizeCode, VoucherError } from '../../js/billing.js';
 
 const fakeStore = (tasks) => ({ get: () => ({ tasks }) });
@@ -33,6 +34,60 @@ test('Free stops at the limit and says so; Pro never does', () => {
   assert.equal(canAddTask({ store: full, ui: box, i18n }), true);
   assert.equal(box.toasts.length, 1); // nothing more was said
   setPlan('free');
+});
+
+/** A real store holding `count` open tasks, guarded the way the app guards it. */
+function guardedStore(count) {
+  const store = createStore(createEmptyDoc());
+  for (let i = 0; i < count; i += 1) store.addTask({ title: `task ${i}`, date: '2026-03-11', quadrant: 'do' });
+  const box = ui();
+  guardFreeLimit({ store, ui: box, i18n, onSeePlans: () => {} });
+  return { store, box, ids: store.get().tasks.map((task) => task.id) };
+}
+
+test('over the Free limit (Pro ran out), tasks cannot be renamed, moved or re-filed — only finished or deleted', () => {
+  setPlan('free');
+  const { store, box, ids } = guardedStore(FREE_TASK_LIMIT + 2);
+  const [first, second, third] = ids;
+
+  store.updateTask(first, { title: 'a brand new task' });
+  store.setQuadrant(first, 'schedule');
+  store.setTag(first, 'delegate');
+  store.moveTaskToDate(first, '2026-03-12');
+  store.setRepeat(first, true);
+  const kept = store.get().tasks.find((task) => task.id === first);
+  assert.deepEqual([kept.title, kept.quadrant, kept.date, kept.repeat], ['task 0', 'do', '2026-03-11', false]);
+  assert.equal(box.toasts.length, 5);
+  assert.match(box.toasts[0].message, /^plan.overLimit/);
+  assert.match(box.toasts[0].message, /"over":2/);
+
+  // Finishing and deleting are how you get back under — never blocked.
+  store.toggleDone(first, true);
+  store.removeTask(second);
+  assert.equal(openTaskCount(store), FREE_TASK_LIMIT);
+  assert.equal(box.toasts.length, 5);
+
+  // Back at the limit, editing works again; reopening would go over, so it waits.
+  store.updateTask(third, { title: 'renamed' });
+  assert.equal(store.get().tasks.find((task) => task.id === third).title, 'renamed');
+  store.toggleDone(first, false);
+  assert.equal(store.get().tasks.find((task) => task.id === first).done, true);
+  assert.match(box.toasts.at(-1).message, /^plan.reopenLimit/);
+
+  // Pro edits anything.
+  setPlan('pro');
+  store.toggleDone(first, false);
+  store.updateTask(first, { title: 'free again' });
+  assert.equal(store.get().tasks.find((task) => task.id === first).title, 'free again');
+  setPlan('free');
+});
+
+test('a blocked action says so once, not once per task it touches', () => {
+  setPlan('free');
+  const { store, box, ids } = guardedStore(FREE_TASK_LIMIT + 1);
+  store.carryOver(ids.slice(0, 3), '2026-03-12');
+  assert.equal(box.toasts.length, 1);
+  assert.equal(store.tasksForDate('2026-03-12').length, 0);
 });
 
 test('codes are read loosely: case, spaces and dashes do not matter', () => {

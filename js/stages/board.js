@@ -526,6 +526,7 @@ function openInsertMenu(task, anchor) {
 /** Puts the task on the open day in `quadrant`. A repeat task never leaves its section: it sends a copy. */
 function putOnDay(task, quadrant) {
   if (!task.repeat) return fileWithTag(ctx, task, quadrant);
+  if (!roomForTask()) return; // a copy on the day is a new open task
   const { store } = ctx;
   const last = currentTasks().reduce((max, item) => Math.max(max, item.order + 1), Date.now());
   store.undoable(() => {

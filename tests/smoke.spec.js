@@ -216,6 +216,15 @@ test('keyboard arrows drive the shell', async ({ page }) => {
   await expect(day()).toHaveText(started);
   await page.keyboard.press('Shift+ArrowLeft');
   await expect(activeTitle(page)).toHaveText(TITLES[2]);
+
+  // The app moved focus to the new stage's title by itself: no green ring for that. Tab shows it.
+  const ring = () => page.evaluate(() => ({ tag: document.activeElement.tagName, outline: getComputedStyle(document.activeElement).outlineStyle }));
+  await expect.poll(async () => (await ring()).tag).not.toBe('BODY');
+  await expect.poll(async () => (await ring()).outline).toBe('none');
+  await page.keyboard.press('Tab');
+  await expect(page.locator('html')).toHaveClass(/kbd-nav/);
+  await page.mouse.click(5, 5);
+  await expect(page.locator('html')).not.toHaveClass(/kbd-nav/);
 });
 
 test('no speech-bubble tips and no "?" button (tips were removed)', async ({ page }) => {

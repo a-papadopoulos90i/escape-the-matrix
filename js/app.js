@@ -13,6 +13,7 @@ import * as calendar from './stages/calendar.js';
 import * as dump from './stages/dump.js';
 import * as board from './stages/board.js';
 import { init as initTimer } from './timer.js';
+import { guardFreeLimit } from './plan.js';
 
 const { t } = i18n;
 const STAGE_COUNT = 3;
@@ -313,6 +314,20 @@ function nextBlocked() {
   return state.mounted?.panel.querySelector('.stage-nav__next')?.disabled === true;
 }
 
+/** Focus rings follow the keyboard: on with Tab (or arrows inside a menu), off with any pointer. */
+function trackKeyboardNavigation() {
+  const root = document.documentElement;
+  document.addEventListener(
+    'keydown',
+    (event) => {
+      const inMenu = event.key.startsWith('Arrow') && event.target instanceof Element && event.target.closest('[role="menu"], [role="dialog"]');
+      if (event.key === 'Tab' || inMenu) root.classList.add('kbd-nav');
+    },
+    true,
+  );
+  document.addEventListener('pointerdown', () => root.classList.remove('kbd-nav'), true);
+}
+
 function bindKeyboard() {
   document.addEventListener('keydown', (event) => {
     if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
@@ -363,6 +378,7 @@ async function boot() {
   });
 
   store = createStore(await local.load());
+  guardFreeLimit({ store, ui, i18n, onSeePlans: () => goTo(HOME) }); // Free above 100 open tasks: no reshaping
   store.attach(local);
   initTimer({ store }); // the floating timer bar lives at document level, whatever stage is open
   store.onError(() => ui.toast(t('toast.saveFailed')));
@@ -396,6 +412,7 @@ async function boot() {
   renderBanner();
   mountStage(state.stage, null);
   followTheDay();
+  trackKeyboardNavigation();
   bindKeyboard();
   initAuth();
 }

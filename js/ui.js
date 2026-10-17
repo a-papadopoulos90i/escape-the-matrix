@@ -49,6 +49,10 @@ function fromMarkup(markup) {
 // ---------- Icons ----------
 
 const STROKE_ICONS = {
+  // The account menu's red actions: sweep the tasks away, bin the account, leave and wipe this device.
+  broom: '<g transform="rotate(38 12 12)"><path d="M12 1.5V9.5"/><path d="M9.25 9.5h5.5v2.5h-5.5z"/><path d="M9.25 12 6.75 21.5h10.5L14.75 12"/><path d="M10.5 21.5l.6-5.5M13.5 21.5l-.6-5.5"/></g>',
+  trash: '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/>',
+  logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
   clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
   play: '<path d="M8 5.5v13l10-6.5z" fill="currentColor" stroke="none"/>',
   pause: '<path d="M8 6v12M16 6v12" stroke-width="2.4"/>',
