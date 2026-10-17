@@ -299,6 +299,16 @@ test('back from Stripe: ?pro=thanks says the payment landed and leads to the cod
   await expect(page.getByRole('dialog', { name: 'Unlock Levelix Pro' })).toBeVisible();
 });
 
+test('back from Stripe signed in: the thank-you turns into "Pro is on" the moment the account becomes Pro', async ({ page }) => {
+  await page.goto('/?pro=thanks');
+  const paid = page.getByRole('dialog', { name: 'Payment received — thank you!' });
+  await expect(paid).toContainText('Pro turns on by itself in a few seconds');
+  // The webhook's write reaches the app as a plan change (the same module the app uses, via the import map).
+  await page.evaluate(async () => (await import('./js/plan.js')).setPlan('pro'));
+  await expect(paid).toContainText('Levelix Pro is on');
+  await expect(paid.getByText('Got a code?')).toBeHidden();
+});
+
 test('Home: each Pro plan leads to its own Stripe checkout', async ({ page }) => {
   await page.goto('/');
   await page.locator('.brand').click();

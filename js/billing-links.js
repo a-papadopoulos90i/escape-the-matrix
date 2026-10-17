@@ -6,6 +6,26 @@ export const payLinks = {
   portal: '', // Stripe's customer portal (change card, invoices, cancel)
 };
 
+let buyer = null;
+
+/** Who is signed in (or null), so a checkout can turn that very account Pro the moment it is paid. */
+export function setBuyer(user) {
+  buyer = user?.uid ? user.uid : null;
+}
+
+/**
+ * The payment link for `period`. Signed in, it carries the account's uid as Stripe's
+ * client_reference_id — handed back to the webhook, which then needs no code at all. (Only the uid:
+ * no email or name goes into the address.)
+ */
+export function checkoutUrl(period) {
+  const base = payLinks[period];
+  if (!base || !buyer) return base;
+  const url = new URL(base);
+  url.searchParams.set('client_reference_id', buyer);
+  return url.toString();
+}
+
 /**
  * Stripe sends the customer back to levelix.eu/?pro=thanks when the payment goes through. The
  * parameter is read once and dropped from the address bar, so a reload does not say it all again.

@@ -1,13 +1,13 @@
 {
   "name": "levelix-functions",
-  "description": "Stripe checkout, billing portal and webhook for Levelix Pro",
+  "description": "The Stripe webhook that turns Levelix Pro on (or emails a code) and takes it back on a refund",
   "type": "module",
   "private": true,
-  "engines": { "node": "20" },
+  "engines": { "node": "22" },
   "main": "index.js",
   "dependencies": {
-    "firebase-admin": "^12.6.0",
-    "firebase-functions": "^6.0.1",
-    "stripe": "^17.3.0"
+    "firebase-admin": "^13.0.0",
+    "firebase-functions": "^6.3.0",
+    "nodemailer": "^6.9.16"
   }
 }

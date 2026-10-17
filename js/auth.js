@@ -11,7 +11,8 @@ import { createCloudAdapter } from './storage/cloud.js';
 import { lastSyncAgo, remindersEnabled, syncWithReminders } from './reminders.js';
 import { createBilling, listVouchers, makeVouchers, VoucherError } from './billing.js';
 import { openVoucherModal, vouchersEnabled } from './vouchers.js';
-import { capturePayReturn, REDEEM_EVENT } from './billing-links.js';
+import { capturePayReturn, REDEEM_EVENT, setBuyer } from './billing-links.js';
+import { isPro, onPlanChange } from './plan.js';
 
 const SDK_BASE = 'https://www.gstatic.com/firebasejs/10.14.1/';
 const SDK_MODULES = ['firebase-app.js', 'firebase-auth.js', 'firebase-firestore.js'];
@@ -322,6 +323,7 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
     const unsubscribe = store.subscribe((doc, meta) => meta.reason === 'replace' && cloud.reconcile(doc));
     link = { cloud, detach, unsubscribe };
     billing = createBilling({ db, uid: user.uid, firestore: sdk, onPlan: (plan) => view.setPlan(plan) });
+    setBuyer(user); // Go Pro now names this account, so paying turns it Pro without a code
     cloud.reconcile(store.get());
   }
 
@@ -329,6 +331,7 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
     generation += 1;
     billing?.dispose();
     billing = null;
+    setBuyer(null);
     const active = link;
     link = null;
     if (active) {
@@ -483,12 +486,22 @@ export function openRedeemModal({ ui, i18n, session }) {
  */
 export function openPaidModal({ ui, i18n, session }) {
   const { t } = i18n;
+  const body = ui.h('p', null, t('plan.paidBody'));
+  const hint = ui.h('p', { class: 'text-muted' }, t('plan.paidHint'));
+  // Signed in when they paid: the webhook turns the account Pro within seconds, and this says so.
+  const showOn = () => {
+    body.textContent = t('plan.paidOn');
+    hint.hidden = true;
+  };
+  if (isPro()) showOn();
+  const stop = onPlanChange((plan) => plan === 'pro' && showOn());
   return ui.modal({
     title: t('plan.paidTitle'),
-    content: ui.h('div', { class: 'redeem' }, ui.h('p', null, t('plan.paidBody')), ui.h('p', { class: 'text-muted' }, t('plan.paidHint'))),
+    content: ui.h('div', { class: 'redeem' }, body, hint),
+    onClose: stop,
     actions: [
       { label: t('common.close') },
-      { label: t('plan.enterCode'), primary: true, onClick: () => void openRedeemModal({ ui, i18n, session }) },
+      { label: t('plan.enterCode'), onClick: () => void openRedeemModal({ ui, i18n, session }) },
     ],
   });
 }

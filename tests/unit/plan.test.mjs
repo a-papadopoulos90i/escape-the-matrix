@@ -137,3 +137,18 @@ test('a billing document whose paid period has passed is Free again; a code made
   assert.equal(firestore.store.vouchers.LVXOLDCODE1.redeemedBy, null); // nothing was claimed
   billing.dispose();
 });
+
+test('Go Pro names the signed-in account to Stripe — by uid only — and nobody when signed out', async () => {
+  const { checkoutUrl, payLinks, setBuyer } = await import('../../js/billing-links.js');
+  setBuyer(null);
+  assert.equal(checkoutUrl('yearly'), payLinks.yearly);
+
+  setBuyer({ uid: 'u_abc123', email: 'maria@example.com' });
+  const url = new URL(checkoutUrl('monthly'));
+  assert.equal(`${url.origin}${url.pathname}`, payLinks.monthly);
+  assert.equal(url.searchParams.get('client_reference_id'), 'u_abc123');
+  assert.equal(url.search.includes('maria'), false); // no email in the address
+
+  setBuyer(null);
+  assert.equal(checkoutUrl('monthly'), payLinks.monthly);
+});
