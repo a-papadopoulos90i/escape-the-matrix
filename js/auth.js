@@ -796,18 +796,22 @@ export function openPaidModal({ ui, i18n, session }) {
   const showOn = () => {
     body.textContent = t('plan.paidOn');
     hint.hidden = true;
+    // Pro is on: the code box has nothing left to do.
+    const codeButton = [...(body.closest('.modal')?.querySelectorAll('.modal__actions .btn') ?? [])].find((button) => button.textContent === t('plan.enterCode'));
+    if (codeButton) codeButton.hidden = true;
   };
-  if (isPro()) showOn();
   const stop = onPlanChange((plan) => plan === 'pro' && showOn());
-  return ui.modal({
+  const handle = ui.modal({
     title: t('plan.paidTitle'),
     content: ui.h('div', { class: 'redeem' }, body, hint),
     onClose: stop,
     actions: [
-      { label: t('common.close') },
+      { label: t('common.close'), primary: true },
       { label: t('plan.enterCode'), onClick: () => void openRedeemModal({ ui, i18n, session }) },
     ],
   });
+  if (isPro()) showOn();
+  return handle;
 }
 
 // ---------- Entry point ----------

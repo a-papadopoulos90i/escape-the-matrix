@@ -984,16 +984,24 @@ a {
   animation: modal-in var(--dur) var(--ease) both;
 }
 
+/* Every dialog reads from the middle: title, message and buttons centred. Lists and tables inside
+   one (time report, a day's tasks, sync conflicts) stay left-aligned so their columns line up. */
 .modal__title {
   font-family: var(--font-display);
   font-size: var(--text-lg);
   font-weight: 700;
   letter-spacing: -0.01em;
   margin-bottom: var(--space-3);
+  text-align: center;
 }
 
 .modal__body {
   font-size: var(--text-md);
+  text-align: center;
+}
+
+.modal__body :is(.analysis, .day-pop, .conflicts) {
+  text-align: left;
 }
 
 .modal__body p + p {
@@ -1002,7 +1010,8 @@ a {
 
 .modal__actions {
   display: flex;
-  justify-content: flex-end;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: var(--space-2);
   margin-top: var(--space-5);
 }
