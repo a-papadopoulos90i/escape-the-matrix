@@ -11,7 +11,7 @@ import { createCloudAdapter } from './storage/cloud.js';
 import { lastSyncAgo, remindersEnabled, syncWithReminders } from './reminders.js';
 import { createBilling, listVouchers, makeVouchers, VoucherError } from './billing.js';
 import { openVoucherModal, vouchersEnabled } from './vouchers.js';
-import { capturePayReturn, REDEEM_EVENT, setBuyer } from './billing-links.js';
+import { capturePayReturn, checkoutUrl, REDEEM_EVENT, setBuyer } from './billing-links.js';
 import { isPro, onPlanChange } from './plan.js';
 
 const SDK_BASE = 'https://www.gstatic.com/firebasejs/10.14.1/';
@@ -57,7 +57,7 @@ function firstName(user) {
  * Renders the account slot. showSignedOut() → Google button; showSignedIn(user, status) → avatar,
  * first name and a status dot that opens the account menu. setStatus() updates in place.
  */
-export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignOutClear, onClearAccount, onSyncReminders, onRedeem, onVouchers, providers = ['google', 'apple', 'email'] }) {
+export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignOutClear, onClearAccount, onSyncReminders, onGoPro, onVouchers, providers = ['google', 'apple', 'email'] }) {
   let plan = 'free'; // shown in the menu; the real answer lives in Firestore
   const { t } = i18n;
   let user = null;
@@ -99,20 +99,44 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignO
 
   function openMenu(anchor) {
     if (menu) return closeMenu();
+    // The two actions that delete things wait behind the gear next to Sign out, so they are never one slip away.
+    const danger = ui.h(
+      'div',
+      { class: 'account-menu__danger', id: 'account-danger', hidden: true },
+      menuItem(t('account.clearAccount'), onClearAccount, true),
+      menuItem(t('account.signOutClear'), onSignOutClear, true),
+    );
+    const gear = ui.h(
+      'button',
+      {
+        class: 'btn-icon account-menu__gear',
+        type: 'button',
+        role: 'menuitem',
+        'aria-label': t('account.moreOptions'),
+        title: t('account.moreOptions'),
+        'aria-expanded': 'false',
+        'aria-controls': 'account-danger',
+        onClick: () => {
+          danger.hidden = !danger.hidden;
+          gear.setAttribute('aria-expanded', String(!danger.hidden));
+          if (!danger.hidden) danger.querySelector('[role="menuitem"]')?.focus();
+        },
+      },
+      ui.icon('settings', { size: 18 }),
+    );
     const list = ui.h('div', { class: 'menu account-menu__actions', role: 'menu', 'aria-label': t('account.menu') },
       // Personal Mac bridge, opt-in only. The label carries when it last went through, so a bridge that
       // stopped days ago is visible at a glance.
       remindersEnabled() && menuItem(lastSyncAgo() ? t('reminders.syncAgo', { ago: lastSyncAgo() }) : t('reminders.sync'), onSyncReminders),
-      plan !== 'pro' && menuItem(t('plan.enterCode'), onRedeem),
+      plan !== 'pro' && menuItem(t('plan.goPro'), onGoPro),
       vouchersEnabled() && menuItem(t('vouchers.menu'), onVouchers), // owner only — the rules decide, not this switch
-      menuItem(t('account.signOut'), onSignOut),
-      menuItem(t('account.clearAccount'), onClearAccount, true),
-      menuItem(t('account.signOutClear'), onSignOutClear, true),
+      ui.h('div', { class: 'account-menu__signout' }, menuItem(t('account.signOut'), onSignOut), gear),
+      danger,
     );
     list.addEventListener('keydown', (event) => {
       if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
       event.preventDefault();
-      const items = [...list.querySelectorAll('[role="menuitem"]')];
+      const items = [...list.querySelectorAll('[role="menuitem"]')].filter((item) => !item.closest('[hidden]'));
       const step = event.key === 'ArrowDown' ? 1 : -1;
       items[(items.indexOf(document.activeElement) + step + items.length) % items.length]?.focus();
     });
@@ -135,7 +159,6 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignO
           user.email && ui.h('p', { class: 'account-menu__email' }, user.email),
         ),
       ),
-      ui.h('p', { class: 'account-menu__status' }, statusRow('account-menu__status-label')),
       list,
     );
     anchor.setAttribute('aria-expanded', 'true');
@@ -174,7 +197,7 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignO
       statusNodes = [];
       const button = ui.h(
         'button',
-        { class: 'account-btn', type: 'button', 'aria-haspopup': 'dialog', 'aria-expanded': 'false', title: t('account.menu') },
+        { class: 'account-btn', type: 'button', 'aria-haspopup': 'dialog', 'aria-expanded': 'false', title: `${t('account.menu')} · ${statusLabel()}` },
         avatar(28),
         ui.h('span', { class: 'account-name' }, firstName(user)),
         statusRow('sr-only'),
@@ -191,6 +214,7 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignO
         dot.className = `account-dot account-dot--${status}`;
         label.textContent = statusLabel();
       }
+      slot.querySelector('.account-btn')?.setAttribute('title', `${t('account.menu')} · ${statusLabel()}`);
     },
 
     /** Free or Pro, as Firestore reports it: the menu shows it and hides the code entry once Pro. */
@@ -480,6 +504,33 @@ export function openRedeemModal({ ui, i18n, session }) {
   return modal;
 }
 
+/** "Go Pro" from the account menu: the two plans, each straight to its Stripe checkout, and the code box for whoever has one. */
+export function openGoProModal({ ui, i18n, session }) {
+  const { t } = i18n;
+  const option = (period) =>
+    ui.h(
+      'a',
+      { class: 'gopro__plan', href: checkoutUrl(period), rel: 'noopener' },
+      ui.h('span', { class: 'gopro__name' }, t(`home.pricing.${period}.name`)),
+      ui.h('span', { class: 'gopro__price' }, t(`home.pricing.${period}.price`), ' ', ui.h('span', { class: 'gopro__period' }, t(`home.pricing.${period}.period`))),
+      ui.h('span', { class: 'gopro__note' }, t(`home.pricing.${period}.note`)),
+    );
+  let modal = null;
+  const code = ui.h('button', { class: 'link-button', type: 'button', onClick: () => (modal?.close(), openRedeemModal({ ui, i18n, session })) }, t('plan.enterCode'));
+  modal = ui.modal({
+    title: t('plan.goProTitle'),
+    content: ui.h(
+      'div',
+      { class: 'gopro' },
+      ui.h('p', { class: 'text-muted' }, t('plan.goProLead')),
+      ui.h('div', { class: 'gopro__plans' }, option('monthly'), option('yearly')),
+      ui.h('p', { class: 'gopro__code' }, t('home.pricing.paid'), ' ', code),
+    ),
+    actions: [{ label: t('common.close') }],
+  });
+  return modal;
+}
+
 /**
  * Back from Stripe: the payment is through, the code is not here yet. It says what happens next and
  * opens the code box, so the customer never has to hunt for where the code goes.
@@ -547,7 +598,7 @@ export async function initAuth({ store, ui, i18n, slot, setSignedIn, config = fi
     onSignOutClear: () => run(async () => (await session()).signOut({ clear: true })),
     onClearAccount: () => run(async () => (await session()).clearAccount()),
     onSyncReminders: () => syncWithReminders({ store, ui, i18n }),
-    onRedeem: () => openRedeemModal({ ui, i18n, session }),
+    onGoPro: () => openGoProModal({ ui, i18n, session }),
     onVouchers: () => openVoucherModal({ ui, i18n, session }),
   });
 

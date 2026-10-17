@@ -47,9 +47,21 @@
 }
 
 .account-btn .account-name,
-.account-btn .icon--chevron-down,
+.account-btn .icon--chevron-down {
+  display: none;
+}
+
+/* The sync status: a small dot on the avatar's corner (its word is in the title and for screen readers). */
+.account-btn {
+  position: relative;
+}
+
 .account-btn .account-dot {
-  display: none; /* the sync status stays in the account menu (and for screen readers) */
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 11px;
+  height: 11px;
 }
 
 .account-btn .account-avatar {
@@ -121,6 +133,7 @@
   align-items: center;
   gap: var(--space-3);
   padding: 0 var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line);
 }
 
 .account-menu__header .account-avatar {
@@ -149,21 +162,105 @@
   color: var(--muted);
 }
 
-.account-menu__status {
+.popover--account .menu {
+  min-width: 0;
+  padding: var(--space-1) 0 0;
+}
+
+/* Sign out, with the gear that opens the two actions that delete things. */
+.account-menu__signout {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  margin: 0 var(--space-2);
-  padding: var(--space-2) 0;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+}
+
+.account-menu__signout .menu__item {
+  flex: 1;
+  width: auto;
+}
+
+.account-menu__gear {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  color: var(--muted);
+}
+
+.account-menu__gear[aria-expanded="true"] {
+  color: var(--ink);
+  background: var(--hover);
+}
+
+.account-menu__danger {
+  padding-top: var(--space-1);
+  border-top: 1px dashed var(--line);
+}
+
+/* ---------- Go Pro chooser ---------- */
+.gopro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.gopro__plans {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.gopro__plan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+  transition:
+    border-color var(--dur-fast),
+    box-shadow var(--dur-fast);
+}
+
+.gopro__plan:hover,
+.gopro__plan:focus-visible {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.gopro__name {
+  font-weight: 700;
+}
+
+.gopro__price {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+}
+
+.gopro__period {
+  font-family: var(--font);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.gopro__note {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.gopro__code {
+  margin: 0;
   font-size: var(--text-sm);
   color: var(--muted);
 }
 
-.popover--account .menu {
-  min-width: 0;
-  padding: var(--space-1) 0 0;
+@media (max-width: 479px) {
+  .gopro__plans {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ---------- Touch & narrow screens ---------- */

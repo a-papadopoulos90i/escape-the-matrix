@@ -271,12 +271,22 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await expect(accountBtn).toHaveAttribute('aria-expanded', 'true');
     await expect(menu.locator('.account-menu__name')).toHaveText('Andreas Papadopoulos');
     await expect(menu.locator('.account-menu__email')).toHaveText('andreas@example.com');
-    await expect(menu.locator('.account-menu__status')).toHaveText('Synced ✓');
-    await expect(menu.locator('[role="menuitem"]')).toHaveText(['I have a code', 'Sign out', 'Clear account', 'Sign out & clear this device']);
-    await expect(menu.getByRole('menuitem', { name: 'I have a code' })).toBeFocused();
+    // The sync status sits on the avatar now, not as a row in the menu.
+    await expect(menu.locator('.account-menu__status')).toHaveCount(0);
+    await expect(accountBtn.locator('.account-dot')).toBeVisible();
+    await expect(accountBtn.locator('.account-dot')).toHaveClass(/account-dot--synced/);
+    await expect(accountBtn).toHaveAttribute('title', 'Account menu · Synced ✓');
+    // Go Pro, Sign out — and the deleting actions only behind the gear.
+    await expect(menu.getByRole('menuitem', { name: 'Go Pro' })).toBeFocused();
+    await expect(menu.getByRole('menuitem', { name: 'I have a code' })).toHaveCount(0);
+    await expect(menu.getByRole('menuitem', { name: 'Clear account' })).toBeHidden();
     await page.keyboard.press('ArrowDown');
     await expect(menu.getByRole('menuitem', { name: 'Sign out', exact: true })).toBeFocused();
     await page.keyboard.press('ArrowDown');
+    const gear = menu.getByRole('menuitem', { name: 'More account options' });
+    await expect(gear).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(gear).toHaveAttribute('aria-expanded', 'true');
     await expect(menu.getByRole('menuitem', { name: 'Clear account' })).toBeFocused();
     await page.keyboard.press('ArrowDown');
     await expect(menu.getByRole('menuitem', { name: 'Sign out & clear this device' })).toBeFocused();
@@ -315,12 +325,14 @@ test.describe('Google mode (fake Firebase SDK)', () => {
 
     // --- Clear account: confirm first; every task is tombstoned here and in Firestore, still signed in, Undo restores ---
     await accountBtn.click();
+    await menu.getByRole('menuitem', { name: 'More account options' }).click();
     await menu.getByRole('menuitem', { name: 'Clear account' }).click();
     const clearDialog = page.locator('[role="dialog"]');
     await expect(clearDialog).toContainText('Delete all tasks in your account?');
     await clearDialog.getByRole('button', { name: 'Cancel' }).click();
     expect(await liveIds(page)).toHaveLength(4);
     await accountBtn.click();
+    await menu.getByRole('menuitem', { name: 'More account options' }).click();
     await menu.getByRole('menuitem', { name: 'Clear account' }).click();
     await clearDialog.getByRole('button', { name: 'Delete all tasks' }).click();
     await expect.poll(() => liveIds(page)).toEqual([]);
@@ -347,6 +359,7 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await signInGoogle(page);
     await expect(accountBtn).toBeVisible();
     await accountBtn.click();
+    await menu.getByRole('menuitem', { name: 'More account options' }).click();
     await menu.getByRole('menuitem', { name: 'Sign out & clear this device' }).click();
     const confirmDialog = page.locator('[role="dialog"]');
     await expect(confirmDialog).toContainText('delete the tasks saved in this browser');
@@ -355,6 +368,7 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     expect(await fakeValue(page, 'fake.signOuts')).toBe(1);
 
     await accountBtn.click();
+    await menu.getByRole('menuitem', { name: 'More account options' }).click();
     await menu.getByRole('menuitem', { name: 'Sign out & clear this device' }).click();
     await confirmDialog.getByRole('button', { name: 'Sign out & clear this device' }).click();
     await expect(account.locator('.account-signin')).toBeVisible();
@@ -529,12 +543,20 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await expect(page.locator('.toast', { hasText: 'Reminders synced' })).toHaveCount(0);
   });
 
-  test('the account menu offers to unlock Pro with a code, and refuses nonsense', async ({ page }) => {
+  test('Go Pro in the account menu offers both plans, each to its checkout, and the code box for a code', async ({ page }) => {
     await seed(page, { ui: UI_STATE, doc: LOCAL_DOC });
     await page.goto('/');
     await startFakeSession(page, { signedIn: true });
     await page.locator('#account .account-btn').click();
-    await page.getByRole('menuitem', { name: 'I have a code' }).click();
+    await page.getByRole('menuitem', { name: 'Go Pro' }).click();
+
+    const chooser = page.getByRole('dialog', { name: 'Go Pro' });
+    await expect(chooser.locator('.gopro__plan')).toHaveCount(2);
+    await expect(chooser.locator('.gopro__plan').nth(0)).toContainText('Pro monthly');
+    await expect(chooser.locator('.gopro__plan').nth(0)).toHaveAttribute('href', /^https:\/\/buy\.stripe\.com\/6oUbJ17Qk0IZbERfmS6Zy01\?client_reference_id=/);
+    await expect(chooser.locator('.gopro__plan').nth(1)).toContainText('€28');
+    await expect(chooser.locator('.gopro__plan').nth(1)).toHaveAttribute('href', /^https:\/\/buy\.stripe\.com\/9B628r2w0gHX6kx5Mi6Zy00\?client_reference_id=/);
+    await chooser.getByRole('button', { name: 'I have a code' }).click();
 
     const dialog = page.getByRole('dialog', { name: 'Unlock Levelix Pro' });
     await expect(dialog).toBeVisible();
