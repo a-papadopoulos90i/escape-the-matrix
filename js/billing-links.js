@@ -39,6 +39,35 @@ export function capturePayReturn() {
   return true;
 }
 
+export const isSignedIn = () => buyer !== null;
+
+// Go Pro pressed while signed out: the visitor signs in first, then goes straight on to pay. The
+// choice survives a sign-in that leaves the page (Google's redirect), and is good for ten minutes.
+const PENDING_KEY = 'levelix:checkoutAfterSignIn';
+const PENDING_MS = 10 * 60_000;
+export const SIGNIN_FOR_PRO_EVENT = 'levelix:signin-for-pro';
+
+export function askToSignInFor(period) {
+  try {
+    sessionStorage.setItem(PENDING_KEY, JSON.stringify({ period, at: Date.now() }));
+  } catch {
+    /* storage blocked — they sign in, then press Go Pro again */
+  }
+  document.dispatchEvent(new CustomEvent(SIGNIN_FOR_PRO_EVENT));
+}
+
+/** The plan chosen before signing in, once (null when none, or when it is stale). */
+export function takePendingCheckout() {
+  let pending = null;
+  try {
+    pending = JSON.parse(sessionStorage.getItem(PENDING_KEY) || 'null');
+    sessionStorage.removeItem(PENDING_KEY);
+  } catch {
+    return null;
+  }
+  return pending && Date.now() - pending.at < PENDING_MS && payLinks[pending.period] ? pending.period : null;
+}
+
 /** Anything in the app can ask for the "I have a code" box; the account module opens it. */
 export const REDEEM_EVENT = 'levelix:redeem';
 export const askForCodeBox = () => document.dispatchEvent(new CustomEvent(REDEEM_EVENT));

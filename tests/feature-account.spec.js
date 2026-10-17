@@ -78,7 +78,7 @@ async function startFakeSession(page, { remote = REMOTE_ENVELOPE, signedIn = fal
         },
         getApps: () => apps,
         getApp: () => apps[0],
-        getAuth: () => ({}),
+        getAuth: () => ({ get currentUser() { return fake.current; } }),
         setPersistence: async () => {},
         browserLocalPersistence: 'LOCAL',
         onAuthStateChanged: (auth, callback) => {
@@ -100,8 +100,30 @@ async function startFakeSession(page, { remote = REMOTE_ENVELOPE, signedIn = fal
             this.scopes.push(scope);
           }
         },
-        sendSignInLinkToEmail: async (auth, email, settings) => {
-          fake.linkSent = { email, settings };
+        // Email + password: one known account (andreas@example.com / right-password).
+        createUserWithEmailAndPassword: async (auth, email, password) => {
+          if (email === user.email) throw Object.assign(new Error('taken'), { code: 'auth/email-already-in-use' });
+          const created = { uid: 'u2', displayName: null, email, photoURL: null, providerData: [{ providerId: 'password' }] };
+          fake.created = { email, password };
+          fake.current = created;
+          fake.authListeners.forEach((callback) => callback(created));
+          return { user: created };
+        },
+        signInWithEmailAndPassword: async (auth, email, password) => {
+          if (email !== user.email || password !== 'right-password') throw Object.assign(new Error('bad'), { code: 'auth/invalid-credential' });
+          fake.current = { ...user, providerData: [{ providerId: 'password' }] };
+          fake.authListeners.forEach((callback) => callback(fake.current));
+          return { user: fake.current };
+        },
+        updateProfile: async (who, profile) => {
+          Object.assign(who, profile);
+          fake.profile = profile;
+        },
+        sendEmailVerification: async (who, settings) => {
+          fake.verification = { email: who.email, settings };
+        },
+        sendPasswordResetEmail: async (auth, email, settings) => {
+          fake.resets = [...(fake.resets ?? []), { email, settings }];
         },
         isSignInWithEmailLink: (auth, href) => href.includes('mode=signIn'),
         signInWithEmailLink: async (auth, email) => {
@@ -130,7 +152,6 @@ async function startFakeSession(page, { remote = REMOTE_ENVELOPE, signedIn = fal
         query: (source) => source,
         orderBy: () => null,
         limit: () => null,
-        getDocs: async () => ({ forEach: () => {} }), // no codes made in tests
         doc: (db, collection, id) => ({ path: `${collection}/${id}` }),
         getDoc: async () => snapshot(fake.remote, { hasPendingWrites: false, fromCache: false }),
         setDoc: async (ref, data) => {
@@ -185,7 +206,11 @@ test.describe('free mode (firebaseConfig = null)', () => {
     const dialog = page.locator('[role="dialog"]');
     await expect(dialog.getByRole('button', { name: 'Continue with Google' }).locator('svg.icon--google')).toHaveCount(1);
     await expect(dialog.getByRole('button', { name: 'Continue with Apple' })).toHaveCount(0); // not in authProviders yet
-    await expect(dialog.getByRole('button', { name: 'Continue with email' })).toBeVisible();
+    await expect(dialog.getByRole('textbox', { name: 'Email' })).toBeVisible();
+    await expect(dialog.getByLabel('Password')).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'New here? Create an account' })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Forgot password?' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.locator('#banner')).toContainText('Free mode');
     expect(errors).toEqual([]);
@@ -411,29 +436,78 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     expect(await fakeValue(page, 'fake.lastScopes')).toEqual(['email', 'name']);
   });
 
-  test('Continue with email mails a sign-in link; opening the link signs in and cleans the address bar', async ({ page }) => {
+  test('email and password: wrong details say so in place; the right ones sign in', async ({ page }) => {
     await seed(page, { ui: UI_STATE, doc: LOCAL_DOC });
     await page.goto('/');
     await startFakeSession(page);
     await signInBtn(page).click();
-    const dialog = page.locator('[role="dialog"]');
-    await dialog.getByRole('button', { name: 'Continue with email' }).click(); // nothing typed yet
-    await expect(page.locator('.toast', { hasText: 'Enter a valid email address.' })).toBeVisible();
-    await expect(dialog).toBeVisible(); // stays open to fix the address
-    await dialog.getByRole('textbox').fill('andreas@example.com');
-    await dialog.getByRole('textbox').press('Enter');
-    await expect(page.locator('.toast', { hasText: 'Check andreas@example.com' })).toBeVisible();
-    expect(await fakeValue(page, 'fake.linkSent.email')).toBe('andreas@example.com');
-    expect(await fakeValue(page, 'fake.linkSent.settings.handleCodeInApp')).toBe(true);
-    expect(await page.evaluate(() => localStorage.getItem('escape-the-matrix:emailForSignIn'))).toBe('andreas@example.com');
+    const dialog = page.getByRole('dialog', { name: 'Sign in' });
+    const note = dialog.locator('.signin__note');
 
-    // The emailed link brings the user back to the site with a one-time code.
-    await page.goto('/?mode=signIn&oobCode=abc123&apiKey=fake');
-    await startFakeSession(page);
+    await dialog.getByRole('button', { name: 'Sign in', exact: true }).click(); // nothing typed yet
+    await expect(note).toHaveText('Enter a valid email address.');
+    await dialog.getByRole('textbox', { name: 'Email' }).fill('andreas@example.com');
+    await dialog.getByRole('button', { name: 'Sign in', exact: true }).click();
+    await expect(note).toHaveText('Enter your password.');
+    await dialog.getByLabel('Password').fill('wrong-one');
+    await dialog.getByLabel('Password').press('Enter');
+    await expect(note).toHaveText('Wrong email or password.');
+    await expect(note).toHaveAttribute('data-tone', 'error');
+    await expect(dialog).toBeVisible(); // stays open to try again
+
+    await dialog.getByLabel('Password').fill('right-password');
+    await dialog.getByLabel('Password').press('Enter');
+    await expect(dialog).toHaveCount(0);
     await expect(page.locator('#account .account-btn')).toBeVisible();
-    expect(await fakeValue(page, 'fake.linkEmail')).toBe('andreas@example.com');
-    await expect.poll(() => page.evaluate(() => location.search)).toBe('');
-    expect(await page.evaluate(() => localStorage.getItem('escape-the-matrix:emailForSignIn'))).toBeNull();
+
+    // An account with a password can change it, from behind the gear — by a link to its own address.
+    await page.locator('#account .account-btn').click();
+    const menu = page.locator('.popover--account');
+    await menu.getByRole('menuitem', { name: 'More account options' }).click();
+    await menu.getByRole('menuitem', { name: 'Change password' }).click();
+    await expect(page.locator('.toast', { hasText: 'We sent a link to andreas@example.com' })).toBeVisible();
+    expect(await fakeValue(page, 'fake.resets.at(-1).email')).toBe('andreas@example.com');
+  });
+
+  test('email: create an account (named, address confirmed by mail) or get a reset link for a forgotten password', async ({ page }) => {
+    await seed(page, { ui: UI_STATE, doc: LOCAL_DOC });
+    await page.goto('/');
+    await startFakeSession(page);
+    await signInBtn(page).click();
+    const dialog = page.getByRole('dialog', { name: 'Sign in' });
+    const note = dialog.locator('.signin__note');
+
+    // Forgot password: one field, a link by mail, and the same answer whether or not the account exists.
+    await dialog.getByRole('button', { name: 'Forgot password?' }).click();
+    await expect(dialog.getByLabel('Password')).toBeHidden();
+    await expect(note).toHaveText('Enter your email and we will send you a link to set a new password.');
+    await dialog.getByRole('textbox', { name: 'Email' }).fill('maria@example.com');
+    await dialog.getByRole('button', { name: 'Send me a reset link' }).click();
+    await expect(note).toContainText('If there is an account for maria@example.com, a link to set a new password is on its way');
+    expect(await fakeValue(page, 'fake.resets[0].settings.url')).toMatch(/^http:\/\/localhost:\d+\/$/);
+
+    // Create an account: a short password is refused; a taken address points to signing in instead.
+    await dialog.getByRole('button', { name: 'Have an account? Sign in' }).click();
+    await dialog.getByRole('button', { name: 'New here? Create an account' }).click();
+    await expect(dialog.getByRole('textbox', { name: 'Name' })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Forgot password?' })).toBeHidden();
+    await dialog.getByRole('textbox', { name: 'Name' }).fill('Maria Ioannou');
+    await dialog.getByRole('textbox', { name: 'Email' }).fill('andreas@example.com');
+    await dialog.getByLabel('Password').fill('short');
+    await dialog.getByRole('button', { name: 'Create account' }).click();
+    await expect(note).toHaveText('Choose a password of at least 8 characters.');
+    await dialog.getByLabel('Password').fill('long-enough-1');
+    await dialog.getByRole('button', { name: 'Create account' }).click();
+    await expect(note).toContainText('There is already an account with this email');
+
+    await dialog.getByRole('textbox', { name: 'Email' }).fill('maria@example.com');
+    await dialog.getByRole('button', { name: 'Create account' }).click();
+    await expect(dialog).toHaveCount(0);
+    const button = page.locator('#account .account-btn');
+    await expect(button.locator('.account-name')).toHaveText('Maria');
+    expect(await fakeValue(page, 'fake.created')).toEqual({ email: 'maria@example.com', password: 'long-enough-1' });
+    expect(await fakeValue(page, 'fake.profile.displayName')).toBe('Maria Ioannou');
+    expect(await fakeValue(page, 'fake.verification.email')).toBe('maria@example.com');
   });
 
   test('a sign-in link opened on another device asks for the email first', async ({ page }) => {
@@ -564,6 +638,21 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await dialog.getByRole('button', { name: 'Unlock' }).click();
     await expect(page.locator('.toast', { hasText: 'That does not look like a code' })).toBeVisible();
     await expect(dialog).toBeVisible(); // the dialog stays open so the code can be corrected
+  });
+
+  test('Go Pro on Home while signed out: sign in first, then straight on to the checkout with the account', async ({ page }) => {
+    await page.route('https://buy.stripe.com/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<title>Stripe stub</title>' }));
+    await seed(page, { ui: UI_STATE, doc: LOCAL_DOC });
+    await page.goto('/');
+    await startFakeSession(page);
+    await page.locator('.brand').click();
+    await page.locator('.home-plan').nth(1).getByRole('link', { name: 'Go Pro' }).click();
+
+    const dialog = page.getByRole('dialog', { name: 'Sign in' });
+    await expect(dialog).toContainText('Sign in first, so Pro lands on your account');
+    await expect(page.getByRole('dialog')).toHaveCount(1); // only the sign-in, nothing else on top
+    await dialog.getByRole('button', { name: 'Continue with Google' }).click();
+    await page.waitForURL(/^https:\/\/buy\.stripe\.com\/6oUbJ17Qk0IZbERfmS6Zy01\?client_reference_id=u1$/);
   });
 
   test('when the SDK cannot load, free mode stays usable and the button retries on click', async ({ page }) => {

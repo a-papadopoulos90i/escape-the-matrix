@@ -1,7 +1,7 @@
 // Home — what the planner is, its three steps (a screenshot beside each, alternating sides), the
 // purpose behind it and why it is free. The logo opens it; it is not one of the stepper tabs.
 import { QUADRANTS } from '../store.js';
-import { askForCodeBox, checkoutUrl, payLinks } from '../billing-links.js';
+import { askForCodeBox, askToSignInFor, checkoutUrl, isSignedIn, payLinks } from '../billing-links.js';
 import { quadrantGlyph } from '../carry.js';
 
 const STEPS = [
@@ -137,11 +137,20 @@ export function mount(container, ctx) {
       cta,
     );
   const proFeatures = ['unlimited', 'timer', 'aiReports', 'voice'];
+  /** Signed in: on to Stripe, carrying the account. Signed out: sign in first, so Pro lands on an account. */
+  function goPro(event, period) {
+    if (!isSignedIn()) {
+      event.preventDefault();
+      askToSignInFor(period);
+      return;
+    }
+    event.currentTarget.href = checkoutUrl(period);
+  }
   /** A link to Stripe's checkout (carrying the signed-in account); without a link, a disabled "Coming soon". */
   function proButton(period, className) {
     const href = payLinks[period];
     return href
-      ? h('a', { class: className, href, rel: 'noopener', onClick: (event) => (event.currentTarget.href = checkoutUrl(period)) }, t('home.pricing.goPro'))
+      ? h('a', { class: className, href, rel: 'noopener', onClick: (event) => goPro(event, period) }, t('home.pricing.goPro'))
       : h('button', { class: className, type: 'button', disabled: true }, t('home.pricing.soon'));
   }
 

@@ -10,7 +10,7 @@ import { createLocalAdapter } from './storage/local.js';
 import { createCloudAdapter } from './storage/cloud.js';
 import { lastSyncAgo, remindersEnabled, syncWithReminders } from './reminders.js';
 import { createBilling, VoucherError } from './billing.js';
-import { capturePayReturn, checkoutUrl, REDEEM_EVENT, setBuyer } from './billing-links.js';
+import { capturePayReturn, checkoutUrl, REDEEM_EVENT, setBuyer, SIGNIN_FOR_PRO_EVENT, takePendingCheckout } from './billing-links.js';
 import { isPro, onPlanChange } from './plan.js';
 
 const SDK_BASE = 'https://www.gstatic.com/firebasejs/10.14.1/';
@@ -18,6 +18,20 @@ const SDK_MODULES = ['firebase-app.js', 'firebase-auth.js', 'firebase-firestore.
 const CANCELLED_CODES = new Set(['auth/popup-closed-by-user', 'auth/cancelled-popup-request', 'auth/user-cancelled']);
 const STATUS_KEYS = { synced: 'account.synced', syncing: 'account.syncing', offline: 'account.offline', error: 'account.syncError' };
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD = 8;
+// Firebase's email-and-password errors, in words. Wrong email and wrong password read the same on
+// purpose (and Firebase reports them the same way), so nobody can probe who has an account.
+const EMAIL_ERRORS = {
+  'auth/invalid-credential': 'account.wrongPassword',
+  'auth/invalid-login-credentials': 'account.wrongPassword',
+  'auth/wrong-password': 'account.wrongPassword',
+  'auth/user-not-found': 'account.wrongPassword',
+  'auth/email-already-in-use': 'account.emailTaken',
+  'auth/weak-password': 'account.passwordShort',
+  'auth/invalid-email': 'account.emailInvalid',
+  'auth/too-many-requests': 'account.tooMany',
+  'auth/network-request-failed': 'account.offlineError',
+};
 const EMAIL_FOR_LINK_KEY = 'escape-the-matrix:emailForSignIn'; // remembered until the emailed link is opened
 const FLUSH_TIMEOUT_MS = 3000; // a save stuck offline must not block signing out (localStorage has the data)
 
@@ -45,6 +59,9 @@ function storage(action) {
   }
 }
 
+/** Signed up with an email and password (not only Google or Apple), so there is a password to change. */
+const hasPassword = (user) => (user?.providerData ?? []).some((info) => info?.providerId === 'password');
+
 function firstName(user) {
   const name = (user.displayName || '').trim();
   return name.split(/\s+/)[0] || (user.email || '').split('@')[0] || '?';
@@ -56,7 +73,7 @@ function firstName(user) {
  * Renders the account slot. showSignedOut() → Google button; showSignedIn(user, status) → avatar,
  * first name and a status dot that opens the account menu. setStatus() updates in place.
  */
-export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignOutClear, onClearAccount, onSyncReminders, onGoPro, providers = ['google', 'apple', 'email'] }) {
+export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut, onSignOutClear, onClearAccount, onChangePassword, onSyncReminders, onGoPro, providers = ['google', 'apple', 'email'] }) {
   let plan = 'free'; // shown in the menu; the real answer lives in Firestore
   const { t } = i18n;
   let user = null;
@@ -102,6 +119,7 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignO
     const danger = ui.h(
       'div',
       { class: 'account-menu__danger', id: 'account-danger', hidden: true },
+      hasPassword(user) && menuItem(t('account.changePassword'), onChangePassword),
       menuItem(t('account.clearAccount'), onClearAccount, true),
       menuItem(t('account.signOutClear'), onSignOutClear, true),
     );
@@ -233,8 +251,11 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignO
     },
   };
 
-  /** Sign-in chooser: Google, Apple, or a passwordless link sent to the typed email address. */
-  function openSignInModal() {
+  /**
+   * Sign-in chooser: Google, Apple (once configured), or an email and password — with "Create an account"
+   * and "Forgot password?" in the same box. `reason: 'pro'` says why, when Go Pro sent the visitor here.
+   */
+  function openSignInModal({ reason } = {}) {
     const option = (iconName, labelKey, onSelect, variant) =>
       ui.h(
         'button',
@@ -246,38 +267,79 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onSignOut, onSignO
       handle.close();
       onSignIn(method);
     };
-    const email = ui.h('input', {
-      class: 'signin__email',
-      type: 'email',
-      autocomplete: 'email',
-      enterkeyhint: 'send',
-      placeholder: t('account.emailPlaceholder'),
-      'aria-label': t('account.continueEmail'),
-      onKeydown: (event) => event.key === 'Enter' && sendLink(),
-    });
-    const sendLink = () => {
-      const address = email.value.trim();
-      if (!EMAIL_PATTERN.test(address)) {
-        ui.toast(t('account.emailInvalid'));
-        return email.focus();
-      }
-      choose({ provider: 'email', email: address });
+
+    let mode = 'signin'; // 'signin' | 'signup' | 'reset'
+    const field = (attrs) => ui.h('input', { class: 'signin__field', ...attrs });
+    const name = field({ type: 'text', autocomplete: 'name', placeholder: t('account.namePlaceholder'), 'aria-label': t('account.name'), hidden: true });
+    const email = field({ type: 'email', autocomplete: 'email', placeholder: t('account.emailPlaceholder'), 'aria-label': t('account.email') });
+    const password = field({ type: 'password', autocomplete: 'current-password', placeholder: t('account.passwordPlaceholder'), 'aria-label': t('account.password') });
+    const submit = ui.h('button', { class: 'btn btn-primary signin__submit', type: 'submit' });
+    const note = ui.h('p', { class: 'signin__note', role: 'status', 'aria-live': 'polite' });
+    const swap = ui.h('button', { class: 'link-button', type: 'button', onClick: () => setMode(mode === 'signin' ? 'signup' : 'signin') });
+    const forgot = ui.h('button', { class: 'link-button', type: 'button', onClick: () => setMode('reset') }, t('account.forgot'));
+    const form = ui.h(
+      'form',
+      { class: 'signin__form', novalidate: true, onSubmit: (event) => (event.preventDefault(), send()) },
+      name,
+      email,
+      password,
+      submit,
+      note,
+      ui.h('p', { class: 'signin__links' }, swap, forgot),
+    );
+
+    const tell = (key, tone = 'info', values) => {
+      note.textContent = key ? t(key, values) : '';
+      note.dataset.tone = tone;
     };
+    function setMode(next) {
+      mode = next;
+      name.hidden = mode !== 'signup';
+      password.hidden = mode === 'reset';
+      password.autocomplete = mode === 'signup' ? 'new-password' : 'current-password';
+      password.placeholder = t(mode === 'signup' ? 'account.newPasswordPlaceholder' : 'account.passwordPlaceholder');
+      submit.textContent = t({ signin: 'account.signInEmail', signup: 'account.createAccount', reset: 'account.sendReset' }[mode]);
+      swap.textContent = t(mode === 'signin' ? 'account.noAccount' : 'account.haveAccount');
+      forgot.hidden = mode !== 'signin';
+      tell(mode === 'reset' ? 'account.resetHint' : null);
+    }
+    async function send() {
+      const address = email.value.trim();
+      if (!EMAIL_PATTERN.test(address)) return tell('account.emailInvalid', 'error'), email.focus();
+      if (mode === 'signup' && password.value.length < MIN_PASSWORD) return tell('account.passwordShort', 'error'), password.focus();
+      if (mode === 'signin' && !password.value) return tell('account.passwordMissing', 'error'), password.focus();
+      submit.disabled = true;
+      try {
+        const outcome = await onEmail({ mode, email: address, password: password.value, name: name.value.trim() });
+        if (outcome === 'reset-sent') return tell('account.resetSent', 'info', { email: address });
+        if (outcome === 'not-connected') return;
+        handle.close();
+      } catch (error) {
+        tell(EMAIL_ERRORS[error?.code] ?? 'account.signInError', 'error');
+      } finally {
+        submit.disabled = false;
+      }
+    }
+    setMode('signin');
+
     const content = ui.h(
       'div',
       { class: 'signin' },
-      ui.h('p', { class: 'signin__subtitle text-muted' }, t('account.signInSubtitle')),
+      ui.h('p', { class: 'signin__subtitle text-muted' }, t(reason === 'pro' ? 'account.signInForPro' : 'account.signInSubtitle')),
       // Only the providers this deployment has switched on (firebase-config.js → authProviders).
       providers.includes('google') && option('google', 'account.continueGoogle', () => choose({ provider: 'google' }), 'google'),
       providers.includes('apple') && option('apple', 'account.continueApple', () => choose({ provider: 'apple' }), 'apple'),
       providers.includes('email') && [
-        (providers.includes('google') || providers.includes('apple')) && ui.h('div', { class: 'signin__sep' }, ui.h('span', null, t('account.or'))),
-        email,
-        option('mail', 'account.continueEmail', sendLink, 'email'),
+        (providers.includes('google') || providers.includes('apple')) && ui.h('div', { class: 'signin__sep' }, ui.h('span', null, t('account.orEmail'))),
+        form,
       ],
     );
     const handle = ui.modal({ title: t('account.signInTitle'), content, actions: [{ label: t('common.cancel') }], className: 'modal--signin' });
   }
+
+  view.openSignIn = openSignInModal;
+  /** The signed-in user changed (a name set at sign-up): redraw the button, keeping the sync status. */
+  view.updateUser = (nextUser) => user && view.showSignedIn(nextUser, status);
 
   return view;
 }
@@ -346,6 +408,9 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
     link = { cloud, detach, unsubscribe };
     billing = createBilling({ db, uid: user.uid, firestore: sdk, onPlan: (plan) => view.setPlan(plan) });
     setBuyer(user); // Go Pro now names this account, so paying turns it Pro without a code
+    // Sent here by Go Pro while signed out: now that the account is known, go on to pay.
+    const period = takePendingCheckout();
+    if (period) window.location.assign(checkoutUrl(period));
     cloud.reconcile(store.get());
   }
 
@@ -366,9 +431,8 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
     setSignedIn(false);
   }
 
-  /** `{ provider: 'google' | 'apple' }` opens that provider's popup; `{ provider: 'email', email }` mails a sign-in link. */
-  async function signIn({ provider = 'google', email } = {}) {
-    if (provider === 'email') return sendEmailLink(email);
+  /** `{ provider: 'google' | 'apple' }` opens that provider's popup (or a redirect when popups are blocked). */
+  async function signIn({ provider = 'google' } = {}) {
     const authProvider = provider === 'apple' ? appleProvider() : googleProvider();
     try {
       await sdk.signInWithPopup(auth, authProvider);
@@ -391,14 +455,40 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
     return provider;
   }
 
-  /** Passwordless email: Firebase mails a one-time link back to this page; the address is remembered here. */
-  async function sendEmailLink(email) {
-    await sdk.sendSignInLinkToEmail(auth, email, { url: window.location.origin + window.location.pathname, handleCodeInApp: true });
-    storage(() => localStorage.setItem(EMAIL_FOR_LINK_KEY, email));
-    ui.toast(t('account.linkSent', { email }), { duration: 8000 });
+  // Where the links in Firebase's emails (reset password, confirm address) send people back to.
+  const backHere = () => ({ url: `${window.location.origin}/` });
+
+  /**
+   * Email and password: sign in, create an account (named, and asked to confirm the address), or mail a
+   * link to set a new password. Errors are thrown to the dialog, which says what went wrong in place.
+   */
+  async function emailAuth({ mode, email, password, name }) {
+    if (mode === 'reset') {
+      await sdk.sendPasswordResetEmail(auth, email, backHere());
+      return 'reset-sent';
+    }
+    if (mode === 'signup') {
+      const credential = await sdk.createUserWithEmailAndPassword(auth, email, password);
+      if (name) {
+        await sdk.updateProfile(credential.user, { displayName: name });
+        view.updateUser(auth.currentUser ?? credential.user);
+      }
+      sdk.sendEmailVerification?.(credential.user, backHere()).catch(() => {}); // a nicety: never blocks signing up
+      return 'signed-up';
+    }
+    await sdk.signInWithEmailAndPassword(auth, email, password);
+    return 'signed-in';
   }
 
-  /** Opening the emailed link lands here with a one-time code: finish signing in, then clean the address bar. */
+  /** Change password: the same safe route as "Forgot password?" — a link to the account's own address. */
+  async function changePassword() {
+    const email = auth.currentUser?.email;
+    if (!email) return;
+    await sdk.sendPasswordResetEmail(auth, email, backHere());
+    ui.toast(t('account.changePasswordSent', { email }), { duration: 8000 });
+  }
+
+  /** Opening an emailed sign-in link (from before passwords existed) lands here with a one-time code: finish signing in, then clean the address bar. */
   async function completeEmailLink() {
     const href = window.location.href;
     if (!sdk.isSignInWithEmailLink?.(auth, href)) return;
@@ -458,6 +548,8 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
 
   return {
     signIn,
+    emailAuth,
+    changePassword,
     signOut,
     clearAccount,
     redeem,
@@ -555,6 +647,16 @@ export function openPaidModal({ ui, i18n, session }) {
 
 // ---------- Entry point ----------
 
+// Page-wide requests (from Home) go to the account area that is mounted now; listened to once.
+let pageEvents = null;
+let listening = false;
+function listenToPage() {
+  if (listening) return;
+  listening = true;
+  document.addEventListener(REDEEM_EVENT, () => pageEvents?.redeem());
+  document.addEventListener(SIGNIN_FOR_PRO_EVENT, () => pageEvents?.signInForPro());
+}
+
 /**
  * Mounts the account area into `slot`. `config` and `loadSdk` default to the real Firebase config
  * and SDK loader; tests inject fakes. Resolves once a persisted session (if any) was restored.
@@ -590,6 +692,11 @@ export async function initAuth({ store, ui, i18n, slot, setSignedIn, config = fi
       view.setBusy(true);
       run(async () => (await session()).signIn(method)).finally(() => view.setBusy(false));
     },
+    onEmail: async (payload) => {
+      if (!config) return showNotConnected(ui, i18n), 'not-connected';
+      return (await session()).emailAuth(payload);
+    },
+    onChangePassword: () => run(async () => (await session()).changePassword()),
     onSignOut: () => run(async () => (await session()).signOut()),
     onSignOutClear: () => run(async () => (await session()).signOut({ clear: true })),
     onClearAccount: () => run(async () => (await session()).clearAccount()),
@@ -599,8 +706,12 @@ export async function initAuth({ store, ui, i18n, slot, setSignedIn, config = fi
 
   view.showSignedOut();
   setSignedIn(false);
-  // The pricing section (and the modal below) ask for the code box from outside this module.
-  document.addEventListener(REDEEM_EVENT, () => openRedeemModal({ ui, i18n, session }));
+  // The pricing section asks for the code box, or for sign-in before Go Pro, from outside this module.
+  pageEvents = {
+    redeem: () => openRedeemModal({ ui, i18n, session }),
+    signInForPro: () => (config ? view.openSignIn({ reason: 'pro' }) : showNotConnected(ui, i18n)),
+  };
+  listenToPage();
   if (capturePayReturn()) openPaidModal({ ui, i18n, session });
   if (!config) return;
   await session().catch(() => {}); // offline first visit: stay in free mode, the button retries
