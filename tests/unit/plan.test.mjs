@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { canAddTask, FREE_TASK_LIMIT, isPro, openTaskCount, setPlan } from '../../js/plan.js';
-import { createBilling, listVouchers, makeCode, makeVouchers, normalizeCode, untilFor, VoucherError } from '../../js/billing.js';
+import { createBilling, normalizeCode, VoucherError } from '../../js/billing.js';
 
 const fakeStore = (tasks) => ({ get: () => ({ tasks }) });
 const task = (extra = {}) => ({ deleted: false, carriedTo: null, done: false, ...extra });
@@ -39,7 +39,7 @@ test('codes are read loosely: case, spaces and dashes do not matter', () => {
   assert.equal(normalizeCode(' lev-elix 12ab '), 'LEVELIX12AB');
 });
 
-/** A Firestore stand-in: two collections and the snapshot shape the SDK gives. */
+/** A Firestore stand-in: the two collections redeeming touches, in the snapshot shape the SDK gives. */
 function fakeFirestore({ vouchers = {}, billing = {} } = {}) {
   const store = { vouchers, billing };
   const snapshot = (value) => ({ exists: () => value !== undefined, data: () => value });
@@ -54,13 +54,6 @@ function fakeFirestore({ vouchers = {}, billing = {} } = {}) {
       next(snapshot(store[ref.collection][ref.id]));
       return () => {};
     },
-    collection: (_db, name) => ({ name }),
-    query: (source) => source,
-    orderBy: () => null,
-    limit: () => null,
-    getDocs: async (source) => ({
-      forEach: (visit) => Object.entries(store[source.name]).forEach(([id, data]) => visit({ id, data: () => data })),
-    }),
   };
 }
 
@@ -90,36 +83,13 @@ test('a code that is unknown, already used or too short is refused', async () =>
   billing.dispose();
 });
 
-test('made codes are unambiguous and each one lands in the vouchers collection unused', async () => {
-  const code = makeCode();
-  assert.match(code, /^LVX[ABCDEFGHJKLMNPQRTUVWXY2346789]{9}$/); // no O/0, I/1, S/5 to mistype
-
-  const firestore = fakeFirestore();
-  const codes = await makeVouchers({ db: {}, firestore, count: 3, period: 'monthly' });
-  assert.equal(codes.length, 3);
-  assert.equal(new Set(codes).size, 3);
-  for (const made of codes) {
-    assert.equal(firestore.store.vouchers[made].redeemedBy, null);
-    assert.equal(firestore.store.vouchers[made].period, 'monthly');
-  }
-
-  const rows = await listVouchers({ db: {}, firestore });
-  assert.deepEqual(rows.map((row) => row.code).sort(), [...codes].sort());
-  assert.deepEqual(rows.map((row) => row.redeemedBy), [null, null, null]);
-});
-
-test('a code carries the period it buys: Pro runs out when the paid days do', async () => {
-  const firestore = fakeFirestore();
-  const [code] = await makeVouchers({ db: {}, firestore, count: 1, period: 'monthly' });
-  const until = Date.parse(firestore.store.vouchers[code].until);
-  const days = Math.round((until - Date.now()) / 86_400_000);
-  assert.ok(days >= 31 && days <= 35, `a month plus a few days over, got ${days}`);
-  assert.equal(untilFor('forever'), null); // an open-ended code never runs out
-
+test('a code carries the period it buys: redeeming it writes exactly that end date', async () => {
+  const until = new Date(Date.now() + 34 * 86_400_000).toISOString(); // what the webhook writes on a monthly code
+  const firestore = fakeFirestore({ vouchers: { LVXMONTHLY234: { redeemedBy: null, period: 'monthly', until } } });
   const billing = createBilling({ db: {}, uid: 'u1', firestore });
-  const redeemed = await billing.redeem(code);
-  assert.equal(redeemed.until, firestore.store.vouchers[code].until);
-  assert.equal(firestore.store.billing.u1.currentPeriodEnd, firestore.store.vouchers[code].until);
+  const redeemed = await billing.redeem('LVXMONTHLY234');
+  assert.equal(redeemed.until, until);
+  assert.equal(firestore.store.billing.u1.currentPeriodEnd, until);
   assert.equal(isPro(), true);
   billing.dispose();
 });

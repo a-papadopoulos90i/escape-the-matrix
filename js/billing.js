@@ -1,8 +1,8 @@
-// Levelix Pro for one signed-in account: watches billing/{uid} and redeems voucher codes.
+// Levelix Pro for one signed-in account: watches billing/{uid} and redeems the codes the Stripe webhook
+// emails to buyers who paid without signing in (functions/webhook.js makes them).
 //
 // The app cannot make itself Pro: firestore.rules only accept a billing document that names a voucher
-// this account has claimed. A code works once. (When the Stripe webhook runs, it writes the same
-// document as admin and this code keeps working unchanged.)
+// this account has claimed, with the end date written on it. A code works once.
 import { setPlan } from './plan.js';
 
 const VOUCHERS = 'vouchers';
@@ -10,57 +10,6 @@ const BILLING = 'billing';
 
 /** Codes are typed by hand: case and dashes do not matter. */
 export const normalizeCode = (code) => String(code ?? '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-
-// Codes are read out loud and typed by hand: no 0/O, 1/I or 5/S to confuse.
-const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRTUVWXY2346789';
-const CODE_BODY = 9;
-const CODE_PREFIX = 'LVX';
-
-/** A fresh, hard-to-guess code — LVX + 9 characters out of an unambiguous alphabet. */
-export function makeCode(random = crypto.getRandomValues.bind(crypto)) {
-  const bytes = random(new Uint8Array(CODE_BODY));
-  let code = CODE_PREFIX;
-  for (const byte of bytes) code += CODE_ALPHABET[byte % CODE_ALPHABET.length];
-  return code;
-}
-
-// How long a code buys. A code is made the moment the payment lands and sent straight away, so the
-// paid period runs from the day it was made — with a few days over, so nobody is cut short.
-const PERIOD_DAYS = { monthly: 31 + 3, yearly: 365 + 5 };
-
-/** The day a code of this period runs out, as an ISO stamp (null: a code that never expires). */
-export function untilFor(period, from = new Date()) {
-  const days = PERIOD_DAYS[period];
-  if (!days) return null;
-  const end = new Date(from.getTime());
-  end.setDate(end.getDate() + days);
-  return end.toISOString();
-}
-
-/** Writes `count` unused codes (owners only — the rules check who is asking). Returns the codes. */
-export async function makeVouchers({ db, firestore, count = 10, period = 'yearly' }) {
-  const codes = [];
-  const until = untilFor(period);
-  for (let i = 0; i < Math.max(1, Math.min(50, count)); i += 1) {
-    const code = makeCode();
-    await firestore.setDoc(firestore.doc(db, VOUCHERS, code), { redeemedBy: null, period, until, createdAt: new Date().toISOString() });
-    codes.push(code);
-  }
-  return codes;
-}
-
-/** The most recent codes with their state, newest first (owners only). */
-export async function listVouchers({ db, firestore, max = 30 }) {
-  const snapshot = await firestore.getDocs(
-    firestore.query(firestore.collection(db, VOUCHERS), firestore.orderBy('createdAt', 'desc'), firestore.limit(max)),
-  );
-  const rows = [];
-  snapshot.forEach((item) => {
-    const data = item.data() ?? {};
-    rows.push({ code: item.id, period: data.period ?? '', redeemedBy: data.redeemedBy ?? null, createdAt: data.createdAt ?? '', until: data.until ?? null });
-  });
-  return rows;
-}
 
 export class VoucherError extends Error {
   constructor(reason) {

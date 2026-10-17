@@ -22,21 +22,11 @@ service cloud.firestore {
       allow create, update: if isOwner(uid) && isEnvelope();
     }
 
-    // Who may hand out vouchers: config/owners = { uids: [...] }, written from the console only.
-    function ownerUids() {
-      return get(/databases/$(database)/documents/config/owners).data.uids;
-    }
-
-    function isVoucherOwner() {
-      return request.auth != null && request.auth.uid in ownerUids();
-    }
-
-    // A voucher code is itself the secret: it can be fetched only by someone who already knows the
-    // code (listing is denied), and the only change a customer may make is claiming an unclaimed one.
+    // A voucher code is itself the secret: the Stripe webhook makes it (as admin) and emails it; it can be
+    // fetched only by someone who already knows it (listing is denied), and the only change a customer
+    // may make is claiming an unclaimed one.
     match /vouchers/{code} {
       allow get: if request.auth != null;
-      allow list: if isVoucherOwner();
-      allow create, delete: if isVoucherOwner();
       allow update: if request.auth != null
         && resource.data.redeemedBy == null
         && request.resource.data.redeemedBy == request.auth.uid
@@ -44,7 +34,7 @@ service cloud.firestore {
     }
 
     // What the account may use. Pro comes from a voucher this very account claimed — nothing else the
-    // app can write makes someone Pro. (The Stripe webhook, when it runs, writes here as admin.)
+    // app can write makes someone Pro. (The Stripe webhook writes here as admin.)
     match /billing/{uid} {
       allow read: if isOwner(uid);
       allow create, update: if isOwner(uid)
