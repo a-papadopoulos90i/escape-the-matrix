@@ -323,6 +323,7 @@ test('Home links to Support, Privacy and Terms, and each page names the seller a
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(heading);
     await expect(page.locator('.legal')).toContainText('Riga Feraiou 44, 56625 Thessaloniki, Greece');
     await expect(page.locator('.legal')).toContainText('info@levelix.eu');
+    await expect(page.locator('.legal')).toContainText('ΑΦΜ) 150496621'); // the seller's tax ID, as the law asks
     await expect(page.locator('.legal__footer a[aria-current="page"]')).toHaveText(link);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   }
