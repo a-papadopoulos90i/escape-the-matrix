@@ -13,6 +13,8 @@
       "**/node_modules/**",
       "tests/**",
       "design/**",
+      "docs/**",
+      "CLAUDE.md",
       "*.md",
       "tools/**",
       "functions/**"
