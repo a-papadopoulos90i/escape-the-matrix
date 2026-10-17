@@ -328,6 +328,24 @@
   }
 }
 
+/* Support · Privacy · Terms, the last line of Home. */
+.home-footer {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: var(--space-4) auto 0;
+  font-size: var(--text-sm);
+}
+
+.home-footer a {
+  color: var(--muted);
+}
+
+.home-footer a:hover {
+  color: var(--ink);
+}
+
 .home-disclaimer {
   max-width: 40rem;
   margin: 0 auto;

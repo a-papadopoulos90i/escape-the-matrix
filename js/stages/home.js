@@ -207,6 +207,11 @@ export function mount(container, ctx) {
       pricing,
       free,
       h('p', { class: 'home-disclaimer' }, t('home.disclaimer')),
+      h(
+        'nav',
+        { class: 'home-footer', 'aria-label': t('home.footer.label') },
+        ...['support', 'privacy', 'terms'].map((page) => h('a', { href: `./${page}.html` }, t(`home.footer.${page}`))),
+      ),
     ),
   );
 }

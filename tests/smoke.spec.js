@@ -309,6 +309,27 @@ test('Home: "Already paid?" opens the code box without hunting through the accou
   await expect(page.getByRole('dialog', { name: 'Unlock Levelix Pro' })).toBeVisible();
 });
 
+test('Home links to Support, Privacy and Terms, and each page names the seller and leads to the others', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await page.locator('.brand').click();
+  const footer = activePanel(page).locator('.home-footer');
+  await expect(footer.getByRole('link')).toHaveText(['Support', 'Privacy', 'Terms']);
+
+  for (const [link, heading] of [['Support', 'Support'], ['Privacy', 'Privacy policy'], ['Terms', 'Terms of service']]) {
+    await page.goto('/');
+    await page.locator('.brand').click();
+    await activePanel(page).locator('.home-footer').getByRole('link', { name: link }).click();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(heading);
+    await expect(page.locator('.legal')).toContainText('Riga Feraiou 44, 56625 Thessaloniki, Greece');
+    await expect(page.locator('.legal')).toContainText('info@levelix.eu');
+    await expect(page.locator('.legal__footer a[aria-current="page"]')).toHaveText(link);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
+  await expect(page.locator('.legal')).toContainText('Full refund within 14 days'); // the guarantee is said up front
+  expect(errors).toEqual([]);
+});
+
 test('the sign-in chooser → Continue with Google opens the not-connected modal when firebaseConfig is null', async ({ page }) => {
   await page.goto('/');
   await page.locator('#account button').click();

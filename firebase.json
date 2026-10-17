@@ -2,6 +2,7 @@
   "hosting": {
     "site": "levelix",
     "public": ".",
+    "cleanUrls": true,
     "ignore": [
       "firebase.json",
       ".firebaserc",

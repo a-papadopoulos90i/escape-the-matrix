@@ -1,0 +1,119 @@
+/* legal.css — the plain pages beside the app (support, privacy, terms): one readable column on the
+   same paper, type and green as Levelix, with the logo leading back home. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-text-size-adjust: 100%;
+}
+
+.legal {
+  max-width: var(--content-col);
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4) var(--space-8);
+}
+
+.legal__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-lg);
+  text-decoration: none;
+}
+
+.legal__brand svg {
+  width: 28px;
+  height: 28px;
+}
+
+.legal h1 {
+  margin: var(--space-7) 0 var(--space-1);
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  line-height: 1.15;
+}
+
+.legal__updated {
+  margin: 0 0 var(--space-6);
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.legal h2 {
+  margin: var(--space-7) 0 var(--space-2);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+}
+
+.legal h3 {
+  margin: var(--space-5) 0 var(--space-1);
+  font-size: 1rem;
+}
+
+.legal p,
+.legal ul {
+  margin: 0 0 var(--space-3);
+}
+
+.legal ul {
+  padding-left: 1.25em;
+}
+
+.legal li + li {
+  margin-top: var(--space-1);
+}
+
+.legal a {
+  color: var(--accent);
+}
+
+/* The short version, before the detail. */
+.legal__summary {
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.legal__summary ul {
+  margin: 0;
+}
+
+.legal__contact {
+  margin: 0 0 var(--space-3);
+  font-style: normal;
+}
+
+.legal__footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin-top: var(--space-8);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
+.legal__footer a {
+  color: var(--muted);
+}
+
+.legal__footer a[aria-current="page"] {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
