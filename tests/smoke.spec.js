@@ -299,6 +299,15 @@ test('back from Stripe: ?pro=thanks says the payment landed and leads to the cod
   await expect(page.getByRole('dialog', { name: 'Unlock Levelix Pro' })).toBeVisible();
 });
 
+test('Home: each Pro plan leads to its own Stripe checkout', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('.brand').click();
+  const plans = activePanel(page).locator('.home-plan');
+  await expect(plans.nth(1).getByRole('link', { name: 'Go Pro' })).toHaveAttribute('href', 'https://buy.stripe.com/6oUbJ17Qk0IZbERfmS6Zy01'); // monthly
+  await expect(plans.nth(2).getByRole('link', { name: 'Go Pro' })).toHaveAttribute('href', 'https://buy.stripe.com/9B628r2w0gHX6kx5Mi6Zy00'); // yearly
+  await expect(activePanel(page).getByRole('button', { name: 'Coming soon' })).toHaveCount(0);
+});
+
 test('Home: "Already paid?" opens the code box without hunting through the account menu', async ({ page }) => {
   await page.goto('/');
   await page.locator('.brand').click();

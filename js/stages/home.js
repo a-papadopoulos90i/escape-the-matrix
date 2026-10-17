@@ -125,8 +125,7 @@ export function mount(container, ctx) {
     ),
   );
 
-  // Pricing: a free plan (up to 100 tasks) and Pro, monthly or yearly. Paid checkout is not live yet,
-  // so the Pro buttons say "Coming soon".
+  // Pricing: a free plan (up to 100 tasks) and Pro, monthly or yearly, each paid once through Stripe.
   const plan = ({ key, featured, features, cta }) =>
     h(
       'li',

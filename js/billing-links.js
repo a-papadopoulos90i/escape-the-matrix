@@ -1,8 +1,8 @@
-// Where the Pro buttons lead. Filled in once the Stripe payment links exist; while a link is empty the
-// button stays disabled and reads "Coming soon", so the page never promises a checkout that is not there.
+// Where the Pro buttons lead: Stripe payment links (live). Each one sends the customer back to
+// levelix.eu/?pro=thanks. An empty link would leave its button disabled, reading "Coming soon".
 export const payLinks = {
-  monthly: '',
-  yearly: '',
+  monthly: 'https://buy.stripe.com/6oUbJ17Qk0IZbERfmS6Zy01', // Levelix Pro — 1 month, €4.80 one-off
+  yearly: 'https://buy.stripe.com/9B628r2w0gHX6kx5Mi6Zy00', // Levelix Pro — 1 year, €28 one-off
   portal: '', // Stripe's customer portal (change card, invoices, cancel)
 };
 
