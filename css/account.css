@@ -116,6 +116,47 @@
   background: var(--red);
 }
 
+/* Tasks written signed out are waiting to be synced into the account: red, and blinking. */
+.account-dot--attention {
+  background: var(--red);
+  animation: account-blink 1s ease-in-out infinite;
+}
+
+@keyframes account-blink {
+  50% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+}
+
+.account-menu__sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 4px 10px;
+  border: 1.5px solid var(--red);
+  border-radius: var(--radius-pill);
+  background: var(--red-fill);
+  color: var(--red);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  animation: account-blink-soft 1.2s ease-in-out infinite;
+}
+
+.account-menu__sync:hover {
+  animation: none;
+  background: var(--red);
+  color: #fff;
+}
+
+@keyframes account-blink-soft {
+  50% {
+    opacity: 0.55;
+  }
+}
+
 @keyframes account-pulse {
   50% {
     opacity: 0.35;
@@ -293,7 +334,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .account-dot--syncing {
+  .account-dot--syncing,
+  .account-dot--attention,
+  .account-menu__sync {
     animation: none;
   }
 }

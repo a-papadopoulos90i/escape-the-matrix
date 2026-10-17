@@ -88,9 +88,11 @@ export function createLocalAdapter() {
       }
     },
 
+    /** Ties this browser's copy to an account (null: it belongs to no account — signed out). */
     setOwner(uid) {
       try {
-        storage.setItem(OWNER_KEY, uid);
+        if (uid) storage.setItem(OWNER_KEY, uid);
+        else storage.removeItem(OWNER_KEY);
       } catch {
         /* storage blocked — nothing to remember */
       }
@@ -99,6 +101,12 @@ export function createLocalAdapter() {
     /** Sets another account's copy aside until it signs in here again. */
     stash(uid, doc) {
       writeJson(storage, STASH_PREFIX + uid, doc);
+    },
+
+    /** The copy set aside for this key, left where it is (null when there is none). */
+    peekStash(uid) {
+      const doc = readJson(storage, STASH_PREFIX + uid);
+      return isDocLike(doc) ? doc : null;
     },
 
     /** The copy set aside for this account (once), or null. */

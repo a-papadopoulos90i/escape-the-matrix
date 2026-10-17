@@ -272,21 +272,36 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await expect(account.locator('.account-signin')).toBeVisible();
     await expect(page.locator('#banner')).toBeVisible();
 
-    // --- Sign in: local ∪ remote → store, localStorage and (reconciled) Firestore ---
+    // --- Sign in: the account opens with its own tasks; the one written signed out waits to be synced ---
     await signInGoogle(page);
     await expect(accountBtn).toBeVisible();
     await expect(accountBtn.locator('.account-name')).toHaveText('Andreas');
     await expect(accountBtn.locator('.account-avatar--initials')).toHaveText('A');
-    await expect(status).toHaveText('Synced ✓');
+    await expect(status).toHaveText('1 task in this browser is waiting to sync');
+    await expect(accountBtn.locator('.account-dot')).toHaveClass(/account-dot--attention/); // red, blinking
     await expect(page.locator('#banner')).toBeHidden();
     expect(await fakeValue(page, 'fake.providerParams')).toEqual({ prompt: 'select_account' });
     expect(await fakeValue(page, 'fake.signedIn.at(-1)')).toBe(true);
+    await expect.poll(() => storeIds(page)).toEqual(['t_remote']);
+
+    // Sync (in the menu header): asked first, then the task moves into the account and leaves the browser.
+    await accountBtn.click();
+    const syncButton = page.locator('.popover--account .account-menu__sync');
+    await expect(syncButton).toHaveText('Sync');
+    await expect(page.locator('.popover--account')).toHaveCSS('opacity', '1');
+    await page.screenshot({ path: path.join(OUT, 'account-menu-sync.png') });
+    await syncButton.click();
+    const syncDialog = page.getByRole('dialog', { name: 'Move these tasks into your account?' });
+    await expect(syncDialog).toContainText('The task saved in this browser moves into andreas@example.com');
+    await syncDialog.getByRole('button', { name: 'Move into my account' }).click();
+    await expect(page.locator('.toast', { hasText: '1 task moved into your account.' })).toBeVisible();
     expect(await storeIds(page)).toEqual(['t_local', 't_remote']);
-    expect(await storedIds(page)).toEqual(['t_local', 't_remote']);
-    await expect.poll(() => fakeValue(page, 'fake.writes.length')).toBe(1);
-    const written = await fakeValue(page, 'fake.writes[0]');
+    await expect.poll(() => storedIds(page)).toEqual(['t_local', 't_remote']); // saves are debounced
+    await expect(status).toHaveText('Synced ✓');
+    await expect(accountBtn.locator('.account-dot')).toHaveClass(/account-dot--synced/);
+    await expect.poll(() => fakeValue(page, 'fake.writes.at(-1).doc.tasks.map((t) => t.id).sort()')).toEqual(['t_local', 't_remote']);
+    const written = await fakeValue(page, 'fake.writes.at(-1)');
     expect(written.email).toBe('andreas@example.com');
-    expect(written.doc.tasks.map((t) => t.id).sort()).toEqual(['t_local', 't_remote']);
     expect(written.updatedAt > REMOTE_ENVELOPE.updatedAt).toBe(true);
 
     // --- Account menu ---
@@ -327,7 +342,7 @@ test.describe('Google mode (fake Firebase SDK)', () => {
       page.evaluate(
         ({ id, offsetMs, metadata }) => {
           const updatedAt = new Date(Date.now() + offsetMs).toISOString();
-          const base = window.__fake.writes[0].doc;
+          const base = window.__fake.writes.at(-1).doc;
           const live = { ...base.tasks[0], id, title: id, updatedAt };
           window.__fake.push({ doc: { ...base, updatedAt, tasks: [live] }, updatedAt, email: 'andreas@example.com' }, metadata);
         },
@@ -336,8 +351,7 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     const MINUTE = 60_000;
     await pushRemote('t_live', MINUTE);
     expect(await storeIds(page)).toEqual(['t_live', 't_local', 't_remote']);
-    await expect.poll(() => fakeValue(page, 'fake.writes.length')).toBe(2);
-    expect((await fakeValue(page, 'fake.writes[1]')).doc.tasks.map((t) => t.id).sort()).toEqual(['t_live', 't_local', 't_remote']);
+    await expect.poll(() => fakeValue(page, 'fake.writes.at(-1).doc.tasks.map((t) => t.id).sort()')).toEqual(['t_live', 't_local', 't_remote']);
     await pushRemote('t_echo', 2 * MINUTE, { hasPendingWrites: true, fromCache: true });
     await pushRemote('t_stale', -365 * 24 * 60 * MINUTE, { hasPendingWrites: false, fromCache: false });
     expect(await storeIds(page)).toEqual(['t_live', 't_local', 't_remote']);
@@ -372,13 +386,14 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await context.setOffline(false);
     await expect(status).toHaveText('Synced ✓');
 
-    // --- Sign out keeps the local copy ---
+    // --- Sign out: the tasks travel with the account — the board is a guest's again ---
     await accountBtn.click();
     await menu.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
     await expect(account.locator('.account-signin')).toBeVisible();
     await expect(page.locator('#banner')).toBeVisible();
     expect(await fakeValue(page, 'fake.signOuts')).toBe(1);
-    expect((await storedIds(page)).length).toBe(4);
+    expect(await storedIds(page)).toEqual([]);
+    expect(await storeIds(page)).toEqual([]);
 
     // --- Sign out & clear this device (confirm first) ---
     await signInGoogle(page);
@@ -525,6 +540,7 @@ test.describe('Google mode (fake Firebase SDK)', () => {
 
   test('Sync with Reminders (personal Mac bridge, opt-in with ?reminders=on): sends tasks, imports, ticks, links', async ({ page }) => {
     await seed(page, { ui: UI_STATE, doc: LOCAL_DOC });
+    await page.addInitScript(() => localStorage.setItem('escape-the-matrix:owner', 'u1')); // this browser's copy is the account's own
     const calls = [];
     await page.route('http://127.0.0.1:47827/**', async (route) => {
       const request = route.request();
@@ -640,7 +656,7 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await expect(dialog).toBeVisible(); // the dialog stays open so the code can be corrected
   });
 
-  test('two accounts on one browser never mix: each signs in to its own tasks, and guest work joins the first', async ({ page }) => {
+  test('two accounts on one browser never mix: each signs in to its own tasks; guest work joins only when synced', async ({ page }) => {
     await seed(page, { ui: UI_STATE, doc: LOCAL_DOC }); // t_local: written signed out, belongs to nobody yet
     await page.goto('/');
     await startFakeSession(page);
@@ -652,11 +668,16 @@ test.describe('Google mode (fake Firebase SDK)', () => {
       await expect(signInBtn(page)).toBeVisible();
     };
 
-    // Account A (Google): the guest task joins it, alongside what A already had.
+    // Account A (Google): its own task only; the guest task joins when A presses Sync.
     await signInGoogle(page);
     await expect(account.locator('.account-btn')).toBeVisible();
+    await expect.poll(() => storeIds(page)).toEqual(['t_remote']);
+    await account.locator('.account-btn').click();
+    await page.locator('.popover--account .account-menu__sync').click();
+    await page.getByRole('dialog', { name: 'Move these tasks into your account?' }).getByRole('button', { name: 'Move into my account' }).click();
     await expect.poll(() => storeIds(page)).toEqual(['t_local', 't_remote']);
     await signOut();
+    await expect.poll(() => storeIds(page)).toEqual([]); // signed out, the board is a guest's
 
     // Account B (say, Apple with a hidden email) signs in on the same browser: only B's own tasks.
     await page.evaluate(() => {
@@ -716,8 +737,9 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await expect(accountBtn).toBeVisible();
     await expect(accountBtn.locator('img.account-avatar')).toHaveAttribute('referrerpolicy', 'no-referrer');
     await expect(accountBtn.locator('.account-name')).toBeHidden();
-    await expect(accountBtn.locator('.sr-only')).toHaveText('Synced ✓');
-    expect(await storeIds(page)).toEqual(['t_local', 't_remote']);
+    // The task written signed out waits to be synced; the account shows its own.
+    await expect(accountBtn.locator('.sr-only')).toHaveText('1 task in this browser is waiting to sync');
+    await expect.poll(() => storeIds(page)).toEqual(['t_remote']);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);
     await page.screenshot({ path: path.join(OUT, 'account-mobile-signed-in.png') });

@@ -19,6 +19,8 @@ const CANCELLED_CODES = new Set(['auth/popup-closed-by-user', 'auth/cancelled-po
 const STATUS_KEYS = { synced: 'account.synced', syncing: 'account.syncing', offline: 'account.offline', error: 'account.syncError' };
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD = 8;
+const GUEST = 'guest'; // where tasks written signed out wait until they are moved into an account
+const liveCount = (doc) => (doc?.tasks ?? []).filter((task) => !task.deleted).length;
 // Firebase's email-and-password errors, in words. Wrong email and wrong password read the same on
 // purpose (and Firebase reports them the same way), so nobody can probe who has an account.
 const EMAIL_ERRORS = {
@@ -73,15 +75,19 @@ function firstName(user) {
  * Renders the account slot. showSignedOut() → Google button; showSignedIn(user, status) → avatar,
  * first name and a status dot that opens the account menu. setStatus() updates in place.
  */
-export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut, onSignOutClear, onClearAccount, onChangePassword, onSyncReminders, onGoPro, providers = ['google', 'apple', 'email'] }) {
+export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut, onSignOutClear, onClearAccount, onChangePassword, onSyncReminders, onGoPro, onSyncGuest, providers = ['google', 'apple', 'email'] }) {
   let plan = 'free'; // shown in the menu; the real answer lives in Firestore
   const { t } = i18n;
   let user = null;
   let status = 'syncing';
   let menu = null;
   let statusNodes = []; // [dot, label] pairs currently on screen
+  let guestTasks = 0; // tasks written signed out, waiting in this browser to be moved into the account
 
-  const statusLabel = () => t(STATUS_KEYS[status] ?? STATUS_KEYS.syncing);
+  // Tasks waiting to be synced outrank the sync status: the dot turns red and blinks until they move.
+  const statusLabel = () =>
+    guestTasks ? t(guestTasks === 1 ? 'account.guestWaitingOne' : 'account.guestWaiting', { n: guestTasks }) : t(STATUS_KEYS[status] ?? STATUS_KEYS.syncing);
+  const dotClass = () => `account-dot account-dot--${guestTasks ? 'attention' : status}`;
 
   function avatar(size) {
     const initial = (user.displayName || user.email || '?').trim().charAt(0).toUpperCase();
@@ -94,10 +100,18 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut
 
   /** A coloured dot + visible label; both tracked so setStatus() can refresh them. */
   function statusRow(className) {
-    const dot = ui.h('span', { class: `account-dot account-dot--${status}`, 'aria-hidden': 'true' });
+    const dot = ui.h('span', { class: dotClass(), 'aria-hidden': 'true' });
     const label = ui.h('span', { class: className }, statusLabel());
     statusNodes.push([dot, label]);
     return [dot, label];
+  }
+
+  function paintStatus() {
+    for (const [dot, label] of statusNodes) {
+      dot.className = dotClass();
+      label.textContent = statusLabel();
+    }
+    slot.querySelector('.account-btn')?.setAttribute('title', `${t('account.menu')} · ${statusLabel()}`);
   }
 
   function closeMenu() {
@@ -174,6 +188,14 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut
           ),
           user.email && ui.h('p', { class: 'account-menu__email' }, user.email),
         ),
+        guestTasks
+          ? ui.h(
+              'button',
+              { class: 'account-menu__sync', type: 'button', title: statusLabel(), onClick: () => (closeMenu(), onSyncGuest()) },
+              ui.icon('refresh', { size: 14 }),
+              t('account.syncGuest'),
+            )
+          : null,
       ),
       list,
     );
@@ -226,11 +248,17 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut
     setStatus(nextStatus) {
       if (!user || !STATUS_KEYS[nextStatus]) return;
       status = nextStatus;
-      for (const [dot, label] of statusNodes) {
-        dot.className = `account-dot account-dot--${status}`;
-        label.textContent = statusLabel();
+      paintStatus();
+    },
+
+    /** How many tasks written signed out wait in this browser (0: none — the dot shows the sync status). */
+    setGuestTasks(count) {
+      guestTasks = count;
+      paintStatus();
+      if (menu && user) {
+        closeMenu();
+        openMenu(slot.querySelector('.account-btn'));
       }
-      slot.querySelector('.account-btn')?.setAttribute('title', `${t('account.menu')} · ${statusLabel()}`);
     },
 
     /** Free or Pro, as Firestore reports it: the menu shows it and hides the code entry once Pro. */
@@ -404,6 +432,11 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
     if (owner && owner !== user.uid) {
       local.stash(owner, store.get());
       store.replace(createEmptyDoc());
+    } else if (!owner && liveCount(store.get())) {
+      // Written signed out: it waits in this browser until the owner chooses to move it in (Sync).
+      const waiting = local.takeStash(GUEST);
+      local.stash(GUEST, waiting ? store.mergeDocs(waiting, store.get()) : store.get());
+      store.replace(createEmptyDoc());
     }
     const stashed = local.takeStash(user.uid);
     if (stashed) store.replace(store.mergeDocs(store.get(), stashed));
@@ -418,6 +451,7 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
     const unsubscribe = store.subscribe((doc, meta) => meta.reason === 'replace' && cloud.reconcile(doc));
     link = { cloud, detach, unsubscribe };
     billing = createBilling({ db, uid: user.uid, firestore: sdk, onPlan: (plan) => view.setPlan(plan) });
+    view.setGuestTasks(liveCount(local.peekStash(GUEST)));
     setBuyer(user); // Go Pro now names this account, so paying turns it Pro without a code
     // Sent here by Go Pro while signed out: now that the account is known, go on to pay.
     const period = takePendingCheckout();
@@ -539,12 +573,38 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
       const ok = await ui.confirm(t('account.clearConfirm'), { title: t('account.signOutClear'), okLabel: t('account.signOutClear'), danger: true });
       if (!ok) return;
     }
+    const uid = auth.currentUser?.uid;
     await withTimeout(store.flush(), FLUSH_TIMEOUT_MS);
     await disconnect();
     await sdk.signOut(auth);
-    if (!clear) return;
-    store.replace(createEmptyDoc());
-    local.clear();
+    if (clear) {
+      store.replace(createEmptyDoc());
+      local.clear();
+      return;
+    }
+    // The account's tasks travel with the account: kept out of sight on this device (so it opens fast
+    // next time), while anything written signed out and never moved in shows again.
+    if (uid) local.stash(uid, store.get());
+    store.replace(local.takeStash(GUEST) ?? createEmptyDoc());
+    local.setOwner(null);
+    await store.flush(); // replace() never saves: write the guest board over the account's copy now
+  }
+
+  /** Sync: the tasks written signed out move into this account and leave the browser. */
+  async function syncGuest() {
+    const waiting = local.peekStash(GUEST);
+    const count = liveCount(waiting);
+    if (!count) return view.setGuestTasks(0);
+    const ok = await ui.confirm(t(count === 1 ? 'account.syncGuestConfirmOne' : 'account.syncGuestConfirm', { n: count, email: auth.currentUser?.email || t('account.thisAccount') }), {
+      title: t('account.syncGuestTitle'),
+      okLabel: t('account.syncGuestOk'),
+    });
+    if (!ok) return;
+    local.takeStash(GUEST);
+    store.replace(store.mergeDocs(store.get(), waiting)); // written back to the account by the reconcile
+    await store.flush(); // …and to this browser's copy of the account
+    view.setGuestTasks(0);
+    ui.toast(t(count === 1 ? 'account.syncGuestDoneOne' : 'account.syncGuestDone', { n: count }));
   }
 
   const reportError = () => ui.toast(t('account.signInError'));
@@ -559,6 +619,7 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
 
   return {
     signIn,
+    syncGuest,
     emailAuth,
     changePassword,
     signOut,
@@ -708,6 +769,7 @@ export async function initAuth({ store, ui, i18n, slot, setSignedIn, config = fi
       return (await session()).emailAuth(payload);
     },
     onChangePassword: () => run(async () => (await session()).changePassword()),
+    onSyncGuest: () => run(async () => (await session()).syncGuest()),
     onSignOut: () => run(async () => (await session()).signOut()),
     onSignOutClear: () => run(async () => (await session()).signOut({ clear: true })),
     onClearAccount: () => run(async () => (await session()).clearAccount()),
