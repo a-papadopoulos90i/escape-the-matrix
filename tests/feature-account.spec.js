@@ -180,9 +180,18 @@ async function startFakeSession(page, { remote = REMOTE_ENVELOPE, signedIn = fal
         },
         onSnapshot: (ref, next) => {
           fake.snapshotListeners.push(next);
+          fake.byPath[ref.path] = next;
           return () => {};
         },
+        // The Refund button's server call.
+        getFunctions: () => ({}),
+        httpsCallable: (functions, name) => async () => {
+          fake.called = name;
+          return { data: fake.refundResult };
+        },
       };
+      fake.byPath = {};
+      fake.snap = (data) => snapshot(data, { hasPendingWrites: false, fromCache: false });
       fake.push = (data, metadata = { hasPendingWrites: false, fromCache: false }) =>
         fake.snapshotListeners.forEach((next) => next(snapshot(data, metadata)));
 
@@ -782,6 +791,40 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await expect(signInBtn(page)).toBeVisible();
     expect(await storeIds(page)).toEqual([]);
     expect(await page.evaluate(() => [localStorage.getItem('escape-the-matrix:v1'), localStorage.getItem('escape-the-matrix:owner')])).toEqual([null, null]);
+  });
+
+  test('Refund from behind the gear, while Pro: asked first, then done by the server — or why not', async ({ page }) => {
+    await seed(page, { ui: UI_STATE });
+    await page.goto('/');
+    await startFakeSession(page, { signedIn: true });
+    const button = page.locator('#account .account-btn');
+    const menu = page.locator('.popover--account');
+    const askRefund = async () => {
+      await button.click();
+      await menu.getByRole('menuitem', { name: 'More account options' }).click();
+      await menu.getByRole('menuitem', { name: 'Refund (within 14 days)' }).click();
+      return page.getByRole('dialog', { name: 'Refund Levelix Pro?' });
+    };
+
+    // Free: nothing to refund, so no button.
+    await button.click();
+    await menu.getByRole('menuitem', { name: 'More account options' }).click();
+    await expect(menu.getByRole('menuitem', { name: 'Refund (within 14 days)' })).toHaveCount(0);
+    await page.keyboard.press('Escape');
+
+    // Pro (what the webhook wrote): the button appears.
+    await page.evaluate(() => window.__fake.byPath['billing/u1'](window.__fake.snap({ plan: 'pro', period: 'monthly', currentPeriodEnd: new Date(Date.now() + 30 * 86_400_000).toISOString(), source: 'stripe' })));
+    await page.evaluate(() => (window.__fake.refundResult = { status: 'refunded', amount: 480, currency: 'eur' }));
+    let dialog = await askRefund();
+    await expect(dialog).toContainText('You get the full amount back to the card you paid with');
+    await dialog.getByRole('button', { name: 'Refund me' }).click();
+    await expect(page.locator('.toast', { hasText: 'Refund on its way: €4,80 back to your card. Pro has ended.' })).toBeVisible();
+    expect(await fakeValue(page, 'fake.called')).toBe('requestRefund');
+
+    await page.evaluate(() => (window.__fake.refundResult = { status: 'too-late', paidAt: '2026-09-01T10:00:00.000Z' }));
+    dialog = await askRefund();
+    await dialog.getByRole('button', { name: 'Refund me' }).click();
+    await expect(page.locator('.toast', { hasText: 'Refunds are possible within 14 days of paying — yours was on 1 September 2026.' })).toBeVisible();
   });
 
   test('Go Pro on Home while signed out: sign in first, then straight on to the checkout with the account', async ({ page }) => {

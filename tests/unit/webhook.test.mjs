@@ -252,3 +252,75 @@ test('deleting an account removes its planner and Pro state, nothing else', asyn
   assert.deepEqual(deleted, ['users/user_abc123', 'billing/user_abc123']); // sales and vouchers stay
   assert.deepEqual(await createCleanup({ db })(''), []);
 });
+
+// ---------- Refund from the app ----------
+
+function refundHarness({ sales = {}, vouchers = {}, now = new Date('2026-10-20T10:00:00.000Z') } = {}) {
+  const data = { sales: structuredClone(sales), vouchers: structuredClone(vouchers) };
+  const snapshot = (id, value) => ({ id, exists: value !== undefined, data: () => structuredClone(value) });
+  const db = {
+    collection: (name) => ({
+      where: (field, _op, value) => ({
+        get: async () => ({ docs: Object.entries(data[name]).filter(([, doc]) => doc[field] === value).map(([id, doc]) => snapshot(id, doc)) }),
+      }),
+      doc: (id) => ({
+        get: async () => snapshot(id, data[name][id]),
+        update: async (patch) => void (data[name][id] = { ...data[name][id], ...patch }),
+      }),
+    }),
+  };
+  const calls = [];
+  return { data, calls, refund: createRefunds({ db, stripeRefund: async (args) => calls.push(args), now: () => now }) };
+}
+
+const { createRefunds, stripeRefunder, REFUND_DAYS } = await import('../../functions/refund.js');
+
+test('Refund: the latest purchase within 14 days is refunded at Stripe, once, and marked', async () => {
+  const { data, calls, refund } = refundHarness({
+    sales: {
+      cs_old: { uid: 'u1', paymentIntent: 'pi_old', createdAt: '2026-09-01T10:00:00.000Z', amount: 480, currency: 'eur', refundedAt: null },
+      cs_new: { uid: 'u1', paymentIntent: 'pi_new', createdAt: '2026-10-17T22:56:55.605Z', amount: 480, currency: 'eur', period: 'monthly', refundedAt: null },
+      cs_other: { uid: 'u2', paymentIntent: 'pi_other', createdAt: '2026-10-19T10:00:00.000Z', amount: 2800, currency: 'eur', refundedAt: null },
+    },
+  });
+  assert.equal(REFUND_DAYS, 14);
+  assert.deepEqual(await refund('u1'), { status: 'refunded', amount: 480, currency: 'eur', period: 'monthly' });
+  assert.deepEqual(calls, [{ paymentIntent: 'pi_new', idempotencyKey: 'levelix-refund-cs_new', metadata: { uid: 'u1', sale: 'cs_new' } }]);
+  assert.equal(data.sales.cs_new.refundRequestedAt, '2026-10-20T10:00:00.000Z');
+  assert.equal(data.sales.cs_other.refundRequestedAt, undefined); // another account's purchase is never touched
+});
+
+test('Refund: a purchase older than 14 days, or none at all, is not refunded', async () => {
+  const late = refundHarness({ sales: { cs_1: { uid: 'u1', paymentIntent: 'pi_1', createdAt: '2026-10-01T10:00:00.000Z', refundedAt: null } } });
+  assert.deepEqual(await late.refund('u1'), { status: 'too-late', paidAt: '2026-10-01T10:00:00.000Z' });
+  assert.equal(late.calls.length, 0);
+
+  const done = refundHarness({ sales: { cs_1: { uid: 'u1', paymentIntent: 'pi_1', createdAt: '2026-10-19T10:00:00.000Z', refundedAt: '2026-10-19T12:00:00.000Z' } } });
+  assert.deepEqual(await done.refund('u1'), { status: 'none' });
+  assert.deepEqual(await refundHarness().refund('u1'), { status: 'none' });
+});
+
+test('Refund: a purchase made with a code counts for the account that redeemed it', async () => {
+  const { calls, refund } = refundHarness({
+    sales: { cs_code: { uid: null, code: 'LVXAAAA22222', paymentIntent: 'pi_code', createdAt: '2026-10-18T10:00:00.000Z', amount: 2800, currency: 'eur', refundedAt: null } },
+    vouchers: { LVXAAAA22222: { redeemedBy: 'u1', sale: 'cs_code' } },
+  });
+  assert.equal((await refund('u1')).status, 'refunded');
+  assert.equal(calls[0].paymentIntent, 'pi_code');
+});
+
+test('the Stripe call: one form POST with an idempotency key; an already refunded charge is fine', async () => {
+  const seen = [];
+  const ok = stripeRefunder('rk_test', async (url, init) => (seen.push({ url, init }), { ok: true }));
+  await ok({ paymentIntent: 'pi_1', idempotencyKey: 'levelix-refund-cs_1', metadata: { uid: 'u1' } });
+  assert.equal(seen[0].url, 'https://api.stripe.com/v1/refunds');
+  assert.equal(seen[0].init.headers['Idempotency-Key'], 'levelix-refund-cs_1');
+  assert.equal(seen[0].init.headers.Authorization, 'Bearer rk_test');
+  assert.equal(seen[0].init.body.get('payment_intent'), 'pi_1');
+  assert.equal(seen[0].init.body.get('metadata[uid]'), 'u1');
+
+  const already = stripeRefunder('rk_test', async () => ({ ok: false, status: 400, json: async () => ({ error: { code: 'charge_already_refunded' } }) }));
+  await already({ paymentIntent: 'pi_1', idempotencyKey: 'k' });
+  const broken = stripeRefunder('rk_test', async () => ({ ok: false, status: 401, json: async () => ({ error: { message: 'Invalid API Key' } }) }));
+  await assert.rejects(() => broken({ paymentIntent: 'pi_1', idempotencyKey: 'k' }), /Invalid API Key/);
+});

@@ -5,6 +5,7 @@
 // written to Firestore *and* localStorage while Firestore snapshots flow back into the store.
 // The Firebase SDK is imported lazily and only when a config exists, so free mode never loads it.
 import { firebaseConfig, authProviders } from './firebase-config.js';
+import * as dates from './dates.js';
 import { createEmptyDoc } from './store.js';
 import { createLocalAdapter } from './storage/local.js';
 import { createCloudAdapter } from './storage/cloud.js';
@@ -14,7 +15,7 @@ import { capturePayReturn, checkoutUrl, REDEEM_EVENT, setBuyer, SIGNIN_FOR_PRO_E
 import { isPro, onPlanChange } from './plan.js';
 
 const SDK_BASE = 'https://www.gstatic.com/firebasejs/10.14.1/';
-const SDK_MODULES = ['firebase-app.js', 'firebase-auth.js', 'firebase-firestore.js'];
+const SDK_MODULES = ['firebase-app.js', 'firebase-auth.js', 'firebase-firestore.js', 'firebase-functions.js'];
 const CANCELLED_CODES = new Set(['auth/popup-closed-by-user', 'auth/cancelled-popup-request', 'auth/user-cancelled']);
 const STATUS_KEYS = { synced: 'account.synced', syncing: 'account.syncing', offline: 'account.offline', error: 'account.syncError' };
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -84,7 +85,7 @@ function firstName(user) {
  * Renders the account slot. showSignedOut() → Google button; showSignedIn(user, status) → avatar,
  * first name and a status dot that opens the account menu. setStatus() updates in place.
  */
-export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut, onSignOutClear, onClearAccount, onChangePassword, onSyncReminders, onGoPro, onSyncGuest, onLink, onDeleteAccount, providers = ['google', 'apple', 'email'] }) {
+export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut, onSignOutClear, onClearAccount, onChangePassword, onSyncReminders, onGoPro, onSyncGuest, onLink, onDeleteAccount, onRefund, providers = ['google', 'apple', 'email'] }) {
   let plan = 'free'; // shown in the menu; the real answer lives in Firestore
   const { t } = i18n;
   let user = null;
@@ -147,6 +148,7 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut
         .filter((provider) => providers.includes(provider) && !linkedProviders(user).includes(provider))
         .map((provider) => menuItem(t(provider === 'apple' ? 'account.connectApple' : 'account.connectGoogle'), () => onLink(provider))),
       hasPassword(user) && menuItem(t('account.changePassword'), onChangePassword),
+      plan === 'pro' && menuItem(t('refund.menu'), onRefund), // within 14 days of paying; the server decides
       menuItem(t('account.clearAccount'), onClearAccount, true),
       menuItem(t('account.signOutClear'), onSignOutClear, true),
       menuItem(t('account.deleteAccount'), onDeleteAccount, true),
@@ -616,6 +618,32 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
     ui.toast(t('account.deleted'), { duration: 8000 });
   }
 
+  /**
+   * Refund: within 14 days of paying, the latest purchase is refunded in full by the requestRefund
+   * function, and Pro ends as soon as Stripe confirms (the webhook takes the paid time back).
+   */
+  async function refund() {
+    const ok = await ui.confirm(t('refund.confirm'), { title: t('refund.title'), okLabel: t('refund.ok'), danger: true });
+    if (!ok) return;
+    const call = sdk.httpsCallable(sdk.getFunctions(app, 'europe-west1'), 'requestRefund');
+    let result;
+    try {
+      result = (await call()).data ?? {};
+    } catch {
+      ui.toast(t('refund.failed'), { duration: 12000 });
+      return;
+    }
+    if (result.status === 'refunded') {
+      const amount = `€${(Number(result.amount) / 100).toFixed(2).replace('.', ',')}`;
+      ui.toast(t('refund.done', { amount }), { duration: 12000 });
+    } else if (result.status === 'too-late') {
+      const paid = dates.formatLong(dates.todayKey(new Date(result.paidAt))).split(', ')[1];
+      ui.toast(t('refund.tooLate', { date: paid }), { duration: 15000 });
+    } else {
+      ui.toast(t('refund.none'), { duration: 10000 });
+    }
+  }
+
   /** Change password: the same safe route as "Forgot password?" — a link to the account's own address. */
   async function changePassword() {
     const email = auth.currentUser?.email;
@@ -713,6 +741,7 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
     syncGuest,
     linkProvider,
     deleteAccount,
+    refund,
     emailAuth,
     changePassword,
     signOut,
@@ -869,6 +898,7 @@ export async function initAuth({ store, ui, i18n, slot, setSignedIn, config = fi
     onSyncGuest: () => run(async () => (await session()).syncGuest()),
     onLink: (provider) => run(async () => (await session()).linkProvider(provider)),
     onDeleteAccount: () => run(async () => (await session()).deleteAccount()),
+    onRefund: () => run(async () => (await session()).refund()),
     onSignOut: () => run(async () => (await session()).signOut()),
     onSignOutClear: () => run(async () => (await session()).signOut({ clear: true })),
     onClearAccount: () => run(async () => (await session()).clearAccount()),
