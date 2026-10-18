@@ -72,10 +72,15 @@ Public repository — no secrets, passwords, keys or customer data here.
   **Refund** button works only for a real payment within 14 days; otherwise it stays disabled with the reason.
   **Connect Apple removed too** — each sign-in method is its own account. The webhook now **emails the buyer on a
   refund**; the code email points to Home → "I have a code" (the account menu no longer has it).
+- **2026-10-18 — Connect back, plus Switch account (v=113).** The owner had removed Connect thinking it switched
+  accounts. Clarified: **Connect** (gear → Connect Apple / Connect Google, whichever the account lacks) adds a second
+  way into the *same* account; **Switch account** (main account menu) signs out and opens the sign-in at once, to
+  another account whose tasks stay apart. Both kept. Lesson: before removing a feature, explain what it does.
 
 ## Open items
 
-- The owner's duplicate Apple account (privaterelay) can simply be deleted — linking accounts no longer exists.
+- The owner's main Google account can have **Apple connected**: sign in with Apple → gear → Delete account (the
+  duplicate), then sign in with Google → gear → Connect Apple. Two Apple accounts exist (probably two Apple IDs).
 - Check that Stripe's own customer emails (payment receipt, refund) are switched on in Stripe → Settings →
   Customer emails, if the owner wants Stripe receipts besides ours.
 - VAT / invoices (myDATA) — for the owner's accountant; Stripe Tax monitors thresholds only.

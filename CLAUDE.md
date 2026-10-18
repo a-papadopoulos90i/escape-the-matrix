@@ -14,6 +14,8 @@ into it — in code, docs, commits or logs.
   is genuinely his (money, accounts, deleting things, what the product should do).
 - **Measure, don't eyeball** layout: probe `getBoundingClientRect()` in the real browser, fix the one cause,
   report before/after numbers. Keep small fixes small.
+- Before removing a feature he asks to drop, say in one line what it does — he once removed Connect thinking it
+  switched accounts.
 - Things only he does: payments with his card, entering passwords/keys/secrets (`firebase functions:secrets:set`,
   the Apple `.p8`), deleting accounts or projects, DNS edits at Papaki (the auto-mode classifier blocks them).
 - Don't touch his other projects (another Vite preview often holds port 4173).
@@ -78,7 +80,8 @@ Check: `curl -s https://levelix.eu/ | grep -o 'v=[0-9]*' | head -1`.
   red and blinks, and **Sync** in the account card moves them in after a confirmation.
 - Two accounts on one browser never mix (the browser copy has an owner; others are set aside). Sign out shows a
   guest board; "Sign out & clear this device" removes everything local.
-- Gear menu: Change password (email accounts), then the red ones with icons — Clear account (broom), Delete
-  account (trash), Sign out & clear this device (last). **No account linking** (no Connect Google/Apple): each
-  sign-in method is its own account. **Refund policy** is the last item of the account menu (and in Home's footer):
+- Main account menu: Go Pro, **Switch account** (signs out, opens the sign-in: another account, tasks apart), Sign
+  out + gear. Gear: **Connect Apple / Connect Google** (whichever the account lacks — a second way into the *same*
+  account), Change password (email accounts), then red items with icons: Clear account (broom), Delete account
+  (trash), Sign out & clear this device (last). **Refund policy** is the last item of the account menu (and Home's footer):
   its Refund button works only for a real payment within 14 days (server check first).

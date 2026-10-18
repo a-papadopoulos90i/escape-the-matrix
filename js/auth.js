@@ -67,6 +67,12 @@ const hasPassword = (user) => (user?.providerData ?? []).some((info) => info?.pr
 /** The sign-in methods this account already has: 'google', 'apple', 'password'. */
 const linkedProviders = (user) =>
   (user?.providerData ?? []).map((info) => ({ 'google.com': 'google', 'apple.com': 'apple', password: 'password' })[info?.providerId]).filter(Boolean);
+const LINK_ERRORS = {
+  'auth/credential-already-in-use': 'account.linkTaken',
+  'auth/email-already-in-use': 'account.linkTaken',
+  'auth/account-exists-with-different-credential': 'account.linkTaken',
+  'auth/provider-already-linked': 'account.linkAlready',
+};
 
 function firstName(user) {
   const name = (user.displayName || '').trim();
@@ -79,7 +85,7 @@ function firstName(user) {
  * Renders the account slot. showSignedOut() → Google button; showSignedIn(user, status) → avatar,
  * first name and a status dot that opens the account menu. setStatus() updates in place.
  */
-export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut, onSignOutClear, onClearAccount, onChangePassword, onSyncReminders, onGoPro, onSyncGuest, onDeleteAccount, onRefundPolicy, providers = ['google', 'apple', 'email'] }) {
+export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut, onSignOutClear, onClearAccount, onChangePassword, onSyncReminders, onGoPro, onSyncGuest, onLink, onSwitch, onDeleteAccount, onRefundPolicy, providers = ['google', 'apple', 'email'] }) {
   let plan = 'free'; // shown in the menu; the real answer lives in Firestore
   const { t } = i18n;
   let user = null;
@@ -138,6 +144,10 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut
     const danger = ui.h(
       'div',
       { class: 'account-menu__danger', id: 'account-danger', hidden: true },
+      // Connect: another way into THIS account (same tasks, same Pro) — Google or Apple, whichever it lacks.
+      ...['google', 'apple']
+        .filter((provider) => providers.includes(provider) && !linkedProviders(user).includes(provider))
+        .map((provider) => menuItem(t(provider === 'apple' ? 'account.connectApple' : 'account.connectGoogle'), () => onLink(provider))),
       hasPassword(user) && menuItem(t('account.changePassword'), onChangePassword),
       menuItem(t('account.clearAccount'), onClearAccount, true, 'broom'),
       menuItem(t('account.deleteAccount'), onDeleteAccount, true, 'trash'),
@@ -166,6 +176,8 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut
       // stopped days ago is visible at a glance.
       remindersEnabled() && menuItem(lastSyncAgo() ? t('reminders.syncAgo', { ago: lastSyncAgo() }) : t('reminders.sync'), onSyncReminders),
       plan !== 'pro' && menuItem(t('plan.goPro'), onGoPro),
+      // Switch: to ANOTHER account, whose tasks stay apart from these.
+      menuItem(t('account.switch'), onSwitch),
       ui.h('div', { class: 'account-menu__signout' }, menuItem(t('account.signOut'), onSignOut), gear),
       danger,
       // Last, quietly: what the refund rules are, and whether this account's payment can be refunded.
@@ -361,7 +373,7 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut
     const content = ui.h(
       'div',
       { class: 'signin' },
-      ui.h('p', { class: 'signin__subtitle text-muted' }, t(reason === 'pro' ? 'account.signInForPro' : 'account.signInSubtitle')),
+      ui.h('p', { class: 'signin__subtitle text-muted' }, t({ pro: 'account.signInForPro', switch: 'account.switchSubtitle' }[reason] ?? 'account.signInSubtitle')),
       // Only the providers this deployment has switched on (firebase-config.js → authProviders).
       providers.includes('google') && option('google', 'account.continueGoogle', () => choose({ provider: 'google' }), 'google'),
       providers.includes('apple') && option('apple', 'account.continueApple', () => choose({ provider: 'apple' }), 'apple'),
@@ -533,6 +545,23 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
     return 'signed-in';
   }
 
+  /**
+   * Connect Google or Apple to the signed-in account, so either button opens it. A Google or Apple
+   * login that already has its own Levelix account cannot be joined in — that account goes first.
+   */
+  async function linkProvider(provider) {
+    const authProvider = provider === 'apple' ? appleProvider() : googleProvider();
+    try {
+      const result = await sdk.linkWithPopup(auth.currentUser, authProvider);
+      view.updateUser(result?.user ?? auth.currentUser);
+      ui.toast(t(provider === 'apple' ? 'account.linkedApple' : 'account.linkedGoogle'), { duration: 8000 });
+    } catch (error) {
+      if (CANCELLED_CODES.has(error?.code)) return;
+      if (error?.code === 'auth/popup-blocked') return sdk.linkWithRedirect(auth.currentUser, authProvider);
+      ui.toast(t(LINK_ERRORS[error?.code] ?? 'account.linkFailed', { provider: provider === 'apple' ? 'Apple' : 'Google' }), { duration: 12000 });
+    }
+  }
+
   /** Google's rule for deleting an account: a recent sign-in. Asks for it the way this account signs in. */
   async function signInAgain(user) {
     const methods = linkedProviders(user);
@@ -697,6 +726,7 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
   return {
     signIn,
     syncGuest,
+    linkProvider,
     deleteAccount,
     refundStatus,
     refundNow,
@@ -924,6 +954,13 @@ export async function initAuth({ store, ui, i18n, slot, setSignedIn, config = fi
     onSyncGuest: () => run(async () => (await session()).syncGuest()),
     onDeleteAccount: () => run(async () => (await session()).deleteAccount()),
     onRefundPolicy: () => openRefundPolicy({ ui, i18n, session: config ? session : null, onSignIn: () => view.openSignIn() }),
+    onLink: (provider) => run(async () => (await session()).linkProvider(provider)),
+    // Switch account: sign out as usual (this account's tasks stay with it), then straight to the sign-in.
+    onSwitch: () =>
+      run(async () => {
+        await (await session()).signOut();
+        view.openSignIn({ reason: 'switch' });
+      }),
     onSignOut: () => run(async () => (await session()).signOut()),
     onSignOutClear: () => run(async () => (await session()).signOut({ clear: true })),
     onClearAccount: () => run(async () => (await session()).clearAccount()),

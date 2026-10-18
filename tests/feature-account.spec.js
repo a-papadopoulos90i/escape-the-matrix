@@ -351,21 +351,24 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await expect(menu.getByRole('menuitem', { name: 'I have a code' })).toHaveCount(0);
     await expect(menu.getByRole('menuitem', { name: 'Clear account' })).toBeHidden();
     await page.keyboard.press('ArrowDown');
+    await expect(menu.getByRole('menuitem', { name: 'Switch account' })).toBeFocused();
+    await page.keyboard.press('ArrowDown');
     await expect(menu.getByRole('menuitem', { name: 'Sign out', exact: true })).toBeFocused();
     await page.keyboard.press('ArrowDown');
     const gear = menu.getByRole('menuitem', { name: 'More account options' });
     await expect(gear).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(gear).toHaveAttribute('aria-expanded', 'true');
-    await expect(menu.getByRole('menuitem', { name: 'Clear account' })).toBeFocused(); // nothing to connect, no password to change
+    await expect(menu.getByRole('menuitem', { name: 'Connect Apple' })).toBeFocused(); // signed in with Google: Apple can join
+    await page.keyboard.press('ArrowDown');
+    await expect(menu.getByRole('menuitem', { name: 'Clear account' })).toBeFocused();
     await page.keyboard.press('ArrowDown');
     await expect(menu.getByRole('menuitem', { name: 'Delete account' })).toBeFocused();
     await page.keyboard.press('ArrowDown');
     // The long one closes the menu, and every red item carries its own picture.
     await expect(menu.getByRole('menuitem', { name: 'Sign out & clear this device' })).toBeFocused();
     await expect(menu.locator('.menu__item--danger svg')).toHaveCount(3);
-    await expect(menu.getByRole('menuitem', { name: 'Connect Google' })).toHaveCount(0);
-    await expect(menu.getByRole('menuitem', { name: 'Connect Apple' })).toHaveCount(0);
+    await expect(menu.getByRole('menuitem', { name: 'Connect Google' })).toHaveCount(0); // it signed in with Google
     await page.keyboard.press('ArrowDown');
     await expect(menu.getByRole('menuitem', { name: 'Refund policy' })).toBeFocused(); // last, outside the gear
     await expect(menu).toHaveCSS('opacity', '1');
@@ -739,6 +742,44 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await signInGoogle(page);
     await expect(account.locator('.account-name')).toHaveText('Andreas');
     await expect.poll(() => storeIds(page)).toEqual(['t_local', 't_remote']);
+  });
+
+  test('Connect Apple from behind the gear: either button then opens this account; a login with its own account is refused', async ({ page }) => {
+    await seed(page, { ui: UI_STATE });
+    await page.goto('/');
+    await startFakeSession(page, { signedIn: true });
+    const button = page.locator('#account .account-btn');
+    const menu = page.locator('.popover--account');
+    const gear = async () => {
+      await button.click();
+      await menu.getByRole('menuitem', { name: 'More account options' }).click();
+    };
+
+    await gear();
+    await expect(menu.getByRole('menuitem', { name: 'Connect Google' })).toHaveCount(0); // it signed in with Google
+    await page.evaluate(() => (window.__fake.linkError = 'auth/credential-already-in-use'));
+    await menu.getByRole('menuitem', { name: 'Connect Apple' }).click();
+    await expect(page.locator('.toast', { hasText: 'That Apple login already has its own Levelix account' })).toBeVisible();
+
+    await page.evaluate(() => (window.__fake.linkError = null));
+    await gear();
+    await menu.getByRole('menuitem', { name: 'Connect Apple' }).click();
+    await expect(page.locator('.toast', { hasText: 'Apple is connected — either button now opens this account.' })).toBeVisible();
+    expect(await fakeValue(page, 'fake.linked')).toBe('apple.com');
+    await gear();
+    await expect(menu.getByRole('menuitem', { name: 'Connect Apple' })).toHaveCount(0);
+  });
+
+  test('Switch account: signs out (this account keeps its tasks) and opens the sign-in straight away', async ({ page }) => {
+    await seed(page, { ui: UI_STATE });
+    await page.goto('/');
+    await startFakeSession(page, { signedIn: true });
+    await page.locator('#account .account-btn').click();
+    await page.locator('.popover--account').getByRole('menuitem', { name: 'Switch account' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Sign in' });
+    await expect(dialog).toContainText('Choose the account to open. Each account keeps its own tasks and Pro.');
+    await expect(page.locator('#account .account-name')).toHaveCount(0); // signed out underneath
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('escape-the-matrix:v1:u1') !== null)).toBe(true); // its copy set aside
   });
 
   test('Delete account: asked first (signing in again when Google wants it), then the account and this device are cleared', async ({ page }) => {
