@@ -15,33 +15,64 @@ function docWith(updatedAt, ...tasks) {
   return { ...createEmptyDoc(), updatedAt, tasks };
 }
 
-/** In-memory stand-in for the four Firestore functions cloud.js uses. */
+/**
+ * In-memory stand-in for the Firestore functions cloud.js uses: the root document, its months
+ * subcollection, and batched writes. Every committed batch is also recorded in `writes` as the account
+ * it leaves behind — { doc, updatedAt, email } — so tests read what the server now holds.
+ */
 function fakeFirestore(initial = null) {
-  const state = { data: initial, writes: [], listeners: [], readError: null, writeError: null };
+  const state = { data: initial, months: new Map(), writes: [], batches: [], listeners: [], monthListeners: [], readError: null, writeError: null };
   const snapshot = (data, metadata = { hasPendingWrites: false, fromCache: false }) => ({
     exists: () => data !== null,
     data: () => data,
     metadata,
   });
+  const monthsSnapshot = (metadata = { hasPendingWrites: false, fromCache: false }) => ({
+    docs: [...state.months].map(([id, tasks]) => ({ id, data: () => ({ tasks }) })),
+    metadata,
+  });
+  const allTasks = () => [...state.months.values()].flat();
   const firestore = {
-    doc: (db, collection, id) => ({ path: `${collection}/${id}` }),
+    doc: (db, ...segments) => ({ path: segments.join('/') }),
+    collection: (db, ...segments) => ({ path: segments.join('/') }),
     async getDoc() {
       if (state.readError) throw state.readError;
       return snapshot(state.data);
     },
-    async setDoc(ref, data) {
-      if (state.writeError) throw state.writeError;
-      state.data = data;
-      state.writes.push(data);
+    async getDocs() {
+      if (state.readError) throw state.readError;
+      return monthsSnapshot();
+    },
+    writeBatch() {
+      const ops = [];
+      return {
+        set: (ref, data) => ops.push({ kind: 'set', ref, data }),
+        delete: (ref) => ops.push({ kind: 'delete', ref }),
+        async commit() {
+          if (state.writeError) throw state.writeError;
+          let root = null;
+          for (const op of ops) {
+            const month = op.ref.path.split('/months/')[1];
+            if (!month) root = op.data;
+            else if (op.kind === 'delete') state.months.delete(month);
+            else state.months.set(month, op.data.tasks);
+          }
+          if (root) state.data = root;
+          state.batches.push(ops.map((op) => `${op.kind} ${op.ref.path}`));
+          state.writes.push({ doc: { settings: root?.settings ?? {}, tasks: allTasks() }, updatedAt: root?.updatedAt, email: root?.email });
+        },
+      };
     },
     onSnapshot(ref, next, error) {
       const listener = { next, error };
-      state.listeners.push(listener);
-      return () => state.listeners.splice(state.listeners.indexOf(listener), 1);
+      const list = ref.path.endsWith('/months') ? state.monthListeners : state.listeners;
+      list.push(listener);
+      return () => list.splice(list.indexOf(listener), 1);
     },
   };
   const push = (data, metadata) => state.listeners.forEach((listener) => listener.next(snapshot(data, metadata)));
-  return { firestore, state, push };
+  const pushMonths = (metadata) => state.monthListeners.forEach((listener) => listener.next(monthsSnapshot(metadata)));
+  return { firestore, state, push, pushMonths };
 }
 
 function adapterFor(fake, options = {}) {
@@ -175,9 +206,9 @@ test('onRemote applies only versions newer than the last one written or applied'
   const applied = [];
   cloud.onRemote((doc) => applied.push(ids(doc)));
 
-  fake.push({ doc: docWith(T(2), task('same')), updatedAt: T(2), email: null });
+  fake.push({ doc: docWith(T(2), task('r')), updatedAt: T(2), email: null });
   fake.push({ doc: docWith(T(1), task('older')), updatedAt: T(1), email: null });
-  assert.deepEqual(applied, [], 'same or older versions are ignored');
+  assert.deepEqual(applied, [], 'the same version with nothing new, and older versions, are ignored');
 
   fake.push({ doc: docWith(T(4), task('newer')), updatedAt: T(4), email: null });
   assert.deepEqual(applied, [['newer']]);
@@ -276,4 +307,69 @@ test('dispose() stops listening, drops queued writes and resolves pending saves'
   assert.deepEqual(applied, []);
   await cloud.save(docWith(T(3), task('b')));
   assert.equal(fake.state.writes.length, 0, 'saves after dispose are no-ops');
+});
+
+// ---------- One document per month ----------
+
+const at = (id, date, updatedAt = T(1)) => ({ ...task(id, updatedAt), date });
+
+test('a save writes the root and one document per month of tasks', async () => {
+  const fake = fakeFirestore(null);
+  const { cloud } = adapterFor(fake);
+  await cloud.load();
+  await cloud.save(docWith(T(3), at('a', '2026-03-02'), at('b', '2026-03-30'), at('c', '2026-04-01')));
+  assert.deepEqual([...fake.state.months.keys()].sort(), ['2026-03', '2026-04']);
+  assert.deepEqual(fake.state.months.get('2026-03').map((t) => t.id), ['a', 'b']);
+  assert.deepEqual(Object.keys(fake.state.data).sort(), ['email', 'format', 'settings', 'updatedAt']); // no tasks in the root
+  assert.equal(fake.state.data.format, 2);
+});
+
+test('a later save rewrites only the months that changed; a task moving month moves in the same batch', async () => {
+  const fake = fakeFirestore(null);
+  const { cloud } = adapterFor(fake);
+  await cloud.load();
+  await cloud.save(docWith(T(3), at('a', '2026-03-02'), at('c', '2026-04-01')));
+  await cloud.save(docWith(T(3), at('a', '2026-03-02'), at('c', '2026-04-01', T(2)), at('n', '2026-04-09')));
+  assert.deepEqual(fake.state.batches[1].sort(), ['set users/u1', 'set users/u1/months/2026-04'], 'March was left alone');
+
+  await cloud.save(docWith(T(3), at('a', '2026-05-01', T(3)), at('c', '2026-04-01', T(2)), at('n', '2026-04-09')));
+  assert.deepEqual(fake.state.batches[2].sort(), ['delete users/u1/months/2026-03', 'set users/u1', 'set users/u1/months/2026-05']);
+  assert.deepEqual(ids(fake.state.writes.at(-1).doc), ['a', 'c', 'n']);
+});
+
+test('an account in the old single-document format is read whole, and moves to months with its next write', async () => {
+  const legacy = docWith(T(2), at('old1', '2026-02-10'), at('old2', '2026-03-01'));
+  const fake = fakeFirestore({ doc: legacy, updatedAt: T(2), email: 'a@example.com' });
+  const { cloud } = adapterFor(fake);
+  assert.deepEqual(ids(await cloud.load()), ['old1', 'old2']);
+  cloud.reconcile({ ...legacy, tasks: [...legacy.tasks, at('new', '2026-03-05')] });
+  await cloud.flush();
+  assert.equal(fake.state.data.doc, undefined, 'the old whole-document copy is gone from the root');
+  assert.deepEqual([...fake.state.months.keys()].sort(), ['2026-02', '2026-03']);
+  assert.deepEqual(ids(fake.state.writes.at(-1).doc), ['new', 'old1', 'old2']);
+});
+
+test('the root and the months arrive as separate snapshots: a month landing after its root still reaches the store', async () => {
+  const fake = fakeFirestore(null);
+  const { cloud } = adapterFor(fake);
+  await cloud.load();
+  const applied = [];
+  cloud.onRemote((doc) => applied.push(ids(doc)));
+  // Another device wrote version T(5): its root shows up first, its month a moment later.
+  fake.state.data = { format: 2, settings: {}, updatedAt: T(5), email: null };
+  fake.push(fake.state.data);
+  fake.state.months.set('2026-03', [at('fromPhone', '2026-03-09', T(5))]);
+  fake.pushMonths();
+  assert.deepEqual(applied, [[], ['fromPhone']]);
+  fake.pushMonths(); // the same content again changes nothing
+  assert.deepEqual(applied, [[], ['fromPhone']]);
+});
+
+test('the same task in two months (caught while moving) is read once, as its newer copy', async () => {
+  const fake = fakeFirestore({ format: 2, settings: {}, updatedAt: T(5), email: null });
+  fake.state.months.set('2026-03', [at('moved', '2026-03-31', T(1))]);
+  fake.state.months.set('2026-04', [at('moved', '2026-04-01', T(4))]);
+  const { cloud } = adapterFor(fake);
+  const doc = await cloud.load();
+  assert.deepEqual(doc.tasks.map((t) => [t.id, t.date]), [['moved', '2026-04-01']]);
 });

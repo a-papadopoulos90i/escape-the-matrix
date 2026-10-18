@@ -1,25 +1,40 @@
 rules_version = '2';
 
-// Escape the Matrix — Firestore security rules.
-// Each signed-in user owns exactly one document, users/{uid} = { doc, updatedAt, email }.
-// Only that user may read or write it; every other path is denied.
+// Levelix — Firestore security rules.
+// Each signed-in user owns their account: users/{uid} = { format: 2, settings, updatedAt, email } and one
+// document per month of tasks, users/{uid}/months/{YYYY-MM} = { tasks, updatedAt }. Only that user may read
+// or write them; every other path is denied. (The old single-document shape { doc, updatedAt, email } is
+// still accepted while browsers holding an older copy of the app catch up.)
 service cloud.firestore {
   match /databases/{database}/documents {
     function isOwner(uid) {
       return request.auth != null && request.auth.uid == uid;
     }
 
-    // The app writes the whole envelope every time; keep it to the known shape.
-    function isEnvelope() {
+    // The root of an account: the current shape, or the old whole-document envelope.
+    function isRoot() {
       let data = request.resource.data;
-      return data.keys().hasOnly(['doc', 'updatedAt', 'email'])
-        && data.doc is map
+      return data.updatedAt is string
+        && ((data.keys().hasOnly(['format', 'settings', 'updatedAt', 'email']) && data.format == 2 && data.settings is map)
+          || (data.keys().hasOnly(['doc', 'updatedAt', 'email']) && data.doc is map));
+    }
+
+    function isMonth(month) {
+      let data = request.resource.data;
+      return month.matches('^([0-9]{4}-[0-9]{2}|undated)$')
+        && data.keys().hasOnly(['tasks', 'updatedAt'])
+        && data.tasks is list
         && data.updatedAt is string;
     }
 
     match /users/{uid} {
       allow read, delete: if isOwner(uid);
-      allow create, update: if isOwner(uid) && isEnvelope();
+      allow create, update: if isOwner(uid) && isRoot();
+
+      match /months/{month} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid) && isMonth(month);
+      }
     }
 
     // A voucher code is itself the secret: the Stripe webhook makes it (as admin) and emails it; it can be

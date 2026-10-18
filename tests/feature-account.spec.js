@@ -168,17 +168,51 @@ async function startFakeSession(page, { remote = REMOTE_ENVELOPE, signedIn = fal
           fake.authListeners.forEach((callback) => callback(null));
         },
         getFirestore: () => ({}),
-        collection: (db, name) => ({ name }),
+        collection: (db, ...segments) => ({ path: segments.join('/') }),
         query: (source) => source,
         orderBy: () => null,
         limit: () => null,
-        doc: (db, collection, id) => ({ path: `${collection}/${id}` }),
+        doc: (db, ...segments) => ({ path: segments.join('/') }),
         getDoc: async () => snapshot(fake.remote, { hasPendingWrites: false, fromCache: false }),
+        // An account's months: users/{uid}/months/{YYYY-MM} → tasks (kept per account, so accounts never mix).
+        getDocs: async (ref) => ({
+          docs: Object.entries(fake.months[ref.path] ?? {}).map(([id, tasks]) => ({ id, data: () => ({ tasks }) })),
+          metadata: { hasPendingWrites: false, fromCache: false },
+        }),
         setDoc: async (ref, data) => {
           fake.writes.push(data);
           fake.remote = data;
         },
+        // A batch writes the root and the months that changed; `writes` records the account it leaves behind.
+        writeBatch: () => {
+          const ops = [];
+          return {
+            set: (ref, data) => ops.push({ ref, data }),
+            delete: (ref) => ops.push({ ref, data: null }),
+            commit: async () => {
+              let root = null;
+              let monthsPath = null;
+              for (const { ref, data } of ops) {
+                const [owner, key] = ref.path.split('/months/');
+                if (key === undefined) root = data;
+                else {
+                  monthsPath = `${owner}/months`;
+                  fake.months[monthsPath] = { ...(fake.months[monthsPath] ?? {}) };
+                  if (data) fake.months[monthsPath][key] = data.tasks;
+                  else delete fake.months[monthsPath][key];
+                }
+              }
+              if (root) fake.remote = root;
+              const tasks = Object.values(fake.months[monthsPath ?? ''] ?? {}).flat();
+              fake.writes.push({ doc: { settings: root?.settings ?? {}, tasks }, updatedAt: root?.updatedAt, email: root?.email });
+            },
+          };
+        },
         onSnapshot: (ref, next) => {
+          if (ref.path.endsWith('/months')) {
+            fake.byPath[ref.path] = next; // months arrive only when a test pushes them
+            return () => {};
+          }
           fake.snapshotListeners.push(next);
           fake.byPath[ref.path] = next;
           return () => {};
@@ -192,6 +226,7 @@ async function startFakeSession(page, { remote = REMOTE_ENVELOPE, signedIn = fal
         },
       };
       fake.byPath = {};
+      fake.months = {};
       fake.snap = (data) => snapshot(data, { hasPendingWrites: false, fromCache: false });
       fake.push = (data, metadata = { hasPendingWrites: false, fromCache: false }) =>
         fake.snapshotListeners.forEach((next) => next(snapshot(data, metadata)));

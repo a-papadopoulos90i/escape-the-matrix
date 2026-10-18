@@ -260,9 +260,12 @@ test('a full refund ends what it paid for: an unused code stops working, a redee
 test('deleting an account removes its planner and Pro state, nothing else', async () => {
   const { createCleanup } = await import('../../functions/account.js');
   const deleted = [];
-  const db = { collection: (name) => ({ doc: (id) => ({ delete: async () => deleted.push(`${name}/${id}`) }) }) };
-  assert.deepEqual(await createCleanup({ db })('user_abc123'), ['users/user_abc123', 'billing/user_abc123']);
-  assert.deepEqual(deleted, ['users/user_abc123', 'billing/user_abc123']); // sales and vouchers stay
+  const db = {
+    collection: (name) => ({ doc: (id) => ({ path: `${name}/${id}`, delete: async () => deleted.push(`${name}/${id}`) }) }),
+    recursiveDelete: async (ref) => deleted.push(`${ref.path} + months`),
+  };
+  assert.deepEqual(await createCleanup({ db })('user_abc123'), ['users/user_abc123 (with its months)', 'billing/user_abc123']);
+  assert.deepEqual(deleted, ['users/user_abc123 + months', 'billing/user_abc123']); // sales and vouchers stay
   assert.deepEqual(await createCleanup({ db })(''), []);
 });
 

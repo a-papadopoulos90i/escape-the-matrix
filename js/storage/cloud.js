@@ -1,12 +1,18 @@
-// Firestore adapter (SPEC §5). One document per user — users/{uid} = { doc, updatedAt, email } —
-// where `doc` is the exact persisted document shape and `updatedAt` is the ISO write time.
+// Firestore adapter (SPEC §5). One account = a root document plus one document per month of tasks:
+//   users/{uid}                 = { format: 2, settings, updatedAt, email }
+//   users/{uid}/months/{key}    = { tasks: [...], updatedAt }      key = 'YYYY-MM' (task.date) or 'undated'
+// so no single document approaches Firestore's 1 MiB limit (one month would need ~2,300 tasks). Every
+// write is one batch — the root (its updatedAt is the version) plus only the months whose tasks changed —
+// so a task moving between months moves atomically. Accounts still in the old single-document format
+// ({ doc, updatedAt, email }) are read as before and move to months with their next write.
 //
 // Rules of the road:
 // - Writes are debounced and coalesced; save() never rejects (failures surface via onStatus).
 // - Nothing is written before the server state has been read once (load() or the first server
 //   snapshot), so a device that starts offline cannot blindly overwrite the account.
 // - A snapshot is applied only when it is newer than the version this device last wrote or
-//   applied; echoes of our own writes (`hasPendingWrites`) and stale cached copies are skipped.
+//   applied (or the same version with content not yet seen — the root and the months arrive as
+//   separate snapshots); echoes of our own writes (`hasPendingWrites`) and stale copies are skipped.
 // - reconcile(doc) writes the local document back when it holds something the server lacks
 //   (e.g. the union produced by a merge) so every device converges on the same document.
 // The Firestore functions are injected so unit tests run without the SDK.
@@ -14,6 +20,40 @@ import { normalizeDoc } from '../store.js';
 
 const SAVE_DELAY_MS = 400;
 const USERS_COLLECTION = 'users';
+const MONTHS = 'months';
+const FORMAT = 2;
+
+/** Which month document a task lives in. */
+export const monthOf = (task) => (/^\d{4}-\d{2}-\d{2}$/.test(task?.date ?? '') ? task.date.slice(0, 7) : 'undated');
+
+const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+/** The doc's tasks split into months: Map key → tasks sorted by id (stable, so equal months compare equal). */
+export function monthsOf(doc) {
+  const months = new Map();
+  for (const task of normalizeDoc(doc).tasks) {
+    const key = monthOf(task);
+    if (!months.has(key)) months.set(key, []);
+    months.get(key).push(task);
+  }
+  for (const tasks of months.values()) tasks.sort(byId);
+  return months;
+}
+
+const monthSignature = (tasks) => JSON.stringify(tasks);
+
+/** One task list from several sources: the same id twice keeps the newer copy (a task caught moving). */
+function uniteTasks(lists) {
+  const byKey = new Map();
+  for (const list of lists) {
+    for (const task of list ?? []) {
+      const known = byKey.get(task?.id);
+      if (!task?.id || (known && (known.updatedAt ?? '') >= (task.updatedAt ?? ''))) continue;
+      byKey.set(task.id, task);
+    }
+  }
+  return [...byKey.values()];
+}
 
 const defaultIsOnline = () => typeof navigator === 'undefined' || navigator.onLine !== false;
 
@@ -24,12 +64,28 @@ export function docSignature(doc) {
   return JSON.stringify({ settings, tasks: sorted });
 }
 
-/** Reads { doc, updatedAt } from a snapshot; null when the document is missing or malformed. */
-function readEnvelope(snapshot) {
-  if (!snapshot.exists()) return null;
-  const data = snapshot.data();
-  if (!data || typeof data.doc !== 'object' || data.doc === null) return null;
-  return { doc: data.doc, updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : '' };
+/**
+ * The account as one { doc, updatedAt } from the root document and its months (either may be missing).
+ * An old single-document account brings its whole doc in `root.doc`; months written since join it.
+ */
+function assemble(root, months) {
+  const legacy = root && typeof root.doc === 'object' && root.doc !== null ? root.doc : null;
+  if (!root && !months.size) return null;
+  if (root && !legacy && root.format !== FORMAT && !months.size) return null; // malformed
+  const settings = (legacy?.settings ?? root?.settings) || {};
+  const tasks = uniteTasks([legacy?.tasks, ...months.values()]);
+  const updatedAt = typeof root?.updatedAt === 'string' ? root.updatedAt : '';
+  return { doc: { version: 1, updatedAt, settings, tasks }, updatedAt };
+}
+
+/** Month documents from a query snapshot: Map key → tasks. */
+function readMonths(querySnapshot) {
+  const months = new Map();
+  for (const item of querySnapshot?.docs ?? []) {
+    const tasks = item.data()?.tasks;
+    if (Array.isArray(tasks)) months.set(item.id, tasks);
+  }
+  return months;
 }
 
 function deferred() {
@@ -58,11 +114,16 @@ export function createCloudAdapter({
   isOnline = defaultIsOnline,
   now = Date.now,
 }) {
-  const { doc, getDoc, setDoc, onSnapshot } = firestore;
+  const { doc, collection, getDoc, getDocs, onSnapshot, writeBatch } = firestore;
   const ref = doc(db, USERS_COLLECTION, uid);
+  const monthsRef = collection(db, USERS_COLLECTION, uid, MONTHS);
+  const monthRef = (key) => doc(db, USERS_COLLECTION, uid, MONTHS, key);
 
   let syncedAt = ''; // envelope updatedAt of the newest version we wrote or applied
   let remoteSig = null; // signature of the doc we believe the server holds
+  let remoteMonths = new Map(); // key → signature of each month document the server holds
+  let rootLatest = null; // last root data seen by the listener (pending writes included)
+  let monthsLatest = new Map(); // last month documents seen by the listener (pending writes included)
   let remoteKnown = false; // true once the server state has been read at least once
   let loading = false; // true while load() is fetching the server document
   let queued = null; // latest doc waiting to be written
@@ -99,12 +160,24 @@ export function createCloudAdapter({
     return Number.isNaN(parsed) ? wall : new Date(parsed + 1).toISOString();
   }
 
+  /** One batch: the root (new version) and only the months whose tasks changed; emptied months go. */
   async function write(docToWrite) {
     const updatedAt = nextStamp();
     syncedAt = updatedAt;
     remoteSig = docSignature(docToWrite);
+    const months = monthsOf(docToWrite);
+    const written = new Map();
+    const batch = writeBatch(db);
+    batch.set(ref, { format: FORMAT, settings: normalizeDoc(docToWrite).settings, updatedAt, email }); // drops an old `doc`
+    for (const [key, tasks] of months) {
+      const signature = monthSignature(tasks);
+      written.set(key, signature);
+      if (remoteMonths.get(key) !== signature) batch.set(monthRef(key), { tasks, updatedAt });
+    }
+    for (const key of remoteMonths.keys()) if (!months.has(key)) batch.delete(monthRef(key));
     try {
-      await setDoc(ref, { doc: docToWrite, updatedAt, email });
+      await batch.commit();
+      remoteMonths = written;
       lastError = null;
     } catch (error) {
       lastError = error;
@@ -155,9 +228,11 @@ export function createCloudAdapter({
    * so the stale pre-merge doc can never overwrite the newer server copy.
    */
   function applyEnvelope(envelope, callback) {
-    if (!envelope || envelope.updatedAt <= syncedAt) return;
+    if (!envelope || envelope.updatedAt < syncedAt) return;
+    const signature = docSignature(envelope.doc);
+    if (envelope.updatedAt === syncedAt && signature === remoteSig) return; // nothing new in this version
     syncedAt = envelope.updatedAt;
-    remoteSig = docSignature(envelope.doc);
+    remoteSig = signature;
     if (queued !== null) {
       queued = null;
       pending?.resolve();
@@ -173,7 +248,10 @@ export function createCloudAdapter({
       loading = true;
       report();
       try {
-        const envelope = readEnvelope(await getDoc(ref));
+        const [rootSnapshot, monthsSnapshot] = await Promise.all([getDoc(ref), getDocs(monthsRef)]);
+        const months = readMonths(monthsSnapshot);
+        remoteMonths = new Map([...months].map(([key, tasks]) => [key, monthSignature([...tasks].sort(byId))]));
+        const envelope = assemble(rootSnapshot.exists() ? rootSnapshot.data() : null, months);
         remoteKnown = true;
         lastError = null;
         if (!envelope) {
@@ -206,22 +284,44 @@ export function createCloudAdapter({
       save(localDoc);
     },
 
-    /** Live updates: callback(remoteDoc) for every newer server version. Returns unsubscribe. */
+    /**
+     * Live updates: callback(remoteDoc) for every newer server version. The root and the months are two
+     * listeners; each snapshot re-assembles the account from the latest of both. Returns unsubscribe.
+     */
     onRemote(callback) {
       unsubscribe?.();
-      unsubscribe = onSnapshot(
+      const failed = (error) => {
+        lastError = error;
+        report();
+      };
+      const changed = (snapshot) => {
+        if (!snapshot.metadata?.hasPendingWrites) {
+          remoteMonths = new Map([...monthsLatest].map(([key, tasks]) => [key, monthSignature([...tasks].sort(byId))]));
+          applyEnvelope(assemble(rootLatest, monthsLatest), callback);
+        }
+        if (!snapshot.metadata?.fromCache) markRemoteKnown();
+        report();
+      };
+      const stopRoot = onSnapshot(
         ref,
         (snapshot) => {
-          const fromServer = !snapshot.metadata?.fromCache;
-          if (!snapshot.metadata?.hasPendingWrites) applyEnvelope(readEnvelope(snapshot), callback);
-          if (fromServer) markRemoteKnown();
-          report();
+          rootLatest = snapshot.exists() ? snapshot.data() : null;
+          changed(snapshot);
         },
-        (error) => {
-          lastError = error;
-          report();
-        },
+        failed,
       );
+      const stopMonths = onSnapshot(
+        monthsRef,
+        (snapshot) => {
+          monthsLatest = readMonths(snapshot);
+          changed(snapshot);
+        },
+        failed,
+      );
+      unsubscribe = () => {
+        stopRoot();
+        stopMonths();
+      };
       return () => {
         unsubscribe?.();
         unsubscribe = null;
