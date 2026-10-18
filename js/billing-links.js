@@ -71,3 +71,7 @@ export function takePendingCheckout() {
 /** Anything in the app can ask for the "I have a code" box; the account module opens it. */
 export const REDEEM_EVENT = 'levelix:redeem';
 export const askForCodeBox = () => document.dispatchEvent(new CustomEvent(REDEEM_EVENT));
+
+/** The Refund policy page (Home's footer asks for it; the account module opens it). */
+export const REFUND_POLICY_EVENT = 'levelix:refund-policy';
+export const askForRefundPolicy = () => document.dispatchEvent(new CustomEvent(REFUND_POLICY_EVENT));

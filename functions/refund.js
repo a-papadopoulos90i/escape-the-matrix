@@ -21,19 +21,32 @@ export function createRefunds({ db, stripeRefund, now = () => new Date() }) {
     return [...found].map(([id, data]) => ({ id, ...data }));
   }
 
-  /** Returns { status: 'refunded' | 'too-late' | 'none', … } for the account's latest purchase. */
-  return async function refund(uid) {
-    const open = (await purchasesOf(uid))
-      .filter((sale) => !sale.refundedAt && sale.paymentIntent)
+  /**
+   * The account's latest purchase: { status: 'eligible' | 'refunded' | 'too-late' | 'already' | 'none', … }.
+   * With `check`, it only says whether a refund is possible (the Refund policy page asks this first).
+   */
+  return async function refund(uid, { check = false } = {}) {
+    const purchases = (await purchasesOf(uid))
+      .filter((sale) => sale.paymentIntent)
       .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
-    const latest = open[0];
-    if (!latest) return { status: 'none' };
-    if (now().getTime() > Date.parse(latest.createdAt) + REFUND_DAYS * DAY_MS) {
-      return { status: 'too-late', paidAt: latest.createdAt };
+    if (!purchases.length) return { status: 'none' };
+    const untilOf = (sale) => new Date(Date.parse(sale.createdAt) + REFUND_DAYS * DAY_MS).toISOString();
+    const open = (sale) => !sale.refundedAt && !sale.refundRequestedAt;
+    // The newest purchase still inside its 14 days and not refunded; else say why not, about the newest one.
+    const latest = purchases.find((sale) => open(sale) && now().getTime() <= Date.parse(untilOf(sale)));
+    if (!latest) {
+      const newest = purchases[0];
+      return open(newest)
+        ? { status: 'too-late', paidAt: newest.createdAt, until: untilOf(newest) }
+        : { status: 'already', paidAt: newest.createdAt, amount: newest.amount, currency: newest.currency };
     }
+    const paidAt = latest.createdAt;
+    const until = untilOf(latest);
+    const about = { amount: latest.amount, currency: latest.currency, period: latest.period, paidAt, until };
+    if (check) return { status: 'eligible', ...about };
     await stripeRefund({ paymentIntent: latest.paymentIntent, idempotencyKey: `levelix-refund-${latest.id}`, metadata: { uid, sale: latest.id } });
     await sales.doc(latest.id).update({ refundRequestedAt: now().toISOString() });
-    return { status: 'refunded', amount: latest.amount, currency: latest.currency, period: latest.period };
+    return { status: 'refunded', ...about };
   };
 }
 

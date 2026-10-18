@@ -47,15 +47,16 @@ export const stripeWebhook = onRequest({ region: 'europe-west1', secrets: [STRIP
   return handle(req, res);
 });
 
-// Refund button: only for the signed-in account, about its own purchase.
+// Refund policy page: only for the signed-in account, about its own purchase. { check: true } only asks.
 export const requestRefund = onCall(
   { region: 'europe-west1', secrets: [STRIPE_REFUND_KEY], maxInstances: 3, cors: [/^https:\/\/(www\.)?levelix\.eu$/, /^https:\/\/levelix-app\.web\.app$/] },
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError('unauthenticated', 'Sign in first.');
     const refund = createRefunds({ db: getFirestore(), stripeRefund: stripeRefunder(STRIPE_REFUND_KEY.value()) });
-    const result = await refund(uid);
-    logger.info('refund asked', uid, result.status);
+    const check = request.data?.check === true; // the Refund policy page asking whether it can, before the button
+    const result = await refund(uid, { check });
+    if (!check) logger.info('refund asked', uid, result.status);
     return result;
   },
 );

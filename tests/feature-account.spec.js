@@ -185,9 +185,10 @@ async function startFakeSession(page, { remote = REMOTE_ENVELOPE, signedIn = fal
         },
         // The Refund button's server call.
         getFunctions: () => ({}),
-        httpsCallable: (functions, name) => async () => {
+        httpsCallable: (functions, name) => async (data) => {
           fake.called = name;
-          return { data: fake.refundResult };
+          fake.calls = [...(fake.calls ?? []), data];
+          return { data: data?.check ? fake.refundCheck : fake.refundResult };
         },
       };
       fake.byPath = {};
@@ -356,9 +357,7 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await expect(gear).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(gear).toHaveAttribute('aria-expanded', 'true');
-    await expect(menu.getByRole('menuitem', { name: 'Connect Apple' })).toBeFocused(); // signed in with Google: Apple can join
-    await page.keyboard.press('ArrowDown');
-    await expect(menu.getByRole('menuitem', { name: 'Clear account' })).toBeFocused();
+    await expect(menu.getByRole('menuitem', { name: 'Clear account' })).toBeFocused(); // nothing to connect, no password to change
     await page.keyboard.press('ArrowDown');
     await expect(menu.getByRole('menuitem', { name: 'Delete account' })).toBeFocused();
     await page.keyboard.press('ArrowDown');
@@ -366,6 +365,9 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await expect(menu.getByRole('menuitem', { name: 'Sign out & clear this device' })).toBeFocused();
     await expect(menu.locator('.menu__item--danger svg')).toHaveCount(3);
     await expect(menu.getByRole('menuitem', { name: 'Connect Google' })).toHaveCount(0);
+    await expect(menu.getByRole('menuitem', { name: 'Connect Apple' })).toHaveCount(0);
+    await page.keyboard.press('ArrowDown');
+    await expect(menu.getByRole('menuitem', { name: 'Refund policy' })).toBeFocused(); // last, outside the gear
     await expect(menu).toHaveCSS('opacity', '1');
     await page.screenshot({ path: path.join(OUT, 'account-menu-desktop.png') });
     await page.keyboard.press('Escape');
@@ -739,32 +741,6 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await expect.poll(() => storeIds(page)).toEqual(['t_local', 't_remote']);
   });
 
-  test('Connect Apple from behind the gear: either button then opens this account; a login with its own account is refused', async ({ page }) => {
-    await seed(page, { ui: UI_STATE });
-    await page.goto('/');
-    await startFakeSession(page, { signedIn: true });
-    const button = page.locator('#account .account-btn');
-    const menu = page.locator('.popover--account');
-    const gear = async () => {
-      await button.click();
-      await menu.getByRole('menuitem', { name: 'More account options' }).click();
-    };
-
-    await gear();
-    await expect(menu.getByRole('menuitem', { name: 'Connect Google' })).toHaveCount(0); // it signed in with Google
-    await page.evaluate(() => (window.__fake.linkError = 'auth/credential-already-in-use'));
-    await menu.getByRole('menuitem', { name: 'Connect Apple' }).click();
-    await expect(page.locator('.toast', { hasText: 'That Apple login already has its own Levelix account' })).toBeVisible();
-
-    await page.evaluate(() => (window.__fake.linkError = null));
-    await gear();
-    await menu.getByRole('menuitem', { name: 'Connect Apple' }).click();
-    await expect(page.locator('.toast', { hasText: 'Apple is connected — either button now opens this account.' })).toBeVisible();
-    expect(await fakeValue(page, 'fake.linked')).toBe('apple.com');
-    await gear();
-    await expect(menu.getByRole('menuitem', { name: 'Connect Apple' })).toHaveCount(0);
-  });
-
   test('Delete account: asked first (signing in again when Google wants it), then the account and this device are cleared', async ({ page }) => {
     await seed(page, { ui: UI_STATE, doc: LOCAL_DOC });
     await page.addInitScript(() => localStorage.setItem('escape-the-matrix:owner', 'u1'));
@@ -796,38 +772,43 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     expect(await page.evaluate(() => [localStorage.getItem('escape-the-matrix:v1'), localStorage.getItem('escape-the-matrix:owner')])).toEqual([null, null]);
   });
 
-  test('Refund from behind the gear, while Pro: asked first, then done by the server — or why not', async ({ page }) => {
+  test('Refund policy, last in the account menu: the server says first whether this payment can be refunded; the button works only then', async ({ page }) => {
     await seed(page, { ui: UI_STATE });
     await page.goto('/');
     await startFakeSession(page, { signedIn: true });
     const button = page.locator('#account .account-btn');
     const menu = page.locator('.popover--account');
-    const askRefund = async () => {
+    const openPolicy = async (check) => {
+      await page.evaluate((check) => (window.__fake.refundCheck = check), check);
       await button.click();
-      await menu.getByRole('menuitem', { name: 'More account options' }).click();
-      await menu.getByRole('menuitem', { name: 'Refund (within 14 days)' }).click();
-      return page.getByRole('dialog', { name: 'Refund Levelix Pro?' });
+      await menu.getByRole('menuitem', { name: 'Refund policy' }).click(); // not behind the gear
+      return page.getByRole('dialog', { name: 'Refund policy' });
     };
 
-    // Free: nothing to refund, so no button.
-    await button.click();
-    await menu.getByRole('menuitem', { name: 'More account options' }).click();
-    await expect(menu.getByRole('menuitem', { name: 'Refund (within 14 days)' })).toHaveCount(0);
+    // Pro from a code nobody paid for (the owner's own account): the rules, and a button that cannot be used.
+    await page.evaluate(() => window.__fake.byPath['billing/u1'](window.__fake.snap({ plan: 'pro', period: 'monthly', currentPeriodEnd: new Date(Date.now() + 30 * 86_400_000).toISOString(), source: 'voucher' })));
+    let dialog = await openPolicy({ status: 'none' });
+    await expect(dialog).toContainText('Within 14 days of paying for Levelix Pro');
+    await expect(dialog.locator('.refund__status')).toHaveText('Pro on this account came from a code that was not paid for, so there is nothing to refund.');
+    await expect(dialog.getByRole('button', { name: 'Refund', exact: true })).toBeDisabled();
+    expect(await fakeValue(page, 'fake.calls')).toEqual([{ check: true }]); // only asked — nothing refunded
     await page.keyboard.press('Escape');
 
-    // Pro (what the webhook wrote): the button appears.
-    await page.evaluate(() => window.__fake.byPath['billing/u1'](window.__fake.snap({ plan: 'pro', period: 'monthly', currentPeriodEnd: new Date(Date.now() + 30 * 86_400_000).toISOString(), source: 'stripe' })));
-    await page.evaluate(() => (window.__fake.refundResult = { status: 'refunded', amount: 480, currency: 'eur' }));
-    let dialog = await askRefund();
-    await expect(dialog).toContainText('You get the full amount back to the card you paid with');
-    await dialog.getByRole('button', { name: 'Refund me' }).click();
-    await expect(page.locator('.toast', { hasText: 'Refund on its way: €4,80 back to your card. Pro has ended.' })).toBeVisible();
-    expect(await fakeValue(page, 'fake.called')).toBe('requestRefund');
+    // Past the 14 days: says until when it could have been.
+    dialog = await openPolicy({ status: 'too-late', paidAt: '2026-09-01T10:00:00.000Z', until: '2026-09-15T10:00:00.000Z' });
+    await expect(dialog.locator('.refund__status')).toHaveText('Your payment on 1 September 2026 is past the 14 days — they ended on 15 September 2026.');
+    await expect(dialog.getByRole('button', { name: 'Refund', exact: true })).toBeDisabled();
+    await page.keyboard.press('Escape');
 
-    await page.evaluate(() => (window.__fake.refundResult = { status: 'too-late', paidAt: '2026-09-01T10:00:00.000Z' }));
-    dialog = await askRefund();
-    await dialog.getByRole('button', { name: 'Refund me' }).click();
-    await expect(page.locator('.toast', { hasText: 'Refunds are possible within 14 days of paying — yours was on 1 September 2026.' })).toBeVisible();
+    // Within the 14 days: the button names the amount and refunds.
+    await page.evaluate(() => (window.__fake.refundResult = { status: 'refunded', amount: 480, currency: 'eur' }));
+    dialog = await openPolicy({ status: 'eligible', amount: 480, currency: 'eur', paidAt: '2026-10-17T10:00:00.000Z', until: '2026-10-31T10:00:00.000Z' });
+    await expect(dialog.locator('.refund__status')).toHaveText('Your payment of €4,80 on 17 October 2026 can be refunded until 31 October 2026.');
+    await dialog.getByRole('button', { name: 'Refund €4,80' }).click();
+    await expect(page.locator('.toast', { hasText: 'Refund on its way: €4,80 back to your card. Pro has ended.' })).toBeVisible();
+    await expect(dialog.getByRole('button', { name: /Refund/ })).toHaveCount(0);
+    expect(await fakeValue(page, 'fake.calls')).toEqual([{ check: true }, { check: true }, { check: true }, {}]);
+    expect(await fakeValue(page, 'fake.called')).toBe('requestRefund');
   });
 
   test('Go Pro on Home while signed out: sign in first, then straight on to the checkout with the account', async ({ page }) => {

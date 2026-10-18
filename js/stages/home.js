@@ -1,7 +1,7 @@
 // Home — what the planner is, its three steps (a screenshot beside each, alternating sides), the
 // purpose behind it and why it is free. The logo opens it; it is not one of the stepper tabs.
 import { QUADRANTS } from '../store.js';
-import { askForCodeBox, askToSignInFor, checkoutUrl, isSignedIn, payLinks } from '../billing-links.js';
+import { askForCodeBox, askForRefundPolicy, askToSignInFor, checkoutUrl, isSignedIn, payLinks } from '../billing-links.js';
 import { quadrantGlyph } from '../carry.js';
 
 const STEPS = [
@@ -219,6 +219,7 @@ export function mount(container, ctx) {
         'nav',
         { class: 'home-footer', 'aria-label': t('home.footer.label') },
         ...['support', 'privacy', 'terms'].map((page) => h('a', { href: `./${page}.html` }, t(`home.footer.${page}`))),
+        h('a', { href: '#refund-policy', onClick: (event) => (event.preventDefault(), askForRefundPolicy()) }, t('refund.policy')),
       ),
     ),
   );

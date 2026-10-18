@@ -236,6 +236,62 @@
   border-top: 1px dashed var(--line);
 }
 
+/* Last and quiet: the refund rules, for every signed-in account. */
+.account-menu__policy {
+  margin-top: var(--space-1);
+  border-top: 1px solid var(--line);
+}
+
+.account-menu__policy .menu__item {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+/* ---------- Refund policy ---------- */
+.refund {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.refund p {
+  margin: 0;
+}
+
+.refund .text-muted {
+  font-size: var(--text-sm);
+}
+
+.refund__box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.refund__status {
+  font-weight: 600;
+}
+
+.refund__status.is-ok {
+  color: var(--green);
+}
+
+.refund__button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.refund__terms {
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+
 /* ---------- Go Pro chooser ---------- */
 .gopro {
   display: flex;

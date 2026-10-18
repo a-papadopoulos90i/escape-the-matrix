@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
-import { emailFor, extendUntil, longDay, makeCode, periodFor, shortenUntil, verifySignature } from '../../functions/logic.js';
+import { emailFor, extendUntil, longDay, makeCode, periodFor, refundEmailFor, shortenUntil, verifySignature } from '../../functions/logic.js';
 import { createWebhook } from '../../functions/webhook.js';
 
 const SECRET = 'whsec_test';
@@ -46,7 +46,7 @@ test('codes look like the ones the Codes screen makes, and the email says what t
   const withCode = emailFor({ code: 'LVXABCDEFGHJ', until: '2026-11-20T10:00:00.000Z', period: 'monthly' });
   assert.equal(withCode.subject, 'Your Levelix Pro code: LVXABCDEFGHJ');
   assert.match(withCode.text, /Your code: LVXABCDEFGHJ/);
-  assert.match(withCode.text, /“I have a code”/);
+  assert.match(withCode.text, /under Pricing press “I have a code”/); // where the code box is now
   assert.match(withCode.text, /until 20 November 2026/);
   assert.match(withCode.text, /full refund within 14 days/);
 
@@ -54,6 +54,12 @@ test('codes look like the ones the Codes screen makes, and the email says what t
   assert.equal(on.subject, 'Levelix Pro is on');
   assert.match(on.text, /for one year/);
   assert.doesNotMatch(on.text, /code/i);
+  assert.match(on.text, /Refund policy/);
+
+  const back = refundEmailFor({ amount: 480, currency: 'eur', period: 'monthly' });
+  assert.equal(back.subject, 'Your Levelix refund');
+  assert.match(back.text, /refunded €4,80 for Levelix Pro \(one month\)/);
+  assert.match(back.text, /Pro has ended/);
 });
 
 // ---------- The whole webhook, against an in-memory Firestore ----------
@@ -62,6 +68,7 @@ function fakeFirestore(seed = {}) {
   const data = structuredClone(seed); // { 'collection/id': {...} }
   const ref = (path) => ({
     path,
+    get: async () => snapshot(path),
     update: async (patch) => void (data[path] = { ...data[path], ...patch }),
   });
   const snapshot = (path) => ({ exists: path in data, data: () => (path in data ? structuredClone(data[path]) : undefined) });
@@ -239,9 +246,15 @@ test('a full refund ends what it paid for: an unused code stops working, a redee
   // Signed-in purchase: same, straight from the sale.
   const direct = harness();
   await direct.call(paid({ client_reference_id: 'user_abc123' }));
+  const before = direct.mails.length;
   await direct.call(refund());
   assert.equal(direct.db.data['billing/user_abc123'].currentPeriodEnd, NOW.toISOString());
   assert.equal(direct.db.data['sales/cs_1'].refundedAt, NOW.toISOString());
+  // The buyer hears about it once: the money is on its way and Pro has ended.
+  assert.equal(direct.mails.length, before + 1);
+  assert.equal(direct.mails.at(-1).subject, 'Your Levelix refund');
+  await direct.call(refund());
+  assert.equal(direct.mails.length, before + 1);
 });
 
 test('deleting an account removes its planner and Pro state, nothing else', async () => {
@@ -284,7 +297,12 @@ test('Refund: the latest purchase within 14 days is refunded at Stripe, once, an
     },
   });
   assert.equal(REFUND_DAYS, 14);
-  assert.deepEqual(await refund('u1'), { status: 'refunded', amount: 480, currency: 'eur', period: 'monthly' });
+  const about = { amount: 480, currency: 'eur', period: 'monthly', paidAt: '2026-10-17T22:56:55.605Z', until: '2026-10-31T22:56:55.605Z' };
+  // The Refund policy page asks first: nothing happens at Stripe.
+  assert.deepEqual(await refund('u1', { check: true }), { status: 'eligible', ...about });
+  assert.equal(calls.length, 0);
+  assert.deepEqual(await refund('u1'), { status: 'refunded', ...about });
+  assert.deepEqual(await refund('u1', { check: true }), { status: 'already', paidAt: about.paidAt, amount: 480, currency: 'eur' }); // asked once already
   assert.deepEqual(calls, [{ paymentIntent: 'pi_new', idempotencyKey: 'levelix-refund-cs_new', metadata: { uid: 'u1', sale: 'cs_new' } }]);
   assert.equal(data.sales.cs_new.refundRequestedAt, '2026-10-20T10:00:00.000Z');
   assert.equal(data.sales.cs_other.refundRequestedAt, undefined); // another account's purchase is never touched
@@ -292,12 +310,13 @@ test('Refund: the latest purchase within 14 days is refunded at Stripe, once, an
 
 test('Refund: a purchase older than 14 days, or none at all, is not refunded', async () => {
   const late = refundHarness({ sales: { cs_1: { uid: 'u1', paymentIntent: 'pi_1', createdAt: '2026-10-01T10:00:00.000Z', refundedAt: null } } });
-  assert.deepEqual(await late.refund('u1'), { status: 'too-late', paidAt: '2026-10-01T10:00:00.000Z' });
+  assert.deepEqual(await late.refund('u1'), { status: 'too-late', paidAt: '2026-10-01T10:00:00.000Z', until: '2026-10-15T10:00:00.000Z' });
   assert.equal(late.calls.length, 0);
 
   const done = refundHarness({ sales: { cs_1: { uid: 'u1', paymentIntent: 'pi_1', createdAt: '2026-10-19T10:00:00.000Z', refundedAt: '2026-10-19T12:00:00.000Z' } } });
-  assert.deepEqual(await done.refund('u1'), { status: 'none' });
-  assert.deepEqual(await refundHarness().refund('u1'), { status: 'none' });
+  assert.deepEqual(await done.refund('u1'), { status: 'already', paidAt: '2026-10-19T10:00:00.000Z', amount: undefined, currency: undefined });
+  assert.equal(done.calls.length, 0);
+  assert.deepEqual(await refundHarness().refund('u1', { check: true }), { status: 'none' }); // Pro from a code nobody paid for
 });
 
 test('Refund: a purchase made with a code counts for the account that redeemed it', async () => {

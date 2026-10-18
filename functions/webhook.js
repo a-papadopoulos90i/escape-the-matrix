@@ -3,7 +3,7 @@
 //
 // A sale is recorded once, under the Checkout Session id — Stripe may send the same event more than
 // once, and a retry after a failed email only sends the email.
-import { emailFor, extendUntil, makeCode, periodFor, shortenUntil, verifySignature } from './logic.js';
+import { emailFor, extendUntil, makeCode, periodFor, refundEmailFor, shortenUntil, verifySignature } from './logic.js';
 
 const UID = /^[A-Za-z0-9_-]{6,128}$/; // what a Firebase uid looks like (and all client_reference_id allows)
 
@@ -83,7 +83,7 @@ export function createWebhook({ db, auth, sendMail, secret, log = console, now =
     if (found.empty) return 'no-sale';
     const saleRef = found.docs[0].ref;
 
-    return db.runTransaction(async (tx) => {
+    const outcome = await db.runTransaction(async (tx) => {
       const sale = (await tx.get(saleRef)).data();
       if (sale.refundedAt) return 'already';
       const at = now();
@@ -100,6 +100,15 @@ export function createWebhook({ db, auth, sendMail, secret, log = console, now =
       tx.update(saleRef, { refundedAt: at.toISOString() });
       return 'refunded';
     });
+
+    // Said once, by email: the money is on its way back and Pro has ended.
+    const sale = (await saleRef.get()).data();
+    if (outcome === 'refunded' && sale.email && !sale.refundEmailedAt) {
+      const { subject, text } = refundEmailFor(sale);
+      await sendMail({ to: sale.email, subject, text });
+      await saleRef.update({ refundEmailedAt: now().toISOString() });
+    }
+    return outcome;
   }
 
   /** The HTTP side: only a call Stripe signed is read at all. */

@@ -394,7 +394,14 @@ test('Home links to Support, Privacy and Terms, and each page names the seller a
   await page.goto('/');
   await page.locator('.brand').click();
   const footer = activePanel(page).locator('.home-footer');
-  await expect(footer.getByRole('link')).toHaveText(['Support', 'Privacy', 'Terms']);
+  await expect(footer.getByRole('link')).toHaveText(['Support', 'Privacy', 'Terms', 'Refund policy']);
+  // Refund policy opens in the app: the rules, and (signed out) a way to sign in to check a payment.
+  await footer.getByRole('link', { name: 'Refund policy' }).click();
+  const policy = page.getByRole('dialog', { name: 'Refund policy' });
+  await expect(policy).toContainText('Within 14 days of paying for Levelix Pro');
+  await expect(policy.locator('.refund__status')).toHaveText('Sign in with the account you paid with to see whether its payment can be refunded.');
+  await expect(policy.getByRole('button', { name: 'Refund', exact: true })).toBeDisabled();
+  await page.keyboard.press('Escape');
 
   for (const [link, heading] of [['Support', 'Support'], ['Privacy', 'Privacy policy'], ['Terms', 'Terms of service']]) {
     await page.goto('/');

@@ -11,7 +11,7 @@ import { createLocalAdapter } from './storage/local.js';
 import { createCloudAdapter } from './storage/cloud.js';
 import { lastSyncAgo, remindersEnabled, syncWithReminders } from './reminders.js';
 import { createBilling, VoucherError } from './billing.js';
-import { capturePayReturn, checkoutUrl, REDEEM_EVENT, setBuyer, SIGNIN_FOR_PRO_EVENT, takePendingCheckout } from './billing-links.js';
+import { capturePayReturn, checkoutUrl, REDEEM_EVENT, REFUND_POLICY_EVENT, setBuyer, SIGNIN_FOR_PRO_EVENT, takePendingCheckout } from './billing-links.js';
 import { isPro, onPlanChange } from './plan.js';
 
 const SDK_BASE = 'https://www.gstatic.com/firebasejs/10.14.1/';
@@ -67,12 +67,6 @@ const hasPassword = (user) => (user?.providerData ?? []).some((info) => info?.pr
 /** The sign-in methods this account already has: 'google', 'apple', 'password'. */
 const linkedProviders = (user) =>
   (user?.providerData ?? []).map((info) => ({ 'google.com': 'google', 'apple.com': 'apple', password: 'password' })[info?.providerId]).filter(Boolean);
-const LINK_ERRORS = {
-  'auth/credential-already-in-use': 'account.linkTaken',
-  'auth/email-already-in-use': 'account.linkTaken',
-  'auth/account-exists-with-different-credential': 'account.linkTaken',
-  'auth/provider-already-linked': 'account.linkAlready',
-};
 
 function firstName(user) {
   const name = (user.displayName || '').trim();
@@ -85,7 +79,7 @@ function firstName(user) {
  * Renders the account slot. showSignedOut() → Google button; showSignedIn(user, status) → avatar,
  * first name and a status dot that opens the account menu. setStatus() updates in place.
  */
-export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut, onSignOutClear, onClearAccount, onChangePassword, onSyncReminders, onGoPro, onSyncGuest, onLink, onDeleteAccount, onRefund, providers = ['google', 'apple', 'email'] }) {
+export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut, onSignOutClear, onClearAccount, onChangePassword, onSyncReminders, onGoPro, onSyncGuest, onDeleteAccount, onRefundPolicy, providers = ['google', 'apple', 'email'] }) {
   let plan = 'free'; // shown in the menu; the real answer lives in Firestore
   const { t } = i18n;
   let user = null;
@@ -144,10 +138,7 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut
     const danger = ui.h(
       'div',
       { class: 'account-menu__danger', id: 'account-danger', hidden: true },
-      // Another way into the same account: Apple, for an account that does not have it yet.
-      providers.includes('apple') && !linkedProviders(user).includes('apple') && menuItem(t('account.connectApple'), () => onLink('apple')),
       hasPassword(user) && menuItem(t('account.changePassword'), onChangePassword),
-      plan === 'pro' && menuItem(t('refund.menu'), onRefund), // within 14 days of paying; the server decides
       menuItem(t('account.clearAccount'), onClearAccount, true, 'broom'),
       menuItem(t('account.deleteAccount'), onDeleteAccount, true, 'trash'),
       menuItem(t('account.signOutClear'), onSignOutClear, true, 'logout'), // the longest, last
@@ -177,6 +168,8 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut
       plan !== 'pro' && menuItem(t('plan.goPro'), onGoPro),
       ui.h('div', { class: 'account-menu__signout' }, menuItem(t('account.signOut'), onSignOut), gear),
       danger,
+      // Last, quietly: what the refund rules are, and whether this account's payment can be refunded.
+      ui.h('div', { class: 'account-menu__policy' }, menuItem(t('refund.policy'), onRefundPolicy)),
     );
     list.addEventListener('keydown', (event) => {
       if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
@@ -540,23 +533,6 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
     return 'signed-in';
   }
 
-  /**
-   * Connect Google or Apple to the signed-in account, so either button opens it. A Google or Apple
-   * login that already has its own Levelix account cannot be joined in — that account goes first.
-   */
-  async function linkProvider(provider) {
-    const authProvider = provider === 'apple' ? appleProvider() : googleProvider();
-    try {
-      const result = await sdk.linkWithPopup(auth.currentUser, authProvider);
-      view.updateUser(result?.user ?? auth.currentUser);
-      ui.toast(t(provider === 'apple' ? 'account.linkedApple' : 'account.linkedGoogle'), { duration: 8000 });
-    } catch (error) {
-      if (CANCELLED_CODES.has(error?.code)) return;
-      if (error?.code === 'auth/popup-blocked') return sdk.linkWithRedirect(auth.currentUser, authProvider);
-      ui.toast(t(LINK_ERRORS[error?.code] ?? 'account.linkFailed', { provider: provider === 'apple' ? 'Apple' : 'Google' }), { duration: 12000 });
-    }
-  }
-
   /** Google's rule for deleting an account: a recent sign-in. Asks for it the way this account signs in. */
   async function signInAgain(user) {
     const methods = linkedProviders(user);
@@ -620,28 +596,11 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
   /**
    * Refund: within 14 days of paying, the latest purchase is refunded in full by the requestRefund
    * function, and Pro ends as soon as Stripe confirms (the webhook takes the paid time back).
+   * `refundStatus` only asks whether it can be done; `refundNow` does it.
    */
-  async function refund() {
-    const ok = await ui.confirm(t('refund.confirm'), { title: t('refund.title'), okLabel: t('refund.ok'), danger: true });
-    if (!ok) return;
-    const call = sdk.httpsCallable(sdk.getFunctions(app, 'europe-west1'), 'requestRefund');
-    let result;
-    try {
-      result = (await call()).data ?? {};
-    } catch {
-      ui.toast(t('refund.failed'), { duration: 12000 });
-      return;
-    }
-    if (result.status === 'refunded') {
-      const amount = `€${(Number(result.amount) / 100).toFixed(2).replace('.', ',')}`;
-      ui.toast(t('refund.done', { amount }), { duration: 12000 });
-    } else if (result.status === 'too-late') {
-      const paid = dates.formatLong(dates.todayKey(new Date(result.paidAt))).split(', ')[1];
-      ui.toast(t('refund.tooLate', { date: paid }), { duration: 15000 });
-    } else {
-      ui.toast(t('refund.none'), { duration: 10000 });
-    }
-  }
+  const askRefund = (data) => sdk.httpsCallable(sdk.getFunctions(app, 'europe-west1'), 'requestRefund')(data).then((result) => result.data ?? {});
+  const refundStatus = () => (auth.currentUser ? askRefund({ check: true }) : Promise.resolve({ status: 'signed-out' }));
+  const refundNow = () => askRefund({});
 
   /** Change password: the same safe route as "Forgot password?" — a link to the account's own address. */
   async function changePassword() {
@@ -738,15 +697,82 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
   return {
     signIn,
     syncGuest,
-    linkProvider,
     deleteAccount,
-    refund,
+    refundStatus,
+    refundNow,
     emailAuth,
     changePassword,
     signOut,
     clearAccount,
     redeem,
   };
+}
+
+const euros = (cents) => `€${(Number(cents) / 100).toFixed(2).replace('.', ',')}`;
+const longDate = (iso) => dates.formatLong(dates.todayKey(new Date(iso))).split(', ')[1]; // "17 October 2026"
+
+/**
+ * Refund policy: the rules, and — for the signed-in account — whether its payment can be refunded,
+ * asked of the server first. The Refund button works only when it can (within 14 days of a payment);
+ * otherwise it stays, disabled, with the reason above it. `session` is null when there is no Firebase.
+ */
+export function openRefundPolicy({ ui, i18n, session, onSignIn }) {
+  const { t } = i18n;
+  const status = ui.h('p', { class: 'refund__status', role: 'status' }, t('refund.checking'));
+  const button = ui.h('button', { class: 'btn btn-danger refund__button', type: 'button', disabled: true }, t('refund.button'));
+  const signIn = ui.h('button', { class: 'btn btn-primary refund__signin', type: 'button', hidden: true, onClick: () => (modal.close(), onSignIn()) }, t('account.signIn'));
+  const content = ui.h(
+    'div',
+    { class: 'refund' },
+    ui.h('p', null, t('refund.rule')),
+    ui.h('p', { class: 'text-muted' }, t('refund.exceptions')),
+    ui.h('div', { class: 'refund__box' }, status, button, signIn),
+    ui.h('a', { class: 'refund__terms', href: './terms.html' }, t('refund.terms')),
+  );
+  const modal = ui.modal({ title: t('refund.policy'), content, className: 'modal--refund', actions: [{ label: t('common.close'), primary: true }] });
+
+  const show = (text, { can = false, amount = null } = {}) => {
+    status.textContent = text;
+    status.classList.toggle('is-ok', can);
+    button.disabled = !can;
+    button.textContent = amount ? t('refund.buttonAmount', { amount }) : t('refund.button');
+  };
+
+  function explain(result) {
+    const amount = result.amount != null ? euros(result.amount) : null;
+    switch (result.status) {
+      case 'eligible':
+        return show(t('refund.eligible', { amount, paid: longDate(result.paidAt), until: longDate(result.until) }), { can: true, amount });
+      case 'refunded':
+        button.hidden = true;
+        ui.toast(t('refund.done', { amount }), { duration: 12000 });
+        return show(t('refund.done', { amount }));
+      case 'too-late':
+        return show(t('refund.tooLate', { paid: longDate(result.paidAt), until: longDate(result.until) }));
+      case 'already':
+        return show(t('refund.already', { paid: longDate(result.paidAt) }));
+      case 'signed-out':
+        signIn.hidden = false;
+        return show(t('refund.signedOut'));
+      default:
+        return show(isPro() ? t('refund.noneCode') : t('refund.none'));
+    }
+  }
+
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    button.textContent = t('refund.working');
+    try {
+      explain(await (await session()).refundNow());
+    } catch {
+      show(t('refund.failed'));
+    }
+  });
+
+  if (!session) return void explain({ status: 'signed-out' });
+  session()
+    .then((current) => current.refundStatus())
+    .then(explain, () => show(t('refund.checkFailed')));
 }
 
 /** "I have a code": one field, checked against Firestore when submitted. */
@@ -852,6 +878,7 @@ function listenToPage() {
   listening = true;
   document.addEventListener(REDEEM_EVENT, () => pageEvents?.redeem());
   document.addEventListener(SIGNIN_FOR_PRO_EVENT, () => pageEvents?.signInForPro());
+  document.addEventListener(REFUND_POLICY_EVENT, () => pageEvents?.refundPolicy());
 }
 
 /**
@@ -895,9 +922,8 @@ export async function initAuth({ store, ui, i18n, slot, setSignedIn, config = fi
     },
     onChangePassword: () => run(async () => (await session()).changePassword()),
     onSyncGuest: () => run(async () => (await session()).syncGuest()),
-    onLink: (provider) => run(async () => (await session()).linkProvider(provider)),
     onDeleteAccount: () => run(async () => (await session()).deleteAccount()),
-    onRefund: () => run(async () => (await session()).refund()),
+    onRefundPolicy: () => openRefundPolicy({ ui, i18n, session: config ? session : null, onSignIn: () => view.openSignIn() }),
     onSignOut: () => run(async () => (await session()).signOut()),
     onSignOutClear: () => run(async () => (await session()).signOut({ clear: true })),
     onClearAccount: () => run(async () => (await session()).clearAccount()),
@@ -911,6 +937,7 @@ export async function initAuth({ store, ui, i18n, slot, setSignedIn, config = fi
   pageEvents = {
     redeem: () => openRedeemModal({ ui, i18n, session }),
     signInForPro: () => (config ? view.openSignIn({ reason: 'pro' }) : showNotConnected(ui, i18n)),
+    refundPolicy: () => openRefundPolicy({ ui, i18n, session: config ? session : null, onSignIn: () => view.openSignIn() }),
   };
   listenToPage();
   if (capturePayReturn()) openPaidModal({ ui, i18n, session });

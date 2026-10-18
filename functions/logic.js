@@ -72,7 +72,7 @@ export function longDay(iso) {
 }
 
 const SIGN_OFF = [
-  'Changed your mind? You can have a full refund within 14 days — just reply to this email.',
+  'Changed your mind? You can have a full refund within 14 days: signed in, open the account menu → Refund policy, or just reply to this email.',
   '',
   'Thank you for backing Levelix!',
   'Levelix · https://levelix.eu · info@levelix.eu',
@@ -92,7 +92,7 @@ export function emailFor({ code = null, until, period }) {
         '',
         `Your code: ${code}`,
         '',
-        'To turn Pro on: open https://levelix.eu, sign in, then open the account menu (top right) → “I have a code” and paste it in.',
+        'To turn Pro on: open https://levelix.eu and sign in, then on Home (the logo, top left) under Pricing press “I have a code” next to “Already paid?” and paste it in.',
         `Pro then runs until ${longDay(until)}.`,
         '',
         ...SIGN_OFF,
@@ -107,6 +107,23 @@ export function emailFor({ code = null, until, period }) {
       `It is already on for the account you were signed in with, until ${longDay(until)}: unlimited tasks, the task timer and the time report.`,
       '',
       ...SIGN_OFF,
+    ].join('\n'),
+  };
+}
+
+/** The email after a refund: how much went back, and that Pro has ended (the tasks stay, on Free). */
+export function refundEmailFor({ amount, currency, period }) {
+  const length = period === 'yearly' ? 'one year' : 'one month';
+  const money = currency === 'eur' || !currency ? `€${(Number(amount) / 100).toFixed(2).replace('.', ',')}` : `${(Number(amount) / 100).toFixed(2)} ${String(currency).toUpperCase()}`;
+  return {
+    subject: 'Your Levelix refund',
+    text: [
+      `We have refunded ${money} for Levelix Pro (${length}) to the card you paid with. Your bank may take 5–10 days to show it.`,
+      '',
+      'Pro has ended on your account. Your tasks stay where they are, on the Free plan.',
+      '',
+      'Sorry it was not for you — if you have a moment, reply and tell us what was missing.',
+      'Levelix · https://levelix.eu · info@levelix.eu',
     ].join('\n'),
   };
 }
