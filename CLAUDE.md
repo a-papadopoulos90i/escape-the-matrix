@@ -82,4 +82,3 @@ Check: `curl -s https://levelix.eu/ | grep -o 'v=[0-9]*' | head -1`.
   account (trash), Sign out & clear this device (last). **No account linking** (no Connect Google/Apple): each
   sign-in method is its own account. **Refund policy** is the last item of the account menu (and in Home's footer):
   its Refund button works only for a real payment within 14 days (server check first).
-  Apple to an existing account happens only from inside it (gear → Connect Apple).
