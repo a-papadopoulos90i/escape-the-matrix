@@ -351,14 +351,14 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await expect(menu.getByRole('menuitem', { name: 'I have a code' })).toHaveCount(0);
     await expect(menu.getByRole('menuitem', { name: 'Clear account' })).toBeHidden();
     await page.keyboard.press('ArrowDown');
-    await expect(menu.getByRole('menuitem', { name: 'Switch account' })).toBeFocused();
-    await page.keyboard.press('ArrowDown');
     await expect(menu.getByRole('menuitem', { name: 'Sign out', exact: true })).toBeFocused();
     await page.keyboard.press('ArrowDown');
     const gear = menu.getByRole('menuitem', { name: 'More account options' });
     await expect(gear).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(gear).toHaveAttribute('aria-expanded', 'true');
+    await expect(menu.getByRole('menuitem', { name: 'Switch account' })).toBeFocused();
+    await page.keyboard.press('ArrowDown');
     await expect(menu.getByRole('menuitem', { name: 'Connect Apple' })).toBeFocused(); // signed in with Google: Apple can join
     await page.keyboard.press('ArrowDown');
     await expect(menu.getByRole('menuitem', { name: 'Clear account' })).toBeFocused();
@@ -775,6 +775,7 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await page.goto('/');
     await startFakeSession(page, { signedIn: true });
     await page.locator('#account .account-btn').click();
+    await page.locator('.popover--account').getByRole('menuitem', { name: 'More account options' }).click(); // behind the gear
     await page.locator('.popover--account').getByRole('menuitem', { name: 'Switch account' }).click();
     const dialog = page.getByRole('dialog', { name: 'Sign in' });
     await expect(dialog).toContainText('Choose the account to open. Each account keeps its own tasks and Pro.');

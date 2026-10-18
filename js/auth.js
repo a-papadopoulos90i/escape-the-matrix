@@ -144,6 +144,8 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut
     const danger = ui.h(
       'div',
       { class: 'account-menu__danger', id: 'account-danger', hidden: true },
+      // Switch: to ANOTHER account, whose tasks stay apart from these.
+      menuItem(t('account.switch'), onSwitch),
       // Connect: another way into THIS account (same tasks, same Pro) — Google or Apple, whichever it lacks.
       ...['google', 'apple']
         .filter((provider) => providers.includes(provider) && !linkedProviders(user).includes(provider))
@@ -176,8 +178,6 @@ export function createAccountView({ slot, ui, i18n, onSignIn, onEmail, onSignOut
       // stopped days ago is visible at a glance.
       remindersEnabled() && menuItem(lastSyncAgo() ? t('reminders.syncAgo', { ago: lastSyncAgo() }) : t('reminders.sync'), onSyncReminders),
       plan !== 'pro' && menuItem(t('plan.goPro'), onGoPro),
-      // Switch: to ANOTHER account, whose tasks stay apart from these.
-      menuItem(t('account.switch'), onSwitch),
       ui.h('div', { class: 'account-menu__signout' }, menuItem(t('account.signOut'), onSignOut), gear),
       danger,
       // Last, quietly: what the refund rules are, and whether this account's payment can be refunded.

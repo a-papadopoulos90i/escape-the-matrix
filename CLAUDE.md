@@ -80,8 +80,8 @@ Check: `curl -s https://levelix.eu/ | grep -o 'v=[0-9]*' | head -1`.
   red and blinks, and **Sync** in the account card moves them in after a confirmation.
 - Two accounts on one browser never mix (the browser copy has an owner; others are set aside). Sign out shows a
   guest board; "Sign out & clear this device" removes everything local.
-- Main account menu: Go Pro, **Switch account** (signs out, opens the sign-in: another account, tasks apart), Sign
-  out + gear. Gear: **Connect Apple / Connect Google** (whichever the account lacks — a second way into the *same*
+- Main account menu: Go Pro, Sign out + gear. Gear: **Switch account** (signs out, opens the sign-in: another account,
+  tasks apart), **Connect Apple / Connect Google** (whichever the account lacks — a second way into the *same*
   account), Change password (email accounts), then red items with icons: Clear account (broom), Delete account
   (trash), Sign out & clear this device (last). **Refund policy** is the last item of the account menu (and Home's footer):
   its Refund button works only for a real payment within 14 days (server check first).
