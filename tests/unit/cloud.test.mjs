@@ -232,8 +232,8 @@ test('the server-acknowledged echo of our own write is not applied again', async
 });
 
 test('reconcile() writes only when the content differs from the server copy', async () => {
-  const remote = docWith(T(2), task('r'), task('s'));
-  const fake = fakeFirestore({ doc: remote, updatedAt: T(2), email: null });
+  const fake = fakeFirestore({ format: 2, settings: createEmptyDoc().settings, updatedAt: T(2), email: null });
+  fake.state.months.set('2026-03', [task('r'), task('s')]); // an account already kept by month
   const { cloud } = adapterFor(fake);
   await cloud.load();
 
@@ -372,4 +372,19 @@ test('the same task in two months (caught while moving) is read once, as its new
   const { cloud } = adapterFor(fake);
   const doc = await cloud.load();
   assert.deepEqual(doc.tasks.map((t) => [t.id, t.date]), [['moved', '2026-04-01']]);
+});
+
+test('opening an old single-document account rewrites it as months at once, even with nothing changed', async () => {
+  const legacy = docWith(T(2), at('old1', '2026-02-10'), at('old2', '2026-03-01'));
+  const fake = fakeFirestore({ doc: legacy, updatedAt: T(2), email: 'a@example.com' });
+  const { cloud } = adapterFor(fake);
+  await cloud.load();
+  cloud.reconcile(legacy); // what sign-in does after merging: the same content
+  await cloud.flush();
+  assert.equal(fake.state.writes.length, 1);
+  assert.equal(fake.state.data.doc, undefined);
+  assert.deepEqual([...fake.state.months.keys()].sort(), ['2026-02', '2026-03']);
+  cloud.reconcile(legacy); // from then on, the same content writes nothing
+  await cloud.flush();
+  assert.equal(fake.state.writes.length, 1);
 });

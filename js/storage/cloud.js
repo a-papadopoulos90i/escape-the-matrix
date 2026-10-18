@@ -122,6 +122,7 @@ export function createCloudAdapter({
   let syncedAt = ''; // envelope updatedAt of the newest version we wrote or applied
   let remoteSig = null; // signature of the doc we believe the server holds
   let remoteMonths = new Map(); // key → signature of each month document the server holds
+  let oldFormat = false; // the account is still one whole document: rewrite it as months at the first chance
   let rootLatest = null; // last root data seen by the listener (pending writes included)
   let monthsLatest = new Map(); // last month documents seen by the listener (pending writes included)
   let remoteKnown = false; // true once the server state has been read at least once
@@ -178,6 +179,7 @@ export function createCloudAdapter({
     try {
       await batch.commit();
       remoteMonths = written;
+      oldFormat = false;
       lastError = null;
     } catch (error) {
       lastError = error;
@@ -251,7 +253,9 @@ export function createCloudAdapter({
         const [rootSnapshot, monthsSnapshot] = await Promise.all([getDoc(ref), getDocs(monthsRef)]);
         const months = readMonths(monthsSnapshot);
         remoteMonths = new Map([...months].map(([key, tasks]) => [key, monthSignature([...tasks].sort(byId))]));
-        const envelope = assemble(rootSnapshot.exists() ? rootSnapshot.data() : null, months);
+        const root = rootSnapshot.exists() ? rootSnapshot.data() : null;
+        oldFormat = Boolean(root && typeof root.doc === 'object' && root.doc !== null);
+        const envelope = assemble(root, months);
         remoteKnown = true;
         lastError = null;
         if (!envelope) {
@@ -279,7 +283,7 @@ export function createCloudAdapter({
      * is never reconciled over an account that has tasks.
      */
     reconcile(localDoc) {
-      if (docSignature(localDoc) === remoteSig) return;
+      if (docSignature(localDoc) === remoteSig && !oldFormat) return; // an old-format account is rewritten anyway
       if (!normalizeDoc(localDoc).tasks.length && remoteSig !== null && remoteSig !== docSignature(null)) return;
       save(localDoc);
     },
