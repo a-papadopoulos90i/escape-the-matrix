@@ -359,7 +359,7 @@ test('a countdown that ran out offers a new timer, not "Continue", and the next 
   await waitForSaved(page, (doc) => taskById(doc, 't_timed').timer.baseSec === 311);
 });
 
-test('the free plan stops at 100 open tasks: adding says so, deleting makes room again', async ({ page }) => {
+test('the free plan stops at 100 tasks, finished ones included: only deleting makes room again', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 1000 });
   const many = Array.from({ length: 100 }, (_, i) => task(`t_f${i}`, `Task ${i + 1}`, null, {}));
   await seed(page, { tasks: many });
@@ -368,12 +368,17 @@ test('the free plan stops at 100 open tasks: adding says so, deleting makes room
 
   await input.fill('One too many');
   await input.press('Enter');
-  await expect(page.locator('.toast', { hasText: 'The free plan holds 100 open tasks' })).toBeVisible();
+  await expect(page.locator('.toast', { hasText: 'Free holds 100 tasks, finished ones included' })).toBeVisible();
   await expect(panel(page).locator('.waiting .task-card__title', { hasText: 'One too many' })).toHaveCount(0);
 
-  // Tick one off — it leaves the open list — and there is room again.
+  // Ticking one off keeps it in the history — still full. Deleting one makes room.
   await panel(page).locator('.waiting .task-card[data-id="t_f0"] .task-card__check').click();
   await expect(panel(page).locator('.waiting .task-card')).toHaveCount(99);
+  await input.fill('Still too many');
+  await input.press('Enter');
+  await expect(panel(page).locator('.waiting .task-card__title', { hasText: 'Still too many' })).toHaveCount(0);
+  await panel(page).locator('.waiting .task-card[data-id="t_f1"] .task-card__delete').click();
+  await expect(panel(page).locator('.waiting .task-card')).toHaveCount(98);
   await input.fill('Now it fits');
   await input.press('Enter');
   await expect(panel(page).locator('.waiting .task-card__title', { hasText: 'Now it fits' })).toHaveCount(1);

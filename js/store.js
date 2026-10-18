@@ -579,6 +579,13 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
       });
     },
 
+    /** Deletes several tasks as one action (the Done history's day or "all"): one undo token. */
+    removeTasks(ids) {
+      return undoable(() => {
+        for (const id of ids) store.removeTask(id);
+      });
+    },
+
     /** Tombstones every live task at once (stopping running timers), so the wipe syncs to every
      *  device instead of being merged back. One undo token restores them all. */
     clearAll() {

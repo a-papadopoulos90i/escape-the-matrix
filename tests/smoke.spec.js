@@ -58,7 +58,7 @@ test('the logo opens Home: three steps with screenshots, and its buttons lead in
   }
   await expect(activePanel(page).getByRole('heading', { name: 'Start free' })).toBeVisible();
 
-  await expect(page.locator('.report-fab')).toBeHidden(); // the Time report lives on Write down + Prioritize
+  await expect(page.locator('.report-fabs')).toBeHidden(); // Done + Time report live on the stages, not Home
 
   await activePanel(page).getByRole('button', { name: 'Open the calendar' }).click();
   await expect(activeTitle(page)).toHaveText(TITLES[1]);
@@ -72,13 +72,13 @@ test('the logo opens Home: three steps with screenshots, and its buttons lead in
 
 test('the Time report button is always last, under every task, on Write down and Prioritize only', async ({ page }) => {
   await page.goto('/');
-  const fab = page.locator('.report-fab');
+  const fab = page.getByRole('button', { name: 'Time report' });
   const steps = page.locator('#stepper .step');
   await expect(fab).toBeHidden(); // calendar
   const belowContent = () =>
     page.evaluate(() => {
       const panel = document.querySelector('#stage .panel:not(.panel--ghost)').getBoundingClientRect();
-      const button = document.querySelector('.report-fab').getBoundingClientRect();
+      const button = document.querySelector('.report-fabs').getBoundingClientRect();
       return { gap: Math.round(button.top - panel.bottom), centre: Math.round(button.left + button.width / 2 - innerWidth / 2) };
     });
   await steps.nth(1).click();
@@ -95,13 +95,65 @@ test('the Time report button is always last, under every task, on Write down and
     await page.waitForTimeout(400); // cross-fade
     const { gap, centre } = await belowContent();
     expect(gap).toBeGreaterThanOrEqual(0); // never over a task
-    expect(Math.abs(centre)).toBeLessThanOrEqual(8); // centred (scrollbar gutter allowed)
+    expect(Math.abs(centre)).toBeLessThanOrEqual(8); // the row is centred (scrollbar gutter allowed)
   }
   await fab.click();
   await expect(page.getByRole('dialog', { name: 'Time spent per task' })).toBeVisible();
   await page.keyboard.press('Escape');
   await steps.nth(0).click();
   await expect(fab).toBeHidden();
+});
+
+test('Done: finished tasks by day with counts; deleting a task, a day or all of them makes room on Free, with Undo', async ({ page }) => {
+  const today = new Date();
+  const key = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+  const at = new Date().toISOString();
+  const task = (id, date, done) => ({ id, title: id, date, quadrant: 'do', tag: 'do', done, doneAt: done ? at : null, createdAt: at, updatedAt: at, order: 0 });
+  const tasks = [
+    ...Array.from({ length: 98 }, (_, i) => task(`open ${i}`, key(today), false)),
+    task('Wrote the report', key(today), true),
+    task('Called the bank', key(yesterday), true),
+  ];
+  await seed(page, { doc: { version: 1, updatedAt: at, settings: {}, tasks } });
+  await page.goto('/');
+
+  // At 100 (finished ones included) Free is full: the message leads to Done.
+  await page.locator('#stepper .step').nth(1).click();
+  await page.locator('.dump__input').fill('One more');
+  await page.locator('.dump__input').press('Enter');
+  const toast = page.locator('.toast').filter({ hasText: 'finished ones included' });
+  await expect(toast).toBeVisible();
+  await toast.getByRole('button', { name: 'Done' }).click();
+
+  const dialog = page.getByRole('dialog', { name: 'Done' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('.history__stat').first()).toContainText('1'); // today
+  await expect(dialog.locator('.history__stat').last()).toContainText('2'); // all time
+  await expect(dialog.locator('.history__usage')).toContainText('100 of 100 tasks on Free');
+  await expect(dialog.locator('.history__day')).toHaveCount(2);
+  await expect(dialog.locator('.history__day').first()).toContainText('Wrote the report');
+
+  await dialog.getByRole('button', { name: 'Delete this task: Called the bank' }).click();
+  await expect(dialog.locator('.history__day')).toHaveCount(1);
+  await expect(dialog.locator('.history__usage')).toContainText('99 of 100');
+  await page.locator('.toast').filter({ hasText: 'Task deleted' }).getByRole('button', { name: 'Undo' }).click();
+  await expect(dialog.locator('.history__day')).toHaveCount(2);
+
+  // Delete all asks for a second press.
+  await dialog.getByRole('button', { name: 'Delete all finished tasks' }).click();
+  await expect(dialog.locator('.history__day')).toHaveCount(2);
+  await dialog.getByRole('button', { name: 'Press again to delete all 2' }).click();
+  await expect(dialog.locator('.history__empty')).toBeVisible();
+  await expect(dialog.locator('.history__usage')).toContainText('98 of 100');
+  await page.keyboard.press('Escape');
+
+  // Room again: the task goes in. The Done button sits beside Time report.
+  await page.locator('.dump__input').fill('One more');
+  await page.locator('.dump__input').press('Enter');
+  await expect(page.locator('.dump-row input').last()).toHaveValue('One more');
+  await page.getByRole('button', { name: 'Done — your finished tasks' }).click();
+  await expect(page.getByRole('dialog', { name: 'Done' }).locator('.history__empty')).toBeVisible();
 });
 
 test('"See an example" sweeps the logo colours on arrival and is hidden for signed-in users', async ({ page }) => {

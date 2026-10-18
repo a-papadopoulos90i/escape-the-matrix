@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { canAddTask, FREE_TASK_LIMIT, guardFreeLimit, isPro, openTaskCount, setPlan } from '../../js/plan.js';
+import { canAddTask, FREE_TASK_LIMIT, guardFreeLimit, isPro, setHistoryOpener, setPlan, taskCount } from '../../js/plan.js';
+import { doneDays } from '../../js/history.js';
 import { createEmptyDoc, createStore } from '../../js/store.js';
 import { createBilling, normalizeCode, VoucherError } from '../../js/billing.js';
 
@@ -12,22 +13,25 @@ const ui = () => {
 };
 const i18n = { t: (key, values) => `${key}:${JSON.stringify(values ?? {})}` };
 
-test('the free limit counts open tasks only — finished work and records are free', () => {
+test('the free limit counts finished tasks too — they are the history; deleted tasks and records do not', () => {
   const store = fakeStore([task(), task({ done: true }), task({ deleted: true }), task({ carriedTo: '2026-03-12' })]);
-  assert.equal(openTaskCount(store), 1);
+  assert.equal(taskCount(store), 2);
 });
 
 test('Free stops at the limit and says so; Pro never does', () => {
   setPlan('free');
-  const full = fakeStore(Array.from({ length: FREE_TASK_LIMIT }, () => task()));
+  const full = fakeStore(Array.from({ length: FREE_TASK_LIMIT }, (_, i) => task({ done: i % 2 === 0 }))); // half of them finished
   const room = fakeStore(Array.from({ length: FREE_TASK_LIMIT - 1 }, () => task()));
   const box = ui();
 
   assert.equal(canAddTask({ store: room, ui: box, i18n }), true);
   assert.equal(box.toasts.length, 0);
 
+  setHistoryOpener(() => {});
   assert.equal(canAddTask({ store: full, ui: box, i18n }), false);
   assert.match(box.toasts[0].message, /^plan.limitReached/);
+  assert.deepEqual(box.toasts[0].options.actions.map((action) => action.label), ['history.open:{}']); // where room is made
+  setHistoryOpener(null);
 
   setPlan('pro');
   assert.equal(isPro(), true);
@@ -45,7 +49,7 @@ function guardedStore(count) {
   return { store, box, ids: store.get().tasks.map((task) => task.id) };
 }
 
-test('over the Free limit (Pro ran out), tasks cannot be renamed, moved or re-filed — only finished or deleted', () => {
+test('over the Free limit (Pro ran out), tasks cannot be renamed, moved, re-filed or reopened — only finished or deleted', () => {
   setPlan('free');
   const { store, box, ids } = guardedStore(FREE_TASK_LIMIT + 2);
   const [first, second, third] = ids;
@@ -61,24 +65,28 @@ test('over the Free limit (Pro ran out), tasks cannot be renamed, moved or re-fi
   assert.match(box.toasts[0].message, /^plan.overLimit/);
   assert.match(box.toasts[0].message, /"over":2/);
 
-  // Finishing and deleting are how you get back under — never blocked.
+  // Finishing is always allowed — but a finished task still counts, so only deleting makes room.
   store.toggleDone(first, true);
-  store.removeTask(second);
-  assert.equal(openTaskCount(store), FREE_TASK_LIMIT);
-  assert.equal(box.toasts.length, 5);
-
-  // Back at the limit, editing works again; reopening would go over, so it waits.
-  store.updateTask(third, { title: 'renamed' });
-  assert.equal(store.get().tasks.find((task) => task.id === third).title, 'renamed');
+  assert.equal(taskCount(store), FREE_TASK_LIMIT + 2);
   store.toggleDone(first, false);
   assert.equal(store.get().tasks.find((task) => task.id === first).done, true);
-  assert.match(box.toasts.at(-1).message, /^plan.reopenLimit/);
+  assert.equal(box.toasts.length, 6);
+  store.removeTasks([first, second]);
+  assert.equal(taskCount(store), FREE_TASK_LIMIT);
+
+  // Back at the limit, editing and reopening work again.
+  store.updateTask(third, { title: 'renamed' });
+  assert.equal(store.get().tasks.find((task) => task.id === third).title, 'renamed');
+  store.toggleDone(third, true);
+  store.toggleDone(third, false);
+  assert.equal(store.get().tasks.find((task) => task.id === third).done, false);
+  assert.equal(box.toasts.length, 6);
 
   // Pro edits anything.
   setPlan('pro');
-  store.toggleDone(first, false);
-  store.updateTask(first, { title: 'free again' });
-  assert.equal(store.get().tasks.find((task) => task.id === first).title, 'free again');
+  store.addTask({ title: 'over again', date: '2026-03-11' });
+  store.updateTask(third, { title: 'free again' });
+  assert.equal(store.get().tasks.find((task) => task.id === third).title, 'free again');
   setPlan('free');
 });
 
@@ -88,6 +96,28 @@ test('a blocked action says so once, not once per task it touches', () => {
   store.carryOver(ids.slice(0, 3), '2026-03-12');
   assert.equal(box.toasts.length, 1);
   assert.equal(store.tasksForDate('2026-03-12').length, 0);
+});
+
+test('removeTasks deletes several tasks as one action, undone in one step', () => {
+  const store = createStore(createEmptyDoc());
+  const ids = ['a', 'b', 'c'].map((title) => store.addTask({ title, date: '2026-03-11' }).id);
+  const token = store.removeTasks(ids.slice(0, 2));
+  assert.equal(taskCount(store), 1);
+  store.undo(token);
+  assert.equal(taskCount(store), 3);
+});
+
+test('Done history: finished tasks by day, newest day first, latest finished first; records and deleted left out', () => {
+  const done = (id, date, doneAt, extra = {}) => ({ id, title: id, date, done: true, doneAt, deleted: false, carriedTo: null, ...extra });
+  const days = doneDays([
+    done('a', '2026-03-10', '2026-03-10T09:00:00Z'),
+    done('b', '2026-03-11', '2026-03-11T08:00:00Z'),
+    done('c', '2026-03-11', '2026-03-11T17:00:00Z'),
+    done('gone', '2026-03-11', '2026-03-11T18:00:00Z', { deleted: true }),
+    { ...done('open', '2026-03-11', null), done: false },
+    { ...done('record', '2026-03-09', null), done: false, carriedTo: '2026-03-10' },
+  ]);
+  assert.deepEqual(days.map((day) => [day.date, day.tasks.map((t) => t.id)]), [['2026-03-11', ['c', 'b']], ['2026-03-10', ['a']]]);
 });
 
 test('codes are read loosely: case, spaces and dashes do not matter', () => {

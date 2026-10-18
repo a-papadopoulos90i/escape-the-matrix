@@ -6,6 +6,7 @@ import { createLocalAdapter } from './storage/local.js';
 import * as dates from './dates.js';
 import * as ui from './ui.js';
 import * as i18n from './i18n.js';
+import { openDoneHistory } from './history.js';
 import { openTimeReport } from './report.js';
 import { captureRemindersFlag, remindersEnabled, startRemindersAutoSync } from './reminders.js';
 import * as home from './stages/home.js';
@@ -13,7 +14,7 @@ import * as calendar from './stages/calendar.js';
 import * as dump from './stages/dump.js';
 import * as board from './stages/board.js';
 import { init as initTimer } from './timer.js';
-import { guardFreeLimit } from './plan.js';
+import { guardFreeLimit, setHistoryOpener } from './plan.js';
 
 const { t } = i18n;
 const STAGE_COUNT = 3;
@@ -23,6 +24,7 @@ const STEP_ICONS = ['calendar', 'pencil', 'grid'];
 const HOME = 0;
 const STAGE_MODULES = { [HOME]: home, 1: calendar, 2: dump, 3: board };
 const REPORT_STAGES = [2, 3]; // Write down + Prioritize show the fixed Time report button
+const HISTORY_STAGES = [1, 2, 3]; // the Done history sits beside it, and under the calendar too
 // Each stage's bubbles come from i18n.tips with their default tone/tail; a stage may override
 // those via data-tip-tone / data-tip-tail on its [data-tip-anchor] element. A bubble that is
 // not anchored sits under the stage header — which is also where every tip goes on narrow
@@ -90,6 +92,8 @@ function renderBrand() {
   els.brand?.setAttribute('aria-current', state.stage === HOME ? 'page' : 'false');
   // One app-level Time report button after the stage: always last, under every task, on both pages.
   els.reportButton.hidden = !REPORT_STAGES.includes(state.stage);
+  els.historyButton.hidden = !HISTORY_STAGES.includes(state.stage);
+  els.fabs.hidden = els.reportButton.hidden && els.historyButton.hidden;
 }
 
 function renderStepper() {
@@ -378,7 +382,9 @@ async function boot() {
   });
 
   store = createStore(await local.load());
-  guardFreeLimit({ store, ui, i18n, onSeePlans: () => goTo(HOME) }); // Free above 100 open tasks: no reshaping
+  const openHistory = () => openDoneHistory({ ui, store, i18n, dates, onSeePlans: () => goTo(HOME) });
+  setHistoryOpener(openHistory); // the limit messages lead to it: that is where room is made
+  guardFreeLimit({ store, ui, i18n, onSeePlans: () => goTo(HOME) }); // Free above 100 tasks: no reshaping
   store.attach(local);
   initTimer({ store }); // the floating timer bar lives at document level, whatever stage is open
   store.onError(() => ui.toast(t('toast.saveFailed')));
@@ -400,12 +406,18 @@ async function boot() {
     event.preventDefault();
     goTo(HOME);
   });
+  els.historyButton = ui.h(
+    'button',
+    { class: 'report-fab', type: 'button', hidden: true, 'aria-label': t('history.button'), title: t('history.button'), onClick: openHistory },
+    ui.icon('done-list', { size: 22 }),
+  );
   els.reportButton = ui.h(
     'button',
     { class: 'report-fab', type: 'button', hidden: true, 'aria-label': t('settings.timeReport'), title: t('settings.timeReport'), onClick: () => openTimeReport({ ui, store, i18n, dates }) },
     ui.icon('clock', { size: 22 }),
   );
-  document.querySelector('.app').append(els.reportButton);
+  els.fabs = ui.h('div', { class: 'report-fabs', hidden: true }, els.historyButton, els.reportButton);
+  document.querySelector('.app').append(els.fabs);
 
   renderStepper();
   renderBrand();
