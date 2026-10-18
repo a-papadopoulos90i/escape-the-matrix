@@ -66,13 +66,18 @@ Public repository — no secrets, passwords, keys or customer data here.
   finished tasks by day, counts for today / 7 / 30 days / all time, tracked time, Free usage bar; delete a task, a
   day or all finished (second press), each with Undo. Limit messages lead to Done and to the plans. Toasts now sit
   above dialogs so Undo works inside them. Terms and Support updated.
+- **2026-10-18 — Refund policy page; no account linking (v=112).** The owner saw Refund in the gear of an
+  account that got Pro from an unpaid code. Now Refund is a **Refund policy** page (last item of the account menu,
+  and Home's footer): the rules, then the server is asked (`requestRefund` with `{ check: true }`) and the
+  **Refund** button works only for a real payment within 14 days; otherwise it stays disabled with the reason.
+  **Connect Apple removed too** — each sign-in method is its own account. The webhook now **emails the buyer on a
+  refund**; the code email points to Home → "I have a code" (the account menu no longer has it).
 
 ## Open items
 
-- The owner's main Google account still needs **Apple connected**: sign in with Apple → gear → Delete account
-  (the duplicate), then *without* pressing "Continue with Apple" again, sign in with Google → gear → Connect Apple.
-  (Connect Google no longer exists, so Apple must be connected from the Google/email account, not the reverse.)
-  Two Apple accounts exist (probably two Apple IDs).
+- The owner's duplicate Apple account (privaterelay) can simply be deleted — linking accounts no longer exists.
+- Check that Stripe's own customer emails (payment receipt, refund) are switched on in Stripe → Settings →
+  Customer emails, if the owner wants Stripe receipts besides ours.
 - VAT / invoices (myDATA) — for the owner's accountant; Stripe Tax monitors thresholds only.
 - One Firestore document per user tops out around 2,700 tasks (1 MiB).
 - Ideas mentioned, not built: AI reports, adding tasks by voice (marked "coming soon" on Home).
