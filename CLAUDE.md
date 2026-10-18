@@ -18,6 +18,8 @@ into it — in code, docs, commits or logs.
   switched accounts.
 - Things only he does: payments with his card, entering passwords/keys/secrets (`firebase functions:secrets:set`,
   the Apple `.p8`), deleting accounts or projects, DNS edits at Papaki (the auto-mode classifier blocks them).
+- Reading his Gmail through the connector is blocked by the auto-mode classifier; to check what Levelix emailed,
+  read the function logs (`$FB functions:log`) instead.
 - Don't touch his other projects (another Vite preview often holds port 4173).
 
 ## The product
@@ -41,7 +43,8 @@ Pages: `support.html`, `privacy.html`, `terms.html` (clean URLs `/support` etc.)
   `js/history.js` (Done screen), `js/report.js` (Time report).
 - Focus rings show only after keyboard navigation (`kbd-nav` class on `<html>`, set in `js/app.js`).
 - Cloud Functions in `functions/` (Node 22, europe-west1): `stripeWebhook`, `cleanupAccount`, `requestRefund`.
-  Pure logic is split out (`logic.js`, `webhook.js`, `account.js`) and unit-tested.
+  Pure logic is split out (`logic.js`, `webhook.js`, `account.js`, `refund.js`) and unit-tested. The webhook emails
+  the buyer on a purchase ("Levelix Pro is on" or the code) and on a refund, with a copy to info@levelix.eu.
 - Personal Apple Reminders bridge for the owner's Mac: `tools/reminders-bridge/` (opt-in `?reminders=on`).
 
 ## Tests and release

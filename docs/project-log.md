@@ -70,12 +70,13 @@ Public repository — no secrets, passwords, keys or customer data here.
   account that got Pro from an unpaid code. Now Refund is a **Refund policy** page (last item of the account menu,
   and Home's footer): the rules, then the server is asked (`requestRefund` with `{ check: true }`) and the
   **Refund** button works only for a real payment within 14 days; otherwise it stays disabled with the reason.
-  **Connect Apple removed too** — each sign-in method is its own account. The webhook now **emails the buyer on a
+  Connect Apple was removed here too (by mistake — restored in v=113). The webhook now **emails the buyer on a
   refund**; the code email points to Home → "I have a code" (the account menu no longer has it).
 - **2026-10-18 — Connect back, plus Switch account (v=113).** The owner had removed Connect thinking it switched
   accounts. Clarified: **Connect** (gear → Connect Apple / Connect Google, whichever the account lacks) adds a second
   way into the *same* account; **Switch account** (main account menu) signs out and opens the sign-in at once, to
-  another account whose tasks stay apart. Both kept; Switch account moved into the gear at the owner's request (v=114). Lesson: before removing a feature, explain what it does.
+  another account whose tasks stay apart. Both kept; Switch account then moved into the gear, first item (v=114).
+  Lesson: before removing a feature, explain what it does.
 
 ## Open items
 
