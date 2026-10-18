@@ -54,12 +54,27 @@ Public repository — no secrets, passwords, keys or customer data here.
   finished tasks stay visible on their day (v=110).
 - **2026-10-18 — Verified with a real payment:** €4,80 paid → Pro on instantly → email sent → refund from the app
   → Stripe refunded → bank shows "Refunded, Levelix". Whole flow works live.
+- **2026-10-18 — Free limit can't be gamed (v=110).** Idea from the owner: fill 1000 tasks while Pro, then reuse
+  them by renaming after Pro ends. Now, on Free above the limit, tasks can only be finished or deleted; renaming,
+  moving, re-filing, repeating and reopening wait until the account is back within 100 (store edit guard, one
+  message per action). Gear menu: **Connect Google removed** (not needed); red items carry icons (broom = Clear
+  account, trash = Delete account, exit arrow = Sign out & clear this device, which is last). The green focus ring
+  shows only when moving with the keyboard, never after a click.
+- **2026-10-18 — Done history; finished tasks count (v=111).** Owner's decision: on Free the **100 includes finished
+  tasks** — they are the history the statistics come from, so making room means deleting them and losing that
+  history (the reason to go Pro). New **Done** screen (ticked-list button under Calendar, Write down, Prioritize):
+  finished tasks by day, counts for today / 7 / 30 days / all time, tracked time, Free usage bar; delete a task, a
+  day or all finished (second press), each with Undo. Limit messages lead to Done and to the plans. Toasts now sit
+  above dialogs so Undo works inside them. Terms and Support updated.
 
 ## Open items
 
 - The owner's main Google account still needs **Apple connected**: sign in with Apple → gear → Delete account
   (the duplicate), then *without* pressing "Continue with Apple" again, sign in with Google → gear → Connect Apple.
+  (Connect Google no longer exists, so Apple must be connected from the Google/email account, not the reverse.)
   Two Apple accounts exist (probably two Apple IDs).
 - VAT / invoices (myDATA) — for the owner's accountant; Stripe Tax monitors thresholds only.
 - One Firestore document per user tops out around 2,700 tasks (1 MiB).
 - Ideas mentioned, not built: AI reports, adding tasks by voice (marked "coming soon" on Home).
+- Since v=111, Free users who already had many finished tasks may be over 100 at once: nothing is lost, but they
+  must delete in Done before adding. Watch for support mail about it.

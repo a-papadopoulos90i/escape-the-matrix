@@ -24,7 +24,8 @@ into it — in code, docs, commits or logs.
 not the name. Three stages: **Calendar → Write down → Prioritize**, plus **Home** (logo) with pricing.
 Pages: `support.html`, `privacy.html`, `terms.html` (clean URLs `/support` etc.). `SPEC.md` is the product spec.
 
-- **Free**: up to 100 open tasks. **Pro**: €4,80 / month or €28 / year, **one-off** (no auto-renewal),
+- **Free**: up to 100 tasks, **finished ones included** (they are the history; room is made by deleting, e.g. in
+  the **Done** screen). Above 100 (Pro ended) tasks can only be finished or deleted until back within the limit. **Pro**: €4,80 / month or €28 / year, **one-off** (no auto-renewal),
   14-day full refund. Codes exist only as a fallback the webhook emails to buyers who paid signed out.
 
 ## Code
@@ -34,7 +35,9 @@ Pages: `support.html`, `privacy.html`, `terms.html` (clean URLs `/support` etc.)
   (and keep the import map valid JSON — no trailing comma).
 - Key modules: `js/store.js` (immutable doc, tombstones, `mergeDocs`, undo), `js/stages/*.js`, `js/auth.js`
   (accounts, account menu, sign-in dialog), `js/billing.js` + `js/billing-links.js` + `js/plan.js` (Pro),
-  `js/storage/local.js` (browser copy, owner + stashes), `js/storage/cloud.js` (Firestore `users/{uid}`).
+  `js/storage/local.js` (browser copy, owner + stashes), `js/storage/cloud.js` (Firestore `users/{uid}`),
+  `js/history.js` (Done screen), `js/report.js` (Time report).
+- Focus rings show only after keyboard navigation (`kbd-nav` class on `<html>`, set in `js/app.js`).
 - Cloud Functions in `functions/` (Node 22, europe-west1): `stripeWebhook`, `cleanupAccount`, `requestRefund`.
   Pure logic is split out (`logic.js`, `webhook.js`, `account.js`) and unit-tested.
 - Personal Apple Reminders bridge for the owner's Mac: `tools/reminders-bridge/` (opt-in `?reminders=on`).
@@ -75,6 +78,6 @@ Check: `curl -s https://levelix.eu/ | grep -o 'v=[0-9]*' | head -1`.
   red and blinks, and **Sync** in the account card moves them in after a confirmation.
 - Two accounts on one browser never mix (the browser copy has an owner; others are set aside). Sign out shows a
   guest board; "Sign out & clear this device" removes everything local.
-- Gear menu: Connect Apple/Google, Change password, Clear account, Sign out & clear this device, Delete account,
-  Refund (Pro, within 14 days). The sign-in screen's "Continue with Apple" **creates/opens an account** — connecting
+- Gear menu, in this order: Connect Apple, Change password, Refund (Pro, within 14 days), then the red ones with
+  icons — Clear account (broom), Delete account (trash), Sign out & clear this device (last). No Connect Google. The sign-in screen's "Continue with Apple" **creates/opens an account** — connecting
   Apple to an existing account happens only from inside it (gear → Connect Apple).
