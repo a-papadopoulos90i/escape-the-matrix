@@ -786,8 +786,42 @@ test('the browser tab shows the running time and the task it belongs to', async 
   await popover(page).locator('.timer-picker__stopwatch').click();
   await expect.poll(() => page.title()).toMatch(/^\d{2}:\d{2} — Marketing Order A5$/);
 
-  await bar(page).locator('.timer-bar__pause').click(); // paused: the tab goes back to its own name
+  await bar(page).locator('.timer-bar__pause').click(); // paused: the tab says so, with the time it stopped at
+  await expect.poll(() => page.title()).toMatch(/^⏸ \d{2}:\d{2} — Marketing Order A5$/);
+
+  await bar(page).locator('.timer-bar__stop').click(); // stopped: the tab goes back to its own name
   await expect.poll(() => page.title()).toBe(ownTitle);
+});
+
+test("the browser's own play/pause controls pause and continue the timer", async ({ page }) => {
+  // The browser's ⏯ (toolbar, media keys) calls the page's media-session handlers; keep them to press them here.
+  await page.addInitScript(() => {
+    const handlers = (window.__mediaHandlers = {});
+    const real = navigator.mediaSession.setActionHandler.bind(navigator.mediaSession);
+    navigator.mediaSession.setActionHandler = (action, handler) => {
+      handlers[action] = handler;
+      real(action, handler);
+    };
+  });
+  await seed(page, { tasks: SORTED(), stage: 3 });
+  await page.goto('/');
+  const session = () => page.evaluate(() => ({ state: navigator.mediaSession.playbackState, title: navigator.mediaSession.metadata?.title ?? null }));
+  expect(await session()).toEqual({ state: 'none', title: null });
+
+  await openTimer(page, 'Marketing Order A5');
+  await popover(page).locator('.timer-picker__stopwatch').click();
+  await expect.poll(session).toEqual({ state: 'playing', title: 'Marketing Order A5' });
+
+  await page.evaluate(() => window.__mediaHandlers.pause());
+  await expect(bar(page).locator('.timer-bar__pause')).toHaveAttribute('aria-label', 'Resume');
+  await expect.poll(session).toEqual({ state: 'paused', title: 'Marketing Order A5' });
+
+  await page.evaluate(() => window.__mediaHandlers.play());
+  await expect(bar(page).locator('.timer-bar__pause')).toHaveAttribute('aria-label', 'Pause');
+  await expect.poll(session).toEqual({ state: 'playing', title: 'Marketing Order A5' });
+
+  await bar(page).locator('.timer-bar__stop').click(); // nothing timed: the browser's controls go away
+  await expect.poll(session).toEqual({ state: 'none', title: null });
 });
 
 test('"Run both" lets two tasks be timed side by side', async ({ page }) => {
