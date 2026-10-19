@@ -77,6 +77,14 @@ Public repository — no secrets, passwords, keys or customer data here.
   way into the *same* account; **Switch account** (main account menu) signs out and opens the sign-in at once, to
   another account whose tasks stay apart. Both kept; Switch account then moved into the gear, first item (v=114).
   Lesson: before removing a feature, explain what it does.
+- **2026-10-18/19 — One Firestore document per month (v=115/116).** An account was one document, which tops out at
+  1 MiB (~2,300 tasks). Now `users/{uid}` holds settings and `users/{uid}/months/{YYYY-MM|undated}` the tasks; a save
+  writes only the months that changed, in one batch. Old accounts move over the first time they are opened (backup
+  taken first, on the owner's Mac). Verified on the owner's account: 3 months, every task there.
+- **2026-10-19 — Timer from the browser's own controls (v=117).** The owner asked for pause/continue "up in the
+  tab". A tab title can't hold a button, so on computers the live timer sits in the browser's media controls
+  (Chrome's ⏯ toolbar button, macOS Now Playing, the keyboard's play/pause key) through a silent looping clip. Not
+  on phones: playing audio there would stop the user's music. The tab shows "⏸ 02:44 — task" while paused.
 
 ## Open items
 
@@ -85,7 +93,6 @@ Public repository — no secrets, passwords, keys or customer data here.
 - Check that Stripe's own customer emails (payment receipt, refund) are switched on in Stripe → Settings →
   Customer emails, if the owner wants Stripe receipts besides ours.
 - VAT / invoices (myDATA) — for the owner's accountant; Stripe Tax monitors thresholds only.
-- One Firestore document per user tops out around 2,700 tasks (1 MiB).
 - Ideas mentioned, not built: AI reports, adding tasks by voice (marked "coming soon" on Home).
 - Since v=111, Free users who already had many finished tasks may be over 100 at once: nothing is lost, but they
   must delete in Done before adding. Watch for support mail about it.
