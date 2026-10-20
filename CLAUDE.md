@@ -70,6 +70,9 @@ Check: `curl -s https://levelix.eu/ | grep -o 'v=[0-9]*' | head -1`.
 - **Firebase project `levelix`** (Blaze, 5 € spend caps), hosting site **`levelix-app`** behind levelix.eu and www
   (redirect). Firestore eur3. Auth: Google, Apple, email/password. Default auth domain `levelix-b42f1.firebaseapp.com`
   (the site name `levelix` was taken by the old project); `authDomain` follows the visitor's host.
+  The web API key in `js/firebase-config.js` is public by design (GitHub's secret alerts about it are expected);
+  it is limited to Firebase APIs and to the sites levelix.eu, www, levelix-app.web.app/.firebaseapp.com and
+  levelix-b42f1.web.app/.firebaseapp.com — **a new domain must be added to the key** (Cloud console → Credentials).
 - **DNS at Papaki**: A `199.36.158.100`, TXT `hosting-site=levelix-app`, www CNAME `levelix-app.web.app.`, mail
   `securemail.pro` (info@levelix.eu, DKIM on).
 - **Stripe** account "Levelix", descriptor `LEVELIX.EU`; payment links in `js/billing-links.js`; event destination

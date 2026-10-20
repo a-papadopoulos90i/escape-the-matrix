@@ -85,6 +85,9 @@ Public repository — no secrets, passwords, keys or customer data here.
   tab". A tab title can't hold a button, so on computers the live timer sits in the browser's media controls
   (Chrome's ⏯ toolbar button, macOS Now Playing, the keyboard's play/pause key) through a silent looping clip. Not
   on phones: playing audio there would stop the user's music. The tab shows "⏸ 02:44 — task" while paused.
+- **2026-10-20 — API key limited to our sites.** GitHub flagged the Firebase web API key (it is public by design;
+  the September alert was the old, deleted project's key). The key, already limited to Firebase APIs, now works
+  only from levelix.eu, www, levelix-app and levelix-b42f1 (web.app / firebaseapp.com); other sites get 403.
 
 ## Open items
 
