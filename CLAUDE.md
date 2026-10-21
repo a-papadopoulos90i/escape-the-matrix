@@ -28,9 +28,11 @@ into it — in code, docs, commits or logs.
 not the name. Three stages: **Calendar → Write down → Prioritize**, plus **Home** (logo) with pricing.
 Pages: `support.html`, `privacy.html`, `terms.html` (clean URLs `/support` etc.). `SPEC.md` is the product spec.
 
-- **Free**: up to 100 tasks, **finished ones included** (they are the history; room is made by deleting, e.g. in
-  the **Done** screen). Above 100 (Pro ended) tasks can only be finished or deleted until back within the limit. **Pro**: €4,80 / month or €28 / year, **one-off** (no auto-renewal),
-  14-day full refund. Codes exist only as a fallback the webhook emails to buyers who paid signed out.
+- **Basic Free**: calendar, write down, prioritize, finish, delete — up to 100 tasks, **finished ones included** (they are the history; room is made by deleting, e.g. in
+  the **Done** screen). Above 100 (Pro ended) tasks can only be finished or deleted until back within the limit. **Pro** adds unlimited tasks, the task timer + Time report, moving a task to
+  another day (⏩), the statistics in Done and the calendar's All Tasks view — on Free these show **blurred under a
+  "Go Pro for unlimited access" card** (`js/pro-lock.js`). €28 / year or €4,80 / month, prices final incl. VAT,
+  **one-off** (no auto-renewal), 14-day full refund. Tests run as Free; `asPro(page)` (tests/fixtures.js) for Pro. Codes exist only as a fallback the webhook emails to buyers who paid signed out.
 
 ## Code
 

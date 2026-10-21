@@ -89,6 +89,15 @@ Public repository — no secrets, passwords, keys or customer data here.
   the September alert was the old, deleted project's key). The key, already limited to Firebase APIs, now works
   only from levelix.eu, www, levelix-app and levelix-b42f1 (web.app / firebaseapp.com); other sites get 403.
 
+- **2026-10-21 — Basic Free and Pro (v=118).** The owner's decision: Free is "Basic Free" (calendar, write down,
+  prioritize, up to 100 tasks). The task timer, moving a task to another day, the statistics in Done, the Time
+  report and the calendar's All Tasks view are Pro; on Free they show blurred under a "Go Pro for unlimited
+  access" card leading to Pricing (and unlock by themselves when Pro arrives). Deleting stays free (it is how room
+  is made). Pricing: Basic Free | **Pro yearly in the middle** (ribbon "Save 51%", badge "Best value") | Pro monthly
+  (ribbon "Only €1,20 / week"); "No card needed" dropped; a line says prices are final and include VAT (the owner
+  confirmed €28 and €4,80 are VAT-inclusive). "Most popular" was not used: no sales data yet to back it (EU rules
+  on misleading claims) — can be added once true. The carry strip (pulling unfinished tasks into today) stays Free.
+
 ## Open items
 
 - The owner's main Google account can have **Apple connected**: sign in with Apple → gear → Delete account (the
