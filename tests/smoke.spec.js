@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures.js';
+import { test, expect, asPro } from './fixtures.js';
 
 const UI_KEY = 'escape-the-matrix:ui';
 const DOC_KEY = 'escape-the-matrix:v1';
@@ -165,6 +165,7 @@ test('"See an example" sweeps the logo colours on arrival and is hidden for sign
 });
 
 test('a day opened from the calendar returns there: Back lands on the same view (normal or flipped), day selected', async ({ page }) => {
+  await asPro(page);
   await page.clock.setFixedTime(new Date(2026, 2, 11, 9, 0, 0)); // today = Wed 11 Mar 2026
   const DAY = '2026-03-16';
   const task = { id: 't_1', title: 'Call the bank', date: DAY, quadrant: 'do', tag: 'do', order: 1, done: false, doneAt: null, createdAt: 'x', updatedAt: 'x', timer: null, attempt: 1, carriedTo: null };
@@ -374,8 +375,8 @@ test('Home: each Pro plan leads to its own Stripe checkout', async ({ page }) =>
   await page.goto('/');
   await page.locator('.brand').click();
   const plans = activePanel(page).locator('.home-plan');
-  await expect(plans.nth(1).getByRole('link', { name: 'Go Pro' })).toHaveAttribute('href', 'https://buy.stripe.com/6oUbJ17Qk0IZbERfmS6Zy01'); // monthly
-  await expect(plans.nth(2).getByRole('link', { name: 'Go Pro' })).toHaveAttribute('href', 'https://buy.stripe.com/9B628r2w0gHX6kx5Mi6Zy00'); // yearly
+  await expect(plans.nth(1).getByRole('link', { name: 'Go Pro' })).toHaveAttribute('href', 'https://buy.stripe.com/9B628r2w0gHX6kx5Mi6Zy00'); // yearly, in the middle
+  await expect(plans.nth(2).getByRole('link', { name: 'Go Pro' })).toHaveAttribute('href', 'https://buy.stripe.com/6oUbJ17Qk0IZbERfmS6Zy01'); // monthly
   await expect(activePanel(page).getByRole('button', { name: 'Coming soon' })).toHaveCount(0);
 });
 

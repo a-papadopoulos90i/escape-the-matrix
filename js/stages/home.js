@@ -126,17 +126,19 @@ export function mount(container, ctx) {
   );
 
   // Pricing: a free plan (up to 100 tasks) and Pro, monthly or yearly, each paid once through Stripe.
-  const plan = ({ key, featured, features, cta }) =>
+  // A ribbon across the top-right corner (Save 51% / Only €1,20 a week); `badge` sits next to the name.
+  const plan = ({ key, featured, ribbon, badge, features, cta }) =>
     h(
       'li',
-      { class: `home-plan${featured ? ' home-plan--featured' : ''}` },
-      h('p', { class: 'home-plan__name' }, t(`home.pricing.${key}.name`)),
+      { class: `home-plan home-plan--${key}${featured ? ' home-plan--featured' : ''}` },
+      ribbon ? h('span', { class: `home-plan__ribbon home-plan__ribbon--${ribbon}` }, t(`home.pricing.${key}.ribbon`)) : null,
+      h('p', { class: 'home-plan__name' }, t(`home.pricing.${key}.name`), badge ? h('span', { class: 'home-plan__badge' }, t(`home.pricing.${key}.badge`)) : null),
       h('p', { class: 'home-plan__price' }, h('span', { class: 'home-plan__amount' }, t(`home.pricing.${key}.price`)), h('span', { class: 'home-plan__period' }, t(`home.pricing.${key}.period`))),
       h('p', { class: 'home-plan__note' }, t(`home.pricing.${key}.note`)),
       h('ul', { class: 'home-plan__features' }, ...features.map((feature) => h('li', null, ui.icon('check', { size: 16 }), t(`home.pricing.feature.${feature}`)))),
       cta,
     );
-  const proFeatures = ['unlimited', 'timer', 'aiReports', 'voice'];
+  const proFeatures = ['unlimited', 'timer', 'moveDay', 'stats', 'allTasks', 'aiReports', 'voice'];
   /** Signed in: on to Stripe, carrying the account. Signed out: sign in first, so Pro lands on an account. */
   function goPro(event, period) {
     if (!isSignedIn()) {
@@ -162,10 +164,11 @@ export function mount(container, ctx) {
     h(
       'ul',
       { class: 'home-plans' },
-      plan({ key: 'free', features: ['tasks100', 'stages', 'noCard'], cta: h('button', { class: 'btn', type: 'button', onClick: () => ctx.goTo(1) }, t('home.pricing.startFree')) }),
-      plan({ key: 'monthly', featured: true, features: proFeatures, cta: proButton('monthly', 'btn btn-primary') }),
-      plan({ key: 'yearly', features: proFeatures, cta: proButton('yearly', 'btn') }),
+      plan({ key: 'free', features: ['tasks100', 'stages'], cta: h('button', { class: 'btn', type: 'button', onClick: () => ctx.goTo(1) }, t('home.pricing.startFree')) }),
+      plan({ key: 'yearly', featured: true, ribbon: 'big', badge: true, features: proFeatures, cta: proButton('yearly', 'btn btn-primary') }),
+      plan({ key: 'monthly', ribbon: 'small', features: proFeatures, cta: proButton('monthly', 'btn') }),
     ),
+    h('p', { class: 'home-pricing__vat' }, t('home.pricing.vat')),
     // Whoever has paid lands back here: the code box is one tap away, not buried in the account menu.
     h(
       'p',

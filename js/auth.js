@@ -860,7 +860,7 @@ export function openGoProModal({ ui, i18n, session }) {
       'div',
       { class: 'gopro' },
       ui.h('p', { class: 'text-muted' }, t('plan.goProLead')),
-      ui.h('div', { class: 'gopro__plans' }, option('monthly'), option('yearly')),
+      ui.h('div', { class: 'gopro__plans' }, option('yearly'), option('monthly')),
       ui.h('p', { class: 'gopro__code' }, t('home.pricing.paid'), ' ', code),
     ),
     actions: [{ label: t('common.close') }],

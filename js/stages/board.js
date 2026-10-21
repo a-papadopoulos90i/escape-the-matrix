@@ -7,6 +7,7 @@ import { QUADRANTS, isRecord } from '../store.js';
 import { carryStrip, attemptBadge, recordLabel, dayNav, QUAD_ICON, quadrantAxes, quadrantGlyph } from '../carry.js';
 import { fileWithTag, priorityButton, tagPlaces } from '../tags.js';
 import { canAddTask } from '../plan.js';
+import { isPro, lockButton, proLock } from '../pro-lock.js';
 import { parseTime } from '../report.js';
 
 const PRESET_MINUTES = [5, 15, 25, 45, 60];
@@ -491,7 +492,7 @@ function waitingPanel(tasks) {
 
 /** The free plan holds 100 open tasks; past that, adding says so and points at the plans. */
 function roomForTask() {
-  return canAddTask({ store: ctx.store, ui: ctx.ui, i18n: ctx.i18n, onSeePlans: () => ctx.goTo(0) });
+  return canAddTask({ store: ctx.store, ui: ctx.ui, i18n: ctx.i18n, onSeePlans: ctx.showPlans });
 }
 
 const INSERT_ICON =
@@ -684,6 +685,14 @@ function openTaskPopover(id, anchor, { view = 'edit' } = {}) {
   if (view === 'timer') showTimerPicker(task, body);
   else if (view === 'schedule') showSchedulePicker(task, body);
   else showEdit(task, body);
+  // The timer and moving a task to another day are Pro: on Free the picker shows, locked.
+  if (view !== 'edit' && !isPro()) lockPopover(body, () => (anchor.isConnected ? openTaskPopover(id, anchor, { view }) : closePopover()));
+}
+
+function lockPopover(body, reopen) {
+  body.replaceChildren(proLock({ content: [...body.childNodes], onGoPro: closePopover, onUnlock: reopen }));
+  popover?.reposition();
+  lockButton(body)?.focus();
 }
 
 /** Swaps the popover content, re-positions it and focuses `focusEl`. */

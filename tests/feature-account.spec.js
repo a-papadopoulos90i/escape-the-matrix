@@ -718,10 +718,10 @@ test.describe('Google mode (fake Firebase SDK)', () => {
 
     const chooser = page.getByRole('dialog', { name: 'Go Pro' });
     await expect(chooser.locator('.gopro__plan')).toHaveCount(2);
-    await expect(chooser.locator('.gopro__plan').nth(0)).toContainText('Pro monthly');
-    await expect(chooser.locator('.gopro__plan').nth(0)).toHaveAttribute('href', /^https:\/\/buy\.stripe\.com\/6oUbJ17Qk0IZbERfmS6Zy01\?client_reference_id=/);
-    await expect(chooser.locator('.gopro__plan').nth(1)).toContainText('€28');
-    await expect(chooser.locator('.gopro__plan').nth(1)).toHaveAttribute('href', /^https:\/\/buy\.stripe\.com\/9B628r2w0gHX6kx5Mi6Zy00\?client_reference_id=/);
+    await expect(chooser.locator('.gopro__plan').nth(0)).toContainText('€28');
+    await expect(chooser.locator('.gopro__plan').nth(0)).toHaveAttribute('href', /^https:\/\/buy\.stripe\.com\/9B628r2w0gHX6kx5Mi6Zy00\?client_reference_id=/);
+    await expect(chooser.locator('.gopro__plan').nth(1)).toContainText('Pro monthly');
+    await expect(chooser.locator('.gopro__plan').nth(1)).toHaveAttribute('href', /^https:\/\/buy\.stripe\.com\/6oUbJ17Qk0IZbERfmS6Zy01\?client_reference_id=/);
     await chooser.getByRole('button', { name: 'I have a code' }).click();
 
     const dialog = page.getByRole('dialog', { name: 'Unlock Levelix Pro' });
@@ -894,7 +894,7 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await page.goto('/');
     await startFakeSession(page);
     await page.locator('.brand').click();
-    await page.locator('.home-plan').nth(1).getByRole('link', { name: 'Go Pro' }).click();
+    await page.locator('.home-plan--monthly').getByRole('link', { name: 'Go Pro' }).click();
 
     const dialog = page.getByRole('dialog', { name: 'Sign in' });
     await expect(dialog).toContainText('Sign in first, so Pro lands on your account');

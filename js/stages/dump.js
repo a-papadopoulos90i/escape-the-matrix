@@ -82,7 +82,7 @@ function onAdd(event) {
 
 /** The free plan holds 100 open tasks; past that, adding says so and points at the plans. */
 function roomForTask(ctx) {
-  return canAddTask({ store: ctx.store, ui: ctx.ui, i18n: ctx.i18n, onSeePlans: () => ctx.goTo(0) });
+  return canAddTask({ store: ctx.store, ui: ctx.ui, i18n: ctx.i18n, onSeePlans: ctx.showPlans });
 }
 
 // ---------- Rendering ----------

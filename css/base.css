@@ -1467,3 +1467,94 @@ body.has-modal {
     font-size: 16px;
   }
 }
+
+/* ---------- Pro lock (js/pro-lock.js) ----------
+   A Pro feature on a Free account: the feature stays in view, blurred and out of reach, under a small card
+   with "Go Pro for unlimited access". */
+.pro-lock {
+  position: relative;
+}
+
+.pro-lock__content {
+  filter: blur(4px);
+  opacity: 0.55;
+  user-select: none;
+  pointer-events: none;
+}
+
+.pro-lock__veil {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-3);
+}
+
+.pro-lock__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 260px;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+  text-align: center;
+}
+
+.pro-lock__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+}
+
+.pro-lock__text {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+/* One line, for short content (the statistics in Done). */
+.pro-lock--compact .pro-lock__card {
+  flex-direction: row;
+  max-width: none;
+  padding: var(--space-2) var(--space-3);
+  gap: var(--space-3);
+  text-align: left;
+}
+
+.pro-lock--compact .pro-lock__icon {
+  width: 28px;
+  height: 28px;
+}
+
+/* Long content (the calendar): the card stays in view while the blurred weeks scroll under it. */
+.pro-lock--tall .pro-lock__veil {
+  align-items: flex-start;
+}
+
+.pro-lock--tall .pro-lock__card {
+  position: sticky;
+  top: 35vh;
+  margin-top: var(--space-8);
+}
+
+/* Locked Time report and timer pickers: room for the card even over a short list. */
+.analysis .pro-lock,
+.task-popover .pro-lock {
+  min-height: 200px;
+}
+
+/* The calendar's light cells vanish under the full blur: lighter, so the weeks still read as a calendar. */
+.pro-lock--tall > .pro-lock__content {
+  filter: blur(2.5px);
+  opacity: 0.85;
+}

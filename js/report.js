@@ -4,6 +4,14 @@
 
 import { timerElapsed } from './store.js';
 import { formatTime } from './timer.js';
+import { isPro, proLock } from './pro-lock.js';
+
+// What a Free account sees behind the lock when it has timed nothing: an example of the report.
+const SAMPLE = [
+  ['analysis.sample1', 5400],
+  ['analysis.sample2', 2700],
+  ['analysis.sample3', 1500],
+];
 
 /** "1:30:00" / "90:00" / "45" (a bare number is minutes) → seconds, or null when it makes no sense. */
 export function parseTime(text) {
@@ -130,6 +138,7 @@ export function openTimeReport({ ui, store, i18n, dates }) {
   }
 
   function render() {
+    if (!isPro()) return renderLocked();
     const rows = groups();
     const total = rows.reduce((sum, group) => sum + group.seconds, 0);
     content.replaceChildren(
@@ -144,6 +153,18 @@ export function openTimeReport({ ui, store, i18n, dates }) {
     content.querySelector('.analysis__input')?.focus();
   }
 
+  /** Free: the report is Pro. Its own rows (or an example) show blurred under the Go Pro card. */
+  function renderLocked() {
+    const own = groups().map((group) => [group.title, group.seconds]);
+    const rows = own.length ? own.slice(0, 6) : SAMPLE.map(([key, seconds]) => [t(key), seconds]);
+    const preview = ui.h(
+      'div',
+      { class: 'analysis__list' },
+      rows.map(([title, seconds]) => ui.h('div', { class: 'analysis__group' }, ui.h('div', { class: 'analysis__row' }, ui.h('span', { class: 'analysis__task' }, title), ui.h('span', { class: 'analysis__time' }, formatTime(seconds))))),
+    );
+    content.replaceChildren(proLock({ content: preview, onGoPro: () => modal.close(), onUnlock: render }));
+  }
+
   render();
-  ui.modal({ title: t('analysis.title'), content, actions: [{ label: t('common.close'), primary: true }] });
+  const modal = ui.modal({ title: t('analysis.title'), content, actions: [{ label: t('common.close'), primary: true }] });
 }

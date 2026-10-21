@@ -19,4 +19,16 @@ export const test = base.extend({
   },
 });
 
+/**
+ * Runs the page as a Pro account: the timer, moving tasks to another day, the statistics, the Time report
+ * and the calendar's All Tasks view are open. (Without it a spec is a Free visitor, as on the live site.)
+ */
+export async function asPro(page) {
+  await page.route('**/js/plan.js*', async (route) => {
+    const response = await route.fetch();
+    const body = (await response.text()).replace("let current = 'free';", "let current = 'pro';");
+    await route.fulfill({ response, body });
+  });
+}
+
 export { expect };

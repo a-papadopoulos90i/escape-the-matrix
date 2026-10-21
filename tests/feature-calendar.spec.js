@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures.js';
+import { test, expect, asPro } from './fixtures.js';
 import path from 'node:path';
 
 // Stage 1 — month calendar. Seeds March 2026 (the design board's month) with tasks on several
@@ -375,6 +375,7 @@ test('another tab clearing the saved document empties this one too (cross-tab "c
 });
 
 test('the "demo version" link loads a local two-month demo', async ({ page }) => {
+  await asPro(page);
   await onAWeekday(page);
   await seed(page);
   await page.goto('/');
@@ -395,6 +396,7 @@ test('the "demo version" link loads a local two-month demo', async ({ page }) =>
 });
 
 test('the time report opens a task to its single timings: correct one by hand, remove another', async ({ page }) => {
+  await asPro(page);
   const stopwatch = (elapsedSec, stoppedAt) => ({ mode: 'stopwatch', durationSec: 0, startedAt: null, elapsedSec, running: false, stoppedAt });
   const doc = makeDoc();
   doc.tasks = [
@@ -436,6 +438,7 @@ test('the time report opens a task to its single timings: correct one by hand, r
 });
 
 test('the time report sums tracked time per task, most first', async ({ page }) => {
+  await asPro(page);
   const stopwatch = (elapsedSec, stoppedAt) => ({ mode: 'stopwatch', durationSec: 0, startedAt: null, elapsedSec, running: false, stoppedAt });
   const doc = makeDoc();
   doc.tasks = [
@@ -475,6 +478,7 @@ test('flipped cells preview only prioritised tasks, each with a dot in its prior
 });
 
 test('Manage mode: flip the calendar, then a day popup adds and deletes tasks', async ({ page }) => {
+  await asPro(page);
   await onAWeekday(page);
   await seed(page); // DAYS puts 5 tasks on 2026-03-02
   await page.goto('/');

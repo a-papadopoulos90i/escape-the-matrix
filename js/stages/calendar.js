@@ -11,6 +11,7 @@
 import { isRecord, QUADRANTS } from '../store.js';
 import { QUAD_ICON, openDayPicker, quadrantGlyph, quadrantAxes } from '../carry.js';
 import { canAddTask } from '../plan.js';
+import { isPro, onPlanChange, proVeil } from '../pro-lock.js';
 
 const WEEKS_PER_MONTH = 6; // a month view, and what each "Show more" adds
 
@@ -22,6 +23,7 @@ let flipped = false; // Manage mode: cells preview task titles and a tap opens t
 let weeksShown = WEEKS_PER_MONTH; // the calendar is one continuous run of weeks; "Show more" adds more
 let demoInvited = false; // the example link pulses only the first time the calendar shows after the site opens
 let unsubscribe = null;
+let stopPlan = null;
 
 export function mount(container, context) {
   ctx = context;
@@ -43,7 +45,7 @@ export function mount(container, context) {
     { class: 'stage-body calendar' },
     ui.stageHeader({ stage: 1, title: '' }),
     toolbar(),
-    els.months,
+    (els.body = ui.h('div', { class: 'calendar__body' }, els.months)),
     els.more,
     ui.h(
       'div',
@@ -57,12 +59,15 @@ export function mount(container, context) {
   root.classList.toggle('calendar--flipped', flipped);
   render();
   unsubscribe = store.subscribe(render);
+  stopPlan = onPlanChange(render); // All Tasks unlocks the moment Pro arrives
   container.append(root);
 }
 
 export function unmount() {
   unsubscribe?.();
   unsubscribe = null;
+  stopPlan?.();
+  stopPlan = null;
   root = null;
   els = {};
   ctx = null;
@@ -130,6 +135,21 @@ function toggleFlip() {
     swap(); // at 90° the cells are edge-on: nothing of the change is visible yet
     flipCells('in');
   }, FLIP_HALF_MS);
+}
+
+/** All Tasks (the flipped view) is Pro: on Free its weeks show blurred under the Go Pro card, while the
+ *  All Tasks button above stays usable to turn the calendar back. */
+function lockAllTasks() {
+  const locked = flipped && !isPro();
+  els.months.inert = locked;
+  els.months.classList.toggle('pro-lock__content', locked);
+  els.body.classList.toggle('pro-lock', locked);
+  els.body.classList.toggle('pro-lock--tall', locked);
+  if (locked && !els.veil) els.body.append((els.veil = proVeil()));
+  if (!locked && els.veil) {
+    els.veil.remove();
+    els.veil = null;
+  }
 }
 
 /** Half of the per-cell turn: 'out' takes the cells to edge-on, 'in' brings them back showing the
@@ -213,6 +233,7 @@ function render() {
     return weekRow(week, label, tabKey);
   });
   els.months.replaceChildren(weekdayRow(weekendsShown), ...rows);
+  lockAllTasks();
   if (focusedKey) els.months.querySelector(`[data-key="${focusedKey}"]`)?.focus();
 }
 
@@ -386,7 +407,7 @@ function openDayPopup(key) {
         event.preventDefault();
         const value = input.value.trim();
         if (!value) return;
-        if (!canAddTask({ store, ui, i18n, onSeePlans: () => ctx.goTo(0) })) return;
+        if (!canAddTask({ store, ui, i18n, onSeePlans: ctx.showPlans })) return;
         store.addTask({ title: value, date: key });
         input.value = '';
         input.focus();

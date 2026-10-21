@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures.js';
+import { test, expect, asPro } from './fixtures.js';
 import path from 'node:path';
 
 // Stages 4 & 5 — board, quadrant menus, fast-organize popover and the timer (SPEC §2, §8 items 6–11).
@@ -184,6 +184,7 @@ async function dragTo(page, grab, target) {
 }
 
 test('the card title opens rename in place; the ⏩ opens the schedule picker', async ({ page }) => {
+  await asPro(page);
   const errors = collectErrors(page);
   await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
@@ -313,6 +314,7 @@ test('Repeat: a copy left unfinished on a day that has passed counts a miss and 
 });
 
 test('the timer picker writes the time in by hand: tap "Tracked so far", type it, save', async ({ page }) => {
+  await asPro(page);
   await page.setViewportSize({ width: 1280, height: 1000 });
   await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
@@ -339,6 +341,7 @@ test('the timer picker writes the time in by hand: tap "Tracked so far", type it
 });
 
 test('a countdown that ran out offers a new timer, not "Continue", and the next one adds to the time', async ({ page }) => {
+  await asPro(page);
   await page.setViewportSize({ width: 1280, height: 1000 });
   const spent = { mode: 'countdown', durationSec: 300, startedAt: null, elapsedSec: 311, baseSec: 0, running: false, stoppedAt: '2026-03-11T08:00:00.000Z', alarmedAt: '2026-03-11T08:00:00.000Z' };
   await seed(page, { tasks: [task('t_timed', 'Φίλτρα νερού', 'do', { timer: spent })] });
@@ -670,6 +673,7 @@ test('a card drags into another quadrant; the red ✕ deletes it with undo', asy
 });
 
 test('▶ starts a countdown: clock live, bar visible, survives reload, pause/resume/stop', async ({ page }) => {
+  await asPro(page);
   const errors = collectErrors(page);
   await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
@@ -720,6 +724,7 @@ test('▶ starts a countdown: clock live, bar visible, survives reload, pause/re
 });
 
 test('starting a second timer asks — in front of the picker — and can stop the first; Done ticks the task', async ({ page }) => {
+  await asPro(page);
   await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
   await openTimer(page, 'Marketing Order A5');
@@ -778,6 +783,7 @@ test('on a phone the waiting card keeps the title readable, and a card never sel
 });
 
 test('the browser tab shows the running time and the task it belongs to', async ({ page }) => {
+  await asPro(page);
   await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
   const ownTitle = await page.title();
@@ -794,6 +800,7 @@ test('the browser tab shows the running time and the task it belongs to', async 
 });
 
 test("the browser's own play/pause controls pause and continue the timer", async ({ page }) => {
+  await asPro(page);
   // The browser's ⏯ (toolbar, media keys) calls the page's media-session handlers; keep them to press them here.
   await page.addInitScript(() => {
     const handlers = (window.__mediaHandlers = {});
@@ -825,6 +832,7 @@ test("the browser's own play/pause controls pause and continue the timer", async
 });
 
 test('"Run both" lets two tasks be timed side by side', async ({ page }) => {
+  await asPro(page);
   await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
   await openTimer(page, 'Marketing Order A5');
@@ -859,6 +867,7 @@ test('a countdown reaching 0 flashes the bar and shows "Time\'s up!"', async ({ 
 });
 
 test('📅 postpones to the chosen date (min today) with Undo', async ({ page }) => {
+  await asPro(page);
   await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
   const target = shiftDays(new Date(), 3);
@@ -881,6 +890,7 @@ const fridayTasks = (friday) => [
 ];
 
 test('"Next day" sends a Friday task to Saturday — the very next day — with Undo', async ({ page }) => {
+  await asPro(page);
   const friday = nextWeekday(new Date(), 5);
   const saturday = shiftDays(friday, 1);
   await seed(page, { tasks: fridayTasks(friday), stage: 3, date: toKey(friday) });
@@ -914,6 +924,7 @@ test('two "Undo" toasts each revert their own delete, in any order', async ({ pa
 });
 
 test('📅 postpones a task to any day, a weekend included, and it shows on the calendar', async ({ page }) => {
+  await asPro(page);
   const saturday = nextWeekday(new Date(), 6);
   await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
@@ -934,6 +945,7 @@ test('📅 postpones a task to any day, a weekend included, and it shows on the 
 });
 
 test('the clock icon opens the timer picker directly; presets carry the "min" unit', async ({ page }) => {
+  await asPro(page);
   await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
   const clock = card(page, 'Invoice Send').locator('.task-card__clock');
@@ -1014,6 +1026,7 @@ test('no speech-bubble tips and no "?" button on the board (tips were removed)',
 });
 
 test('mobile: no horizontal scroll with the popover and the timer bar open', async ({ page }) => {
+  await asPro(page);
   await page.setViewportSize({ width: 375, height: 740 });
   await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
@@ -1031,6 +1044,7 @@ test('mobile: no horizontal scroll with the popover and the timer bar open', asy
 
 for (const [label, viewport] of Object.entries({ desktop: { width: 1280, height: 900 }, mobile: { width: 375, height: 760 } })) {
   test(`screenshots (${label})`, async ({ page }) => {
+    await asPro(page);
     await page.setViewportSize(viewport);
     await seed(page, { tasks: SORTED(), stage: 3 });
     await page.goto('/');

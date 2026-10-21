@@ -15,6 +15,7 @@ import * as dump from './stages/dump.js';
 import * as board from './stages/board.js';
 import { init as initTimer } from './timer.js';
 import { guardFreeLimit, setHistoryOpener } from './plan.js';
+import { setPlansOpener } from './pro-lock.js';
 
 const { t } = i18n;
 const STAGE_COUNT = 3;
@@ -233,6 +234,7 @@ function makeCtx(stage) {
     getCalendarMonth: () => state.calendarMonth,
     setCalendarMonth,
     goTo,
+    showPlans,
     // A day opened from the calendar (normal or flipped): its Back returns to that calendar view.
     markCalendarReturn: (flipped) => {
       state.calendarReturn = flipped ? 'flipped' : 'normal';
@@ -305,6 +307,12 @@ function goTo(stage) {
   window.scrollTo({ top: 0, behavior: 'auto' });
   state.mounted.panel.querySelector('.stage-title')?.focus({ preventScroll: true });
   els.announcer.textContent = next === HOME ? t('home.label') : t('app.stageAnnounce', { n: next, label: i18n.stepperLabel(next) });
+}
+
+/** "See plans" / "Go Pro" from anywhere in the planner: Home, scrolled to Pricing. */
+function showPlans() {
+  goTo(HOME);
+  document.getElementById('home-pricing-title')?.scrollIntoView({ behavior: reduceMotion.matches ? 'auto' : 'smooth', block: 'start' });
 }
 
 // ---------- Keyboard ----------
@@ -382,9 +390,10 @@ async function boot() {
   });
 
   store = createStore(await local.load());
-  const openHistory = () => openDoneHistory({ ui, store, i18n, dates, onSeePlans: () => goTo(HOME) });
+  setPlansOpener(showPlans);
+  const openHistory = () => openDoneHistory({ ui, store, i18n, dates, onSeePlans: showPlans });
   setHistoryOpener(openHistory); // the limit messages lead to it: that is where room is made
-  guardFreeLimit({ store, ui, i18n, onSeePlans: () => goTo(HOME) }); // Free above 100 tasks: no reshaping
+  guardFreeLimit({ store, ui, i18n, onSeePlans: showPlans }); // Free above 100 tasks: no reshaping
   store.attach(local);
   initTimer({ store }); // the floating timer bar lives at document level, whatever stage is open
   store.onError(() => ui.toast(t('toast.saveFailed')));

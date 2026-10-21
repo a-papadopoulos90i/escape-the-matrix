@@ -4,6 +4,7 @@
 // with Undo. Lives here (not in a stage) so the header and the limit messages can open it from anywhere.
 
 import { isPro, FREE_TASK_LIMIT, taskCount } from './plan.js';
+import { proLock } from './pro-lock.js';
 import { timerElapsed } from './store.js';
 import { formatTime } from './timer.js';
 
@@ -142,7 +143,8 @@ export function openDoneHistory({ ui, store, i18n, dates, onSeePlans }) {
     const visible = days.slice(0, shown);
     content.replaceChildren(
       ...[
-        stats(days),
+        // The counts are Pro; on Free they show blurred. The list stays usable: it is where room is made.
+        isPro() ? stats(days) : proLock({ content: stats(days), size: 'compact', onGoPro: () => api.close(), onUnlock: render }),
         usage(),
         days.length
           ? ui.h('div', { class: 'history__list' }, visible.map(dayBlock), days.length > shown

@@ -1,4 +1,4 @@
-import { test, expect, FREE_MODE_CONFIG } from './fixtures.js';
+import { test, expect, FREE_MODE_CONFIG, asPro } from './fixtures.js';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -167,6 +167,7 @@ const fillRatio = (locator) =>
 // ---------- Walkthrough (the whole loop, end to end) ----------
 
 test('walkthrough: pick a day, dump, sort, work the board, organize, back to a green calendar', async ({ page }) => {
+  await asPro(page);
   const errors = collectErrors(page);
   await page.setViewportSize({ width: 1280, height: 1400 }); // the board, the quick add, Repeat and the waiting list all in view
   await page.clock.setFixedTime(FIXED_NOW);
@@ -390,6 +391,7 @@ function fakeAudio(page) {
 }
 
 test('8. ▶ starts a countdown: timer bar + live clock icon, still running after a reload', async ({ page }) => {
+  await asPro(page);
   const errors = collectErrors(page);
   const today = toKey(new Date()); // real time: the countdown has to tick
   await fakeAudio(page);
@@ -448,6 +450,7 @@ test('8b. a countdown reaching 0 plays the soft chime (WebAudio, 5s+), flashes t
 });
 
 test('9. 📅 moves the task to the chosen date (gone here, visible there) and Undo brings it back', async ({ page }) => {
+  await asPro(page);
   await page.clock.setFixedTime(FIXED_NOW);
   await seed(page, { tasks: sortedTasks(), stage: 3 });
   await page.goto('/');
@@ -480,6 +483,7 @@ test('9. 📅 moves the task to the chosen date (gone here, visible there) and U
 });
 
 test('10. "Next day" sends a Friday task to Saturday, the next day; Undo works', async ({ page }) => {
+  await asPro(page);
   await page.clock.setFixedTime(FIXED_NOW);
   const friday = '2026-03-13';
   await seed(page, { tasks: sortedTasks(friday), stage: 3, date: friday });
