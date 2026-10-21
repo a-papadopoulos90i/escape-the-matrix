@@ -59,8 +59,6 @@ export const strings = {
   'home.pricing.feature.moveDay': 'Move tasks to another day',
   'home.pricing.feature.stats': 'Statistics of your finished tasks',
   'home.pricing.feature.allTasks': 'All Tasks view in the Calendar',
-  'home.pricing.feature.aiReports': 'AI analysis & reports — coming soon',
-  'home.pricing.feature.voice': 'Add tasks by voice with AI — coming soon',
   'home.pricing.paid': 'Already paid?',
   'home.footer.label': 'About Levelix',
   'home.footer.support': 'Support',

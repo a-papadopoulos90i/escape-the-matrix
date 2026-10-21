@@ -138,7 +138,7 @@ export function mount(container, ctx) {
       h('ul', { class: 'home-plan__features' }, ...features.map((feature) => h('li', null, ui.icon('check', { size: 16 }), t(`home.pricing.feature.${feature}`)))),
       cta,
     );
-  const proFeatures = ['unlimited', 'timer', 'moveDay', 'stats', 'allTasks', 'aiReports', 'voice'];
+  const proFeatures = ['unlimited', 'timer', 'moveDay', 'stats', 'allTasks'];
   /** Signed in: on to Stripe, carrying the account. Signed out: sign in first, so Pro lands on an account. */
   function goPro(event, period) {
     if (!isSignedIn()) {
