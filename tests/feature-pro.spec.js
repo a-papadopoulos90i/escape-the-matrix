@@ -41,21 +41,30 @@ const lockCard = (scope) => scope.locator('.pro-lock__card');
 /** The plan, switched the way the account's billing switches it when Pro arrives. */
 const setPlan = (page, plan) => page.evaluate(async (next) => (await import('/js/plan.js')).setPlan(next), plan);
 
-test('Free: the timer and moving to another day show locked; Go Pro leads to the plans; deleting still works', async ({ page }) => {
+test('Free: the timer and moving to another day show their options with a Pro lock; pressing one asks to go Pro', async ({ page }) => {
   await seed(page);
   await page.goto('/');
 
   await card(page, 'Marketing Order A5').locator('.task-card__clock').click();
-  await expect(lockCard(popover(page))).toContainText('Go Pro for unlimited access');
-  await expect(popover(page).locator('.timer-picker__stopwatch')).toHaveCount(1); // the picker is there, behind the blur
-  await expect(popover(page).locator('.pro-lock__content')).toHaveAttribute('inert', '');
-  await expect(popover(page).getByRole('button', { name: 'Go Pro' })).toBeFocused();
+  const picker = popover(page);
+  await expect(picker.locator('.pro-lock__badge')).toHaveText('Pro');
+  await expect(picker.locator('.timer-picker__stopwatch')).toBeVisible(); // the options can be seen
+  await expect(lockCard(picker)).toBeHidden();
+  await picker.locator('.timer-picker__stopwatch').click();
+  await expect(lockCard(picker)).toContainText('Go Pro for unlimited access');
+  await expect(picker.getByRole('button', { name: 'Go Pro' })).toBeFocused();
+  await expect(page.locator('.timer-bar')).toBeHidden(); // nothing started
+  await picker.getByRole('button', { name: 'Not now' }).click();
+  await expect(lockCard(picker)).toBeHidden();
+  await expect(picker.locator('.timer-picker__stopwatch')).toBeVisible();
   await page.keyboard.press('Escape');
 
   await card(page, 'Marketing Order A5').locator('.task-card__forward').click();
-  await expect(lockCard(popover(page))).toBeVisible();
-  await expect(popover(page).locator('.schedule-picker__nextday')).toHaveCount(1);
-  await popover(page).getByRole('button', { name: 'Go Pro' }).click();
+  await expect(picker.locator('.schedule-picker__nextday')).toBeVisible();
+  await picker.locator('.schedule-picker__nextday').click();
+  await expect(lockCard(picker)).toBeVisible();
+  await expect(card(page, 'Marketing Order A5')).toHaveCount(1); // still on this day
+  await picker.getByRole('button', { name: 'Go Pro' }).click();
   await expect(popover(page)).toHaveCount(0);
   await expect(panel(page).locator('.home-pricing')).toBeInViewport();
 
@@ -68,9 +77,9 @@ test('Free: when Pro arrives, an open locked picker opens for real', async ({ pa
   await seed(page);
   await page.goto('/');
   await card(page, 'Marketing Order A5').locator('.task-card__clock').click();
-  await expect(lockCard(popover(page))).toBeVisible();
+  await expect(popover(page).locator('.pro-lock__badge')).toBeVisible();
   await setPlan(page, 'pro');
-  await expect(lockCard(popover(page))).toHaveCount(0);
+  await expect(popover(page).locator('.pro-lock')).toHaveCount(0);
   await popover(page).locator('.timer-picker__stopwatch').click();
   await expect(page.locator('.timer-bar')).toBeVisible();
 });

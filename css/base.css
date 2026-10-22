@@ -1547,10 +1547,46 @@ body.has-modal {
   margin-top: var(--space-8);
 }
 
-/* Locked Time report and timer pickers: room for the card even over a short list. */
-.analysis .pro-lock,
-.task-popover .pro-lock {
+/* Locked Time report: room for the card even over a short list. */
+.analysis .pro-lock {
   min-height: 200px;
+}
+
+.pro-lock__veil[hidden] {
+  display: none;
+}
+
+/* A gated picker (timer, move to another day): the options show as they are, under a small "Pro" lock badge;
+   pressing one blurs them and brings up the card. */
+.pro-lock--gate > .pro-lock__content {
+  filter: none;
+  opacity: 1;
+  user-select: auto;
+  pointer-events: auto;
+}
+
+.pro-lock--gate.is-open > .pro-lock__content {
+  filter: blur(4px);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.pro-lock__badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+.pro-lock__later {
+  font-size: var(--text-sm);
+  color: var(--muted);
 }
 
 /* The calendar's light cells vanish under the full blur: lighter, so the weeks still read as a calendar. */

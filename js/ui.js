@@ -356,7 +356,8 @@ export function modal({ title, content, actions, onClose, className = '' } = {})
 
 function trapTab(event, dialog) {
   if (event.key !== 'Tab') return;
-  const focusable = [...dialog.querySelectorAll(FOCUSABLE)];
+  // Only what can take focus now: not hidden, not inside an inert part (a Pro picker's card or blurred options).
+  const focusable = [...dialog.querySelectorAll(FOCUSABLE)].filter((el) => el.getClientRects().length && !el.closest('[inert]'));
   if (!focusable.length) return event.preventDefault();
   const first = focusable[0];
   const last = focusable[focusable.length - 1];

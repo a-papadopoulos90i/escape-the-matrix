@@ -198,6 +198,8 @@ export const strings = {
   'plan.goProTitle': 'Go Pro',
   'plan.goProLead': 'Unlimited tasks, the task timer and time report, moving tasks to another day, your statistics and the All Tasks view. Paid once — it never renews by itself.',
   'pro.locked': 'Go Pro for unlimited access',
+  'pro.badge': 'Pro',
+  'pro.notNow': 'Not now',
   'plan.paidTitle': 'Payment received — thank you!',
   'plan.paidBody': 'If you were signed in when you paid, Pro turns on by itself in a few seconds. If not, your code is on its way to the email you paid with.',
   'plan.paidHint': 'Got a code? Sign in here, open “I have a code” and paste it in.',
