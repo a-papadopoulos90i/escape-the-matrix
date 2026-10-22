@@ -70,6 +70,8 @@ export function mount(container, ctx) {
       { class: 'home-hero__actions' },
       h('button', { class: 'btn btn-primary', type: 'button', onClick: () => ctx.goTo(1) }, ui.icon('calendar', { size: 16 }), t('home.open')),
     ),
+    // The apps are on their way: said plainly, without the stores' badges (those are only for apps already there).
+    h('p', { class: 'home-hero__apps' }, ui.icon('phone', { size: 16 }), t('home.apps')),
   );
 
   const steps = h(

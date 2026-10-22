@@ -12,6 +12,7 @@ export const strings = {
   'home.title': 'Escape the Matrix.',
   'home.lead': 'Levelix takes your to-do list off your mind, so you win back time — to break old routines, create something new and keep growing.',
   'home.open': 'Open the calendar',
+  'home.apps': 'Coming soon as an app for iPhone and Android',
   'home.openStep': 'Open {label}',
   'home.stepsTitle': 'How it works',
   'home.step.1.title': 'Pick your day',

@@ -28,6 +28,25 @@
   margin-top: var(--space-5);
 }
 
+/* "Coming soon as an app for iPhone and Android": a quiet pill under the hero's button. */
+.home-hero__apps {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 0;
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.home-hero__apps svg {
+  color: var(--primary);
+}
+
 .home-section {
   padding-block: var(--space-7);
   border-top: 1px solid var(--line);

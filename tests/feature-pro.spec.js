@@ -153,3 +153,11 @@ test('Pricing: Basic Free, Pro yearly in the middle with its ribbon, Pro monthly
   });
   expect(geometry.nameRight).toBeLessThan(geometry.ribbonLeft + 30); // the band runs diagonally: its far-left corner is low
 });
+
+test('Home says the iPhone and Android apps are coming, under the hero button', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('.brand').click();
+  const apps = panel(page).locator('.home-hero__apps');
+  await expect(apps).toHaveText('Coming soon as an app for iPhone and Android');
+  await expect(apps).toBeVisible();
+});
