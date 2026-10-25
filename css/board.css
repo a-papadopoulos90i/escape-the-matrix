@@ -106,6 +106,8 @@
 }
 
 .waiting__hint {
+  flex: 1 1 120px; /* gives way (wraps to two lines) so the search and sort stay on the heading row */
+  min-width: 0;
   margin: 0;
   color: var(--muted);
   font-size: var(--text-xs);
@@ -219,6 +221,73 @@
   align-self: center;
   margin-left: auto;
   gap: 4px;
+}
+
+/* Search (Pro): small and quiet, just before the sort control, which it takes to the right end. */
+.waiting__search {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 130px;
+  height: 32px;
+  margin-left: auto;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: text;
+}
+
+.waiting__search:focus-within {
+  border-color: var(--primary);
+}
+
+.waiting__search + .waiting__sort {
+  margin-left: 0;
+}
+
+.waiting__search-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+}
+
+.waiting__search-input::-webkit-search-cancel-button {
+  cursor: pointer;
+}
+
+.waiting__search.is-locked {
+  cursor: pointer;
+}
+
+.waiting__search.is-locked svg {
+  color: var(--primary);
+}
+
+.waiting__none {
+  margin: var(--space-2) 0;
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+/* The Go Pro card in its own small popover (the locked search). */
+.popover--pro .pro-lock__veil {
+  position: static;
+  padding: 0;
+}
+
+.popover--pro .pro-lock__card {
+  border: 0;
+  box-shadow: none;
 }
 
 .menu__check {

@@ -98,6 +98,16 @@ Public repository — no secrets, passwords, keys or customer data here.
   confirmed €28 and €4,80 are VAT-inclusive). "Most popular" was not used: no sales data yet to back it (EU rules
   on misleading claims) — can be added once true. The carry strip (pulling unfinished tasks into today) stays Free.
 
+- **2026-10-25 — Timer no longer touches audio (v=122).** The v=117 media controls played a silent clip so
+  the browser would show ⏯; on the owner's Mac that pulled his AirPods away from his iPhone, and pressing play there
+  paused the Levelix timer. Removed for good: the timer plays nothing (only the countdown chime). The tab title
+  still shows the time, with ⏸ when paused. If pause/continue from outside the tab is wanted again, the safe way is
+  a small always-on-top window (Document Picture-in-Picture), never audio.
+- **2026-10-25 — Waiting list search (Pro, v=122).** A small search field in the waiting list heading, before the
+  sort button: filters as you type, ignoring accents, capitals and ς/σ; Escape clears it. On Free it shows with a
+  lock and opens the Go Pro card. The timer and move pickers on Free show their options under a "🔒 Pro" badge;
+  pressing one brings up Go Pro (v=120).
+
 ## Open items
 
 - The owner's main Google account can have **Apple connected**: sign in with Apple → gear → Delete account (the

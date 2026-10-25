@@ -799,36 +799,26 @@ test('the browser tab shows the running time and the task it belongs to', async 
   await expect.poll(() => page.title()).toBe(ownTitle);
 });
 
-test("the browser's own play/pause controls pause and continue the timer", async ({ page }) => {
+test('the timer never plays audio or takes the play/pause keys (it stopped when headphones were used)', async ({ page }) => {
   await asPro(page);
-  // The browser's ⏯ (toolbar, media keys) calls the page's media-session handlers; keep them to press them here.
   await page.addInitScript(() => {
-    const handlers = (window.__mediaHandlers = {});
+    window.__mediaActions = [];
     const real = navigator.mediaSession.setActionHandler.bind(navigator.mediaSession);
-    navigator.mediaSession.setActionHandler = (action, handler) => {
-      handlers[action] = handler;
-      real(action, handler);
+    navigator.mediaSession.setActionHandler = (action, handler) => (window.__mediaActions.push(action), real(action, handler));
+    window.__played = 0;
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function () {
+      window.__played += 1;
+      return play.call(this);
     };
   });
   await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
-  const session = () => page.evaluate(() => ({ state: navigator.mediaSession.playbackState, title: navigator.mediaSession.metadata?.title ?? null }));
-  expect(await session()).toEqual({ state: 'none', title: null });
-
   await openTimer(page, 'Marketing Order A5');
   await popover(page).locator('.timer-picker__stopwatch').click();
-  await expect.poll(session).toEqual({ state: 'playing', title: 'Marketing Order A5' });
-
-  await page.evaluate(() => window.__mediaHandlers.pause());
-  await expect(bar(page).locator('.timer-bar__pause')).toHaveAttribute('aria-label', 'Resume');
-  await expect.poll(session).toEqual({ state: 'paused', title: 'Marketing Order A5' });
-
-  await page.evaluate(() => window.__mediaHandlers.play());
-  await expect(bar(page).locator('.timer-bar__pause')).toHaveAttribute('aria-label', 'Pause');
-  await expect.poll(session).toEqual({ state: 'playing', title: 'Marketing Order A5' });
-
-  await bar(page).locator('.timer-bar__stop').click(); // nothing timed: the browser's controls go away
-  await expect.poll(session).toEqual({ state: 'none', title: null });
+  await expect(bar(page)).toBeVisible();
+  await page.waitForTimeout(1200);
+  expect(await page.evaluate(() => ({ actions: window.__mediaActions, played: window.__played, state: navigator.mediaSession.playbackState }))).toEqual({ actions: [], played: 0, state: 'none' });
 });
 
 test('"Run both" lets two tasks be timed side by side', async ({ page }) => {

@@ -16,12 +16,19 @@ const TASKS = () => [
   task('t_3', 'Old report', 'plan', { done: true, doneAt: '2026-03-11T09:00:00.000Z' }),
 ];
 
-function seed(page, { stage = 3 } = {}) {
+// Waiting-list tasks: no quadrant yet.
+const WAITING = () => [
+  task('t_7', 'Πέμπτη ραντεβού', null),
+  task('t_8', 'Pet Shop email', null),
+  task('t_9', 'Χαρτιά του Παντελή', null),
+];
+
+function seed(page, { stage = 3, extra = [] } = {}) {
   const doc = {
     version: 1,
     updatedAt: '2026-03-11T08:00:00.000Z',
     settings: { bannerDismissed: true, tipsSeen: { 1: true, 2: true, 3: true, 4: true, 5: true } },
-    tasks: TASKS(),
+    tasks: [...TASKS(), ...extra],
   };
   return page.addInitScript(
     ({ uiKey, docKey, ui, doc }) => {
@@ -160,4 +167,39 @@ test('Home says the iPhone and Android apps are coming, under the hero button', 
   const apps = panel(page).locator('.home-hero__apps');
   await expect(apps).toHaveText('Coming soon as an app for iPhone and Android');
   await expect(apps).toBeVisible();
+});
+
+test('Pro: the waiting list search filters as you type, without accents or capitals; Escape clears it', async ({ page }) => {
+  await asPro(page);
+  await seed(page, { extra: WAITING() });
+  await page.goto('/');
+  const list = panel(page).locator('.waiting__list');
+  await expect(list.locator('.waiting-card')).toHaveCount(3);
+
+  const search = panel(page).getByRole('searchbox', { name: 'Search the waiting list' });
+  await search.pressSequentially('πεμπτη');
+  await expect(list.locator('.waiting-card')).toHaveCount(1);
+  await expect(list).toContainText('Πέμπτη ραντεβού');
+  await expect(search).toBeFocused(); // typing never loses the field
+
+  await search.fill('PET');
+  await expect(list.locator('.waiting-card')).toHaveText([/Pet Shop email/]);
+  await search.fill('zzz');
+  await expect(list).toContainText('No task in the waiting list matches.');
+  await search.press('Escape');
+  await expect(search).toHaveValue('');
+  await expect(list.locator('.waiting-card')).toHaveCount(3);
+});
+
+test('Free: the waiting list search shows with a lock and asks to go Pro', async ({ page }) => {
+  await seed(page, { extra: WAITING() });
+  await page.goto('/');
+  const locked = panel(page).locator('.waiting__search.is-locked');
+  await expect(locked).toContainText('Search');
+  await locked.click();
+  const pop = page.locator('.popover--pro');
+  await expect(pop).toContainText('Go Pro for unlimited access');
+  await pop.getByRole('button', { name: 'Go Pro' }).click();
+  await expect(pop).toHaveCount(0);
+  await expect(panel(page).locator('.home-pricing')).toBeInViewport();
 });

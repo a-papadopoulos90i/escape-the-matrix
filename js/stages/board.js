@@ -7,7 +7,7 @@ import { QUADRANTS, isRecord } from '../store.js';
 import { carryStrip, attemptBadge, recordLabel, dayNav, QUAD_ICON, quadrantAxes, quadrantGlyph } from '../carry.js';
 import { fileWithTag, priorityButton, tagPlaces } from '../tags.js';
 import { canAddTask } from '../plan.js';
-import { isPro, proGate } from '../pro-lock.js';
+import { isPro, onPlanChange, proGate, proVeil } from '../pro-lock.js';
 import { parseTime } from '../report.js';
 
 const PRESET_MINUTES = [5, 15, 25, 45, 60];
@@ -31,6 +31,8 @@ let root = null; // .stage-body
 let boardEl = null; // strip + matrix + quick add + waiting list, re-rendered on every task change
 let quickAdd = null; // the one quick-add form, kept across renders so a half-typed task survives
 let unsubscribe = null;
+let stopPlan = null;
+let popoverView = null; // what the open task popover shows: { id, view, focusKey }
 let adding = null; // quadrant with an open "add task" row
 let popover = null; // open task popover
 let drag = null; // active card drag
@@ -59,6 +61,18 @@ export function mount(container, nextCtx) {
   ctx.store.settleRepeats(ctx.dates.todayKey()); // days that passed with a repeat copy unfinished count a miss
   render();
   unsubscribe = ctx.store.subscribe(onStoreChange);
+  stopPlan = onPlanChange(onPlan);
+}
+
+/** Pro arriving (or ending) shows at once: the board is drawn again, and an open timer or move picker
+ *  opens again on its new card, unlocked. */
+function onPlan() {
+  const open = popover ? popoverView : null;
+  render();
+  if (!open) return;
+  const anchor = boardEl?.querySelector(`[data-focus-key="${CSS.escape(open.focusKey)}"]`);
+  if (anchor) openTaskPopover(open.id, anchor, { view: open.view });
+  else closePopover();
 }
 
 export function unmount() {
@@ -66,6 +80,8 @@ export function unmount() {
   closePopover();
   unsubscribe?.();
   unsubscribe = null;
+  stopPlan?.();
+  stopPlan = null;
   adding = null;
   quickAdd = null;
   boardEl = null;
@@ -459,10 +475,73 @@ function foldButton(name, label, controls) {
   );
 }
 
+// ---------- Waiting list search (Pro) ----------
+
+let waitingQuery = ''; // kept across re-renders, for this visit
+
+/** Lower case, accents dropped and ς read as σ: "πεμπτη" finds "Πέμπτη". */
+const searchable = (text) => String(text).normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/ς/g, 'σ');
+const matchesQuery = (task) => !waitingQuery.trim() || searchable(task.title).includes(searchable(waitingQuery.trim()));
+
+/** A small search field in the waiting list's heading: the list below follows each key. On Free it shows
+ *  with a lock, and pressing it asks to go Pro. */
+function waitingSearch(refill) {
+  const { ui, i18n } = ctx;
+  if (!isPro()) {
+    return ui.h(
+      'button',
+      {
+        class: 'waiting__search is-locked',
+        type: 'button',
+        'aria-label': `${i18n.t('board.search')} (${i18n.t('pro.badge')})`,
+        dataset: { focusKey: 'waiting-search' },
+        onClick: (event) => {
+          const pop = ui.popover({ anchor: event.currentTarget, content: proVeil({ onGoPro: () => pop.close() }), className: 'popover--pro', label: i18n.t('pro.locked') });
+        },
+      },
+      ui.icon('lock', { size: 13 }),
+      ui.h('span', { class: 'waiting__search-text' }, i18n.t('board.search')),
+    );
+  }
+  return ui.h(
+    'label',
+    { class: 'waiting__search' },
+    ui.icon('search', { size: 14 }),
+    ui.h('input', {
+      class: 'waiting__search-input',
+      type: 'search',
+      value: waitingQuery,
+      placeholder: i18n.t('board.search'),
+      'aria-label': i18n.t('board.searchLabel'),
+      'aria-controls': 'waiting-list',
+      autocomplete: 'off',
+      dataset: { focusKey: 'waiting-search' },
+      onInput: (event) => {
+        waitingQuery = event.currentTarget.value;
+        refill();
+      },
+      onKeydown: (event) => {
+        if (event.key !== 'Escape' || !waitingQuery) return;
+        event.preventDefault();
+        event.currentTarget.value = waitingQuery = '';
+        refill();
+      },
+    }),
+  );
+}
+
 function waitingPanel(tasks) {
   const { ui, i18n } = ctx;
   const active = tasks.filter((task) => !isRecord(task));
   const open = sectionOpen('waiting');
+  // The list is refilled in place while typing, so the search field keeps its focus and caret.
+  const list = open ? ui.h('div', { class: 'waiting__list', id: 'waiting-list' }) : null;
+  const refill = () => {
+    if (!isPro()) waitingQuery = '';
+    const shown = tasks.filter(matchesQuery);
+    list.replaceChildren(...(shown.length ? shown.map(waitingCard) : [ui.h('p', { class: 'waiting__none text-muted' }, i18n.t('board.searchNone'))]));
+  };
+  if (list) refill();
   return ui.h(
     'section',
     { class: `waiting ${open ? '' : 'is-collapsed'}`.trim(), 'aria-labelledby': 'waiting-label' },
@@ -471,6 +550,7 @@ function waitingPanel(tasks) {
       { class: 'waiting__head' },
       ui.h('h3', { class: 'waiting__label', id: 'waiting-label' }, foldButton('waiting', i18n.t('board.waiting', { n: active.length }), 'waiting-list')),
       ui.h('p', { class: 'waiting__hint' }, i18n.t('board.waitingHint')),
+      open && waitingSearch(refill),
       open &&
         ui.h(
           'button',
@@ -486,7 +566,7 @@ function waitingPanel(tasks) {
           ui.icon('chevron-down', { size: 14 }),
         ),
     ),
-    open ? ui.h('div', { class: 'waiting__list', id: 'waiting-list' }, tasks.map(waitingCard)) : null,
+    list,
   );
 }
 
@@ -680,17 +760,18 @@ function openTaskPopover(id, anchor, { view = 'edit' } = {}) {
   closePopover();
   const task = findTask(id);
   if (!task) return;
+  popoverView = { id, view, focusKey: anchor.dataset.focusKey ?? '' };
   const body = ctx.ui.h('div', { class: 'task-popover' });
   popover = ctx.ui.popover({ anchor, content: body, className: 'popover--task', label: task.title, onClose: () => { popover = null; } });
   if (view === 'timer') showTimerPicker(task, body);
   else if (view === 'schedule') showSchedulePicker(task, body);
   else showEdit(task, body);
   // The timer and moving a task to another day are Pro: on Free the picker shows, and pressing an option asks to go Pro.
-  if (view !== 'edit' && !isPro()) lockPopover(body, () => (anchor.isConnected ? openTaskPopover(id, anchor, { view }) : closePopover()));
+  if (view !== 'edit' && !isPro()) lockPopover(body);
 }
 
-function lockPopover(body, reopen) {
-  body.replaceChildren(proGate({ content: [...body.childNodes], onGoPro: closePopover, onUnlock: reopen }));
+function lockPopover(body) {
+  body.replaceChildren(proGate({ content: [...body.childNodes], onGoPro: closePopover }));
   popover?.reposition();
 }
 

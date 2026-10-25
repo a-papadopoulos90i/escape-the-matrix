@@ -5,8 +5,8 @@
 // stamped on the timer (`alarmedAt`), so a countdown that ran out while the page was closed still
 // alarms once on the next load — and never twice.
 // Mounted once at document level by app.js at boot, so the bar shows on every stage after a reload.
-// On a computer the live timer also sits in the browser's own media controls (Chrome's ⏯ button at the top
-// right, macOS Now Playing, the keyboard's play/pause key): pause and continue from there, without the tab.
+// The timer never plays audio of its own (only the chime when a countdown ends): a page that plays even
+// silence takes over the user's headphones and their play/pause, and that stopped the clock (2026-10-25).
 import { timerElapsed, timerRemaining } from './store.js';
 import { h, icon, modal } from './ui.js';
 import { t } from './i18n.js';
@@ -29,7 +29,6 @@ let interval = null;
 let flashHandle = null;
 let audio = null;
 let pageTitle = ''; // the tab's own title, put back when nothing is being timed
-let media = null; // { el } — the silent <audio> that puts the timer in the browser's media controls
 
 // ---------- Public API ----------
 
@@ -42,14 +41,12 @@ export function init({ store: nextStore }) {
   document.body.append(bar.el);
   unsubscribe = store.subscribe(sync);
   document.addEventListener('visibilitychange', onVisibilityChange);
-  media = mediaControls();
   sync();
 }
 
 export function destroy() {
   if (!bar) return;
   if (pageTitle) document.title = pageTitle;
-  showInMediaControls(null);
   setTicking(false);
   clearTimeout(flashHandle);
   unsubscribe?.();
@@ -257,7 +254,6 @@ function renderBar(task) {
   document.body.classList.toggle('has-timer-bar', visible);
   if (!visible) {
     showInTabTitle(null, 'idle', '');
-    showInMediaControls(null);
     return;
   }
   const running = task.timer.running;
@@ -275,7 +271,6 @@ function updateBarTime(task, now) {
   bar.el.classList.toggle('timer-bar--finished', finished);
   bar.pause.hidden = finished; // a countdown that has run out has nothing to pause
   showInTabTitle(task, state, text);
-  showInMediaControls(task, state, text);
 }
 
 /** The tab says what is on the clock: "02:44 — Pay the accountant" ("⏸ 02:44 — …" while paused), and goes
@@ -284,102 +279,6 @@ function showInTabTitle(task, state, text) {
   if (!pageTitle) return;
   const live = state === 'running' || state === 'finished' || state === 'paused';
   document.title = live && task ? `${state === 'paused' ? '⏸ ' : ''}${text} — ${task.title}` : pageTitle;
-}
-
-// ---------- Browser media controls ----------
-// A browser only offers its ⏯ controls to a page that is playing something, so while a task is timed a
-// silent clip loops (inaudible: no speaker icon on the tab). Its play/pause is the timer's continue/pause.
-// Computers only: on a phone, playing anything would stop the music the user is listening to.
-
-const SILENT_SECONDS = 10; // browsers list media only from about 5 seconds long
-
-function mediaControls() {
-  const session = navigator.mediaSession;
-  const desktop = window.matchMedia?.('(hover: hover) and (pointer: fine)').matches;
-  if (!session || !desktop || typeof Audio === 'undefined' || typeof MediaMetadata === 'undefined') return null;
-  const el = new Audio();
-  el.loop = true;
-  const toggle = (run) => () =>
-    withActive((task) => {
-      if (task.timer.running === run) return;
-      if (run) store.resumeTimer(task.id);
-      else store.pauseTimer(task.id);
-    });
-  try {
-    session.setActionHandler('play', toggle(true));
-    session.setActionHandler('pause', toggle(false));
-    session.setActionHandler('stop', () => withActive((task) => store.stopTimer(task.id)));
-  } catch {
-    return null; // an older browser without these actions
-  }
-  return { el, session, url: '', shown: '' };
-}
-
-/** A WAV of silence (8 kHz, 8-bit mono), made here — no audio file to download. */
-function silentClip() {
-  const samples = 8000 * SILENT_SECONDS;
-  const bytes = new Uint8Array(44 + samples);
-  const view = new DataView(bytes.buffer);
-  const text = (at, value) => [...value].forEach((ch, i) => view.setUint8(at + i, ch.charCodeAt(0)));
-  text(0, 'RIFF');
-  view.setUint32(4, 36 + samples, true);
-  text(8, 'WAVEfmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true); // PCM
-  view.setUint16(22, 1, true); // mono
-  view.setUint32(24, 8000, true);
-  view.setUint32(28, 8000, true);
-  view.setUint16(32, 1, true);
-  view.setUint16(34, 8, true);
-  text(36, 'data');
-  view.setUint32(40, samples, true);
-  bytes.fill(128, 44); // 8-bit silence is the midpoint
-  return new Blob([bytes], { type: 'audio/wav' });
-}
-
-/** Keeps the browser's media controls in step with the bar: the task, its time, playing or paused. */
-function showInMediaControls(task, state = 'idle', text = '') {
-  if (!media) return;
-  const live = Boolean(task) && state !== 'done' && state !== 'idle';
-  if (!live) {
-    if (media.shown) {
-      media.el.pause();
-      media.el.removeAttribute('src');
-      media.el.load(); // drops the entry from the browser's controls
-      media.session.metadata = null;
-      media.session.playbackState = 'none';
-      media.shown = '';
-    }
-    return;
-  }
-  media.url ||= URL.createObjectURL(silentClip());
-  if (!media.el.getAttribute('src')) media.el.src = media.url;
-  const running = state === 'running' || state === 'finished';
-  const shown = `${task.title}|${text}`;
-  if (shown !== media.shown) {
-    media.session.metadata = new MediaMetadata({ title: task.title, artist: `${text} · ${t('app.name')}`, artwork: MEDIA_ARTWORK });
-    media.shown = shown;
-  }
-  media.session.playbackState = running ? 'playing' : 'paused';
-  if (running && media.el.paused) playWhenAllowed();
-  if (!running && !media.el.paused) media.el.pause();
-}
-
-const MEDIA_ARTWORK = [
-  { src: './assets/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-  { src: './assets/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-];
-
-/** Plays the silent clip; right after a reload the browser waits for a first click or key, so try again then. */
-function playWhenAllowed() {
-  const el = media.el;
-  Promise.resolve(el.play()).catch(() => {
-    const retry = () => {
-      if (media?.el === el && store?.activeTimer()?.timer.running && el.paused) el.play().catch(() => {});
-    };
-    document.addEventListener('pointerdown', retry, { once: true, capture: true });
-    document.addEventListener('keydown', retry, { once: true, capture: true });
-  });
 }
 
 // ---------- Alarm ----------
