@@ -1121,6 +1121,72 @@
   }
 }
 
+/* Several timers going: arrows at both ends step between them (like the day switcher's), and a quiet
+   "1 of 2 timers" under the title. */
+.timer-bar__step {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  color: var(--muted);
+}
+
+.timer-bar__step:hover {
+  color: var(--ink);
+}
+
+.timer-bar--several {
+  padding-inline: var(--space-1);
+}
+
+.timer-bar__count {
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.timer-bar__count:empty {
+  display: none;
+}
+
+/* Docked on Prioritize: the bar takes the stage title's place, part of the page rather than floating. */
+.timer-bar--docked {
+  position: static;
+  left: auto;
+  bottom: auto;
+  z-index: auto;
+  width: 100%;
+  max-width: var(--content-col); /* as wide as the matrix below it */
+  margin: 0 auto;
+  transform: none;
+  box-shadow: var(--shadow-sm);
+  text-align: left;
+  animation: timer-bar-dock var(--dur) var(--ease) both;
+}
+
+@keyframes timer-bar-dock {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The title stays for screen readers and keyboard focus, out of sight while the timer stands in for it. */
+.stage-header.has-timer > .stage-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Keep the stage footer and toasts clear of the bar. */
 body.has-timer-bar {
   padding-bottom: 80px;
@@ -1185,6 +1251,16 @@ body.has-timer-bar .toast-root {
 
   .timer-bar__time {
     font-size: var(--text-md);
+  }
+
+  /* Several timers on a phone: the arrows need the room the clock icon took, so the title keeps some. */
+  .timer-bar--several > .icon--clock {
+    display: none;
+  }
+
+  .timer-bar__step {
+    width: 24px;
+    min-width: 24px;
   }
 }
 
@@ -1329,4 +1405,9 @@ body.has-timer-bar .toast-root {
   margin: 0;
   font-size: var(--text-xs);
   text-align: center;
+}
+
+/* Time's up flashes the docked bar too (its own entry animation would otherwise win). */
+.timer-bar--docked.timer-bar--flash {
+  animation: timer-bar-flash 0.5s ease-in-out 6;
 }

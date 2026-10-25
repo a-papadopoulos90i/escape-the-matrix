@@ -56,8 +56,10 @@ export function mount(container, nextCtx) {
   boardEl.addEventListener('touchmove', onTouchMove, { passive: false }); // must be cancelable
   boardEl.addEventListener('click', onClickCapture, true); // swallow the post-drag click
   quickAdd = quickAddForm();
-  root = ui.h('div', { class: 'stage-body' }, nav, ui.stageHeader({ stage: 3, title: i18n.t('stage.3.title') }), boardEl);
+  const header = ui.stageHeader({ stage: 3, title: i18n.t('stage.3.title') });
+  root = ui.h('div', { class: 'stage-body' }, nav, header, boardEl);
   container.append(root);
+  timer.dock(header); // a running timer takes the title's place here
   ctx.store.settleRepeats(ctx.dates.todayKey()); // days that passed with a repeat copy unfinished count a miss
   render();
   unsubscribe = ctx.store.subscribe(onStoreChange);
@@ -76,6 +78,7 @@ function onPlan() {
 }
 
 export function unmount() {
+  timer.undock();
   endDrag();
   closePopover();
   unsubscribe?.();

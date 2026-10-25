@@ -108,6 +108,11 @@ Public repository — no secrets, passwords, keys or customer data here.
   lock and opens the Go Pro card. The timer and move pickers on Free show their options under a "🔒 Pro" badge;
   pressing one brings up Go Pro (v=120).
 
+- **2026-10-25 — Timer in the title's place (v=123).** On Prioritize a running timer stands in for "Place them by
+  priority" (the bar docks in the stage header; the title stays for screen readers). On the other stages it floats
+  at the bottom as before. With two or more timers, small ‹ › arrows at the bar's ends step between them, a quiet
+  "1 of 2 timers" shows under the title, and Pause / Stop / Done act on the one shown.
+
 ## Open items
 
 - The owner's main Google account can have **Apple connected**: sign in with Apple → gear → Delete account (the

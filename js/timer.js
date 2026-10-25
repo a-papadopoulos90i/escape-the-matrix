@@ -4,7 +4,9 @@
 // (a soft WebAudio chime, bar flash, browser notification when permission was granted). The alarm is
 // stamped on the timer (`alarmedAt`), so a countdown that ran out while the page was closed still
 // alarms once on the next load — and never twice.
-// Mounted once at document level by app.js at boot, so the bar shows on every stage after a reload.
+// Mounted once at document level by app.js at boot, so the bar shows on every stage after a reload. On
+// Prioritize it is docked in place of the stage title (dock/undock); with two or more timers going, small
+// arrows step between them, and Pause / Stop / Done act on the one shown.
 // The timer never plays audio of its own (only the chime when a countdown ends): a page that plays even
 // silence takes over the user's headphones and their play/pause, and that stopped the clock (2026-10-25).
 import { timerElapsed, timerRemaining } from './store.js';
@@ -23,7 +25,9 @@ const CHIME_PEAK = 0.12; // quiet on purpose
 const TIMER_REASONS = new Set(['startTimer', 'pauseTimer', 'resumeTimer', 'stopTimer', 'alarmTimer']);
 
 let store = null;
-let bar = null; // { el, title, status, time, pause }
+let bar = null; // { el, title, status, count, time, pause, prev, next }
+let shownId = null; // the timer the bar shows when several are going (the latest started, until stepped)
+let dockSlot = null; // where the bar sits in place of the stage title (Prioritize), or null: floating
 let unsubscribe = null;
 let interval = null;
 let flashHandle = null;
@@ -177,11 +181,45 @@ function requestNotificationPermission() {
 
 // ---------- Store sync & ticking ----------
 
-function sync() {
-  const task = store.activeTimer();
-  renderBar(task);
+function sync(_doc, { reason } = {}) {
+  if (reason === 'startTimer') shownId = store.activeTimer()?.id ?? null; // a timer just started: show it
+  renderBar(shownTask());
   tick();
-  setTicking(task?.timer.running === true);
+  setTicking(store.activeTimers().some((task) => task.timer.running));
+}
+
+/** The timer the bar shows: the one stepped to, else the latest started. */
+function shownTask() {
+  const tasks = store?.activeTimers() ?? [];
+  return tasks.find((task) => task.id === shownId) ?? tasks[0] ?? null;
+}
+
+/** The bar's arrows: the previous / next timer going, round the list. */
+function step(by) {
+  const tasks = store.activeTimers();
+  if (tasks.length < 2) return;
+  const at = Math.max(0, tasks.findIndex((task) => task.id === shownTask()?.id));
+  shownId = tasks[(at + by + tasks.length) % tasks.length].id;
+  renderBar(shownTask());
+  tick();
+}
+
+/** Prioritize puts the bar in place of its title (`slot` is the stage header); undock floats it again. */
+export function dock(slot) {
+  if (!bar) return;
+  dockSlot = slot;
+  slot.append(bar.el);
+  bar.el.classList.add('timer-bar--docked');
+  renderBar(shownTask());
+}
+
+export function undock() {
+  if (!bar || !dockSlot) return;
+  dockSlot.classList.remove('has-timer');
+  dockSlot = null;
+  bar.el.classList.remove('timer-bar--docked');
+  document.body.append(bar.el);
+  renderBar(shownTask());
 }
 
 function setTicking(on) {
@@ -204,7 +242,8 @@ function tick() {
     const { timer } = task;
     if (timer.mode === 'countdown' && timer.running && !timer.alarmedAt && timerRemaining(timer, now) <= 0) raiseAlarm(task);
   }
-  updateBarTime(tasks[0], now); // the bar follows the one that started last
+  const shown = shownTask();
+  if (shown) updateBarTime(shown, now);
 }
 
 function onVisibilityChange() {
@@ -222,9 +261,21 @@ function fillButton(button, iconName, label) {
   button.setAttribute('aria-label', label);
 }
 
+function arrowButton(direction) {
+  const label = t(direction < 0 ? 'timer.previous' : 'timer.next');
+  return h(
+    'button',
+    { class: 'btn-icon timer-bar__step', type: 'button', 'aria-label': label, title: label, hidden: true, onClick: () => step(direction) },
+    icon(direction < 0 ? 'chevron-left' : 'chevron-right', { size: 18 }),
+  );
+}
+
 function buildBar() {
   const title = h('span', { class: 'timer-bar__title' });
   const status = h('span', { class: 'timer-bar__status' });
+  const count = h('span', { class: 'timer-bar__count' });
+  const prev = arrowButton(-1);
+  const next = arrowButton(1);
   const time = h('span', { class: 'timer-bar__time', role: 'timer' });
   const pause = barButton('timer-bar__pause', () => withActive((task) => (task.timer.running ? store.pauseTimer(task.id) : store.resumeTimer(task.id))));
   const stop = barButton('timer-bar__stop', () => withActive((task) => store.stopTimer(task.id)));
@@ -234,31 +285,38 @@ function buildBar() {
   const el = h(
     'div',
     { class: 'timer-bar', role: 'region', 'aria-label': t('timer.label'), hidden: true },
+    prev,
     icon('clock', { size: 22 }),
-    h('div', { class: 'timer-bar__info' }, title, status),
+    h('div', { class: 'timer-bar__info' }, title, status, count),
     time,
     h('div', { class: 'timer-bar__actions' }, pause, stop, done),
+    next,
   );
-  return { el, title, status, time, pause };
+  return { el, title, status, count, time, pause, prev, next };
 }
 
 function withActive(action) {
   unlockAudio();
-  const task = store.activeTimer();
+  const task = shownTask();
   if (task) action(task);
 }
 
 function renderBar(task) {
   const visible = Boolean(task);
   bar.el.hidden = !visible;
-  document.body.classList.toggle('has-timer-bar', visible);
+  document.body.classList.toggle('has-timer-bar', visible && !dockSlot); // room at the bottom only when floating
+  dockSlot?.classList.toggle('has-timer', visible); // docked: the bar stands in for the stage title
   if (!visible) {
     showInTabTitle(null, 'idle', '');
     return;
   }
   const running = task.timer.running;
-  const others = store.activeTimers().length - 1;
-  bar.title.textContent = others > 0 ? t('timer.alsoRunning', { title: task.title, n: others }) : task.title;
+  const tasks = store.activeTimers();
+  const several = tasks.length > 1;
+  bar.title.textContent = task.title;
+  bar.count.textContent = several ? t('timer.position', { i: tasks.findIndex((item) => item.id === task.id) + 1, n: tasks.length }) : '';
+  bar.prev.hidden = bar.next.hidden = !several;
+  bar.el.classList.toggle('timer-bar--several', several);
   bar.el.classList.toggle('timer-bar--paused', !running);
   fillButton(bar.pause, running ? 'pause' : 'play', t(running ? 'timer.pause' : 'timer.resume'));
 }

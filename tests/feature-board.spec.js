@@ -832,11 +832,52 @@ test('"Run both" lets two tasks be timed side by side', async ({ page }) => {
   await popover(page).locator('.timer-picker__stopwatch').click();
   await page.locator('[role="dialog"].modal').getByRole('button', { name: 'Run both' }).click();
 
-  // Both clocks keep running, and the bar says it is not alone.
+  // Both clocks keep running; the bar shows the latest, says it is not alone, and its arrows step between them.
   await expect(card(page, 'Marketing Order A5').locator('.task-card__clock')).toHaveClass(/task-card__clock--running/);
   await expect(card(page, 'Invoice Send').locator('.task-card__clock')).toHaveClass(/task-card__clock--running/);
-  await expect(bar(page).locator('.timer-bar__title')).toHaveText('Invoice Send (+1 more)');
+  await expect(bar(page).locator('.timer-bar__title')).toHaveText('Invoice Send');
+  await expect(bar(page).locator('.timer-bar__count')).toHaveText('1 of 2 timers');
   await waitForSaved(page, (doc) => doc.tasks.filter((item) => item.timer?.running).length === 2);
+
+  await bar(page).getByRole('button', { name: 'Next timer' }).click();
+  await expect(bar(page).locator('.timer-bar__title')).toHaveText('Marketing Order A5');
+  await expect(bar(page).locator('.timer-bar__count')).toHaveText('2 of 2 timers');
+  await bar(page).locator('.timer-bar__pause').click(); // acts on the timer shown
+  await expect(card(page, 'Marketing Order A5').locator('.task-card__clock')).toHaveClass(/task-card__clock--paused/);
+  await expect(card(page, 'Invoice Send').locator('.task-card__clock')).toHaveClass(/task-card__clock--running/);
+  await expect(bar(page).locator('.timer-bar__title')).toHaveText('Marketing Order A5'); // stays on it
+  await bar(page).getByRole('button', { name: 'Previous timer' }).click();
+  await expect(bar(page).locator('.timer-bar__title')).toHaveText('Invoice Send');
+});
+
+test('on Prioritize the running timer takes the title\'s place; elsewhere it floats at the bottom', async ({ page }) => {
+  await asPro(page);
+  await seed(page, { tasks: SORTED(), stage: 3 });
+  await page.goto('/');
+  const header = panel(page).locator('.stage-header');
+  await expect(header.locator('.stage-title')).toBeVisible();
+  await openTimer(page, 'Marketing Order A5');
+  await popover(page).locator('.timer-picker__stopwatch').click();
+
+  await expect(header.locator('.timer-bar')).toBeVisible(); // in the header, where the title was
+  expect((await header.locator('.stage-title').boundingBox()).width).toBeLessThanOrEqual(1); // kept for screen readers only
+  await expect(bar(page).locator('.timer-bar__step')).toHaveCount(2);
+  await expect(bar(page).locator('.timer-bar__step').first()).toBeHidden(); // one timer: no arrows
+  const box = await bar(page).boundingBox();
+  const nav = await panel(page).locator('.stage-nav').boundingBox();
+  expect(box.y).toBeGreaterThan(nav.y + nav.height - 1); // under Back / the day / Back to calendar
+  expect(box.y).toBeLessThan(nav.y + nav.height + 80);
+
+  await page.locator('#stepper .step').nth(0).click(); // Calendar: the bar floats at the bottom again
+  await expect(bar(page)).toBeVisible();
+  await expect(bar(page)).not.toHaveClass(/timer-bar--docked/);
+  const floating = await bar(page).boundingBox();
+  expect(floating.y + floating.height).toBeGreaterThan(page.viewportSize().height - 100);
+
+  await page.locator('#stepper .step').nth(2).click(); // back on Prioritize: docked again
+  await expect(header.locator('.timer-bar')).toBeVisible();
+  await bar(page).locator('.timer-bar__stop').click();
+  await expect.poll(async () => (await header.locator('.stage-title').boundingBox()).width).toBeGreaterThan(100); // the title is back
 });
 
 test('a countdown reaching 0 flashes the bar and shows "Time\'s up!"', async ({ page }) => {

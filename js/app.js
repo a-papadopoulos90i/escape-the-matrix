@@ -271,6 +271,7 @@ function retireCurrentPanel(direction) {
   state.mounted = null;
   const animated = direction && !reduceMotion.matches;
   const ghost = animated ? current.panel.cloneNode(true) : null;
+  ghost?.querySelectorAll('.timer-bar').forEach((el) => el.remove()); // the one live timer bar moves on with the stage
   current.module.unmount();
   if (!ghost) return current.panel.remove();
   ghost.classList.remove('panel--enter-forward', 'panel--enter-back'); // may still be entering
