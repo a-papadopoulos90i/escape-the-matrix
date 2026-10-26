@@ -1,5 +1,7 @@
-// Personal bridge to Apple Reminders on the owner's Mac (tools/reminders-bridge). Hidden unless this
-// browser opted in by opening the site with ?reminders=on; nothing about it is shown to other users.
+// Personal bridge to Apple Reminders on the owner's Mac (tools/reminders-bridge). It is on only while the
+// owner's own account is signed in on a computer, with its tasks loaded (auth.js checks Firestore's
+// config/owners, which only an owner can read), so nobody else ever sees it and no other account's tasks
+// can reach the Reminders list. ?reminders=off turns it off in one browser; ?reminders=on turns it back on.
 import { todayKey } from './dates.js';
 
 const FLAG = 'levelix:remindersBridge';
@@ -56,12 +58,30 @@ function recordSync(now = Date.now()) {
   }
 }
 
-export function remindersEnabled() {
+let ownerReady = false; // the owner's account is signed in here and its tasks are loaded (auth.js)
+let ownerTurn = 0; // bumps whenever that changes, so a sync started for one account never lands in another
+let kick = null; // starts a sync soon (set by startRemindersAutoSync)
+
+/** auth.js: the owner's own account is in (true), or it signed out / another account is in (false). */
+export function setRemindersOwner(ready) {
+  if (ready === ownerReady) return;
+  ownerReady = ready;
+  ownerTurn += 1;
+  if (ready) kick?.(FIRST_RUN_MS);
+}
+
+function turnedOff() {
   try {
-    return localStorage.getItem(FLAG) === 'on';
+    return localStorage.getItem(FLAG) === 'off';
   } catch {
     return false;
   }
+}
+
+const onComputer = () => window.matchMedia?.('(hover: hover) and (pointer: fine)').matches ?? false;
+
+export function remindersEnabled() {
+  return ownerReady && onComputer() && !turnedOff();
 }
 
 async function call(pathname, body) {
@@ -108,6 +128,8 @@ export function syncPayload(store, now = Date.now()) {
  */
 export async function syncWithReminders({ store, ui, i18n, silent = false }) {
   const { t } = i18n;
+  if (!remindersEnabled()) return { off: true };
+  const turn = ownerTurn;
   const { tasks, deleted, relink, known } = syncPayload(store);
 
   let result;
@@ -125,6 +147,7 @@ export async function syncWithReminders({ store, ui, i18n, silent = false }) {
     if (!silent) ui.toast(t('reminders.outdated'), { duration: 12000 });
     return { outdated: true };
   }
+  if (turn !== ownerTurn) return { off: true }; // the account changed meanwhile: nothing lands in another one
   const links = [];
   store.undoable(() => {
     for (const id of result.completedInReminders) store.toggleDone(id, true);
@@ -213,7 +236,8 @@ function askWhichSideStands({ ui, i18n, conflicts, retry }) {
   });
 }
 
-/** Keeps both sides in step on their own. Started once at boot when this browser opted in. */
+/** Keeps both sides in step on their own. Started once at boot; it does anything only while
+ *  remindersEnabled() (the owner's account, on a computer). */
 export function startRemindersAutoSync({ store, ui, i18n }) {
   let running = false;
   let quietUntil = 0;
@@ -222,7 +246,7 @@ export function startRemindersAutoSync({ store, ui, i18n }) {
 
   // It keeps syncing while the tab sits in the background — that is where a working day is spent.
   const run = async () => {
-    if (running || Date.now() < quietUntil) return;
+    if (running || Date.now() < quietUntil || !remindersEnabled()) return;
     running = true;
     try {
       const result = await syncWithReminders({ store, ui, i18n, silent: true });
@@ -237,6 +261,7 @@ export function startRemindersAutoSync({ store, ui, i18n }) {
     timer = setTimeout(run, ms);
   };
 
+  kick = soon;
   soon(FIRST_RUN_MS);
   setInterval(run, EVERY_MS);
   document.addEventListener('visibilitychange', () => {

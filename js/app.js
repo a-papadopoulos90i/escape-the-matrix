@@ -8,7 +8,7 @@ import * as ui from './ui.js';
 import * as i18n from './i18n.js';
 import { openDoneHistory } from './history.js';
 import { openTimeReport } from './report.js';
-import { captureRemindersFlag, remindersEnabled, startRemindersAutoSync } from './reminders.js';
+import { captureRemindersFlag, startRemindersAutoSync } from './reminders.js';
 import * as home from './stages/home.js';
 import * as calendar from './stages/calendar.js';
 import * as dump from './stages/dump.js';
@@ -403,7 +403,7 @@ async function boot() {
 
   const remindersFlag = captureRemindersFlag(); // ?reminders=on|off — the owner's personal Reminders bridge
   if (remindersFlag) ui.toast(t(remindersFlag === 'on' ? 'reminders.enabled' : 'reminders.disabled'), { duration: 9000 });
-  if (remindersEnabled()) startRemindersAutoSync({ store, ui, i18n });
+  startRemindersAutoSync({ store, ui, i18n }); // acts only for the owner's account, on a computer
   store.settleRepeats(dates.todayKey()); // repeat copies left unfinished on a past day count a miss
   store.restoreCarriedRecords(); // a short-lived version dropped the "pulled to …" history; put it back
   store.handTimersToCopies(); // older pulls left the clock behind on the record

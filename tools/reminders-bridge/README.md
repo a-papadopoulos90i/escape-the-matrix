@@ -5,9 +5,10 @@ list called **Levelix**, when you press **Sync with Reminders** in Levelix's acc
 
 ## One-time setup
 
-1. In Levelix (https://levelix.eu), open the site once with `?reminders=on` at the end of the address:
-   `https://levelix.eu/?reminders=on`. The menu item appears only in that browser.
-   (`?reminders=off` hides it again.)
+1. Nothing to switch on in Levelix: the bridge works whenever the owner's own account is signed in on a
+   computer (the account is on Firestore's `config/owners` list, which only an owner can read). Nobody else
+   sees "Sync with Reminders" or makes any call to the bridge. `?reminders=off` turns it off in one browser,
+   `?reminders=on` back on. Chrome may ask once to let levelix.eu reach apps on this device: press **Allow**.
 2. The bridge starts by itself with the Mac, through the launch agent
    `~/Library/LaunchAgents/eu.levelix.reminders-bridge.plist` (it restarts on its own if it ever stops).
    The first run asks macOS for permission to control **Reminders** — press **OK**.

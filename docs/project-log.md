@@ -113,6 +113,14 @@ Public repository — no secrets, passwords, keys or customer data here.
   at the bottom as before. With two or more timers, small ‹ › arrows at the bar's ends step between them, a quiet
   "1 of 2 timers" shows under the title, and Pause / Stop / Done act on the one shown.
 
+- **2026-10-26 — Reminders bridge tied to the owner's account (v=124).** The owner noticed Calendar missing
+  everything since mid-October: the bridge log showed the last sync on 14 Oct; the browser had lost its
+  `?reminders=on` opt-in, so it never called the bridge again (the bridge itself was running). Now the bridge is on
+  whenever the owner's own account is signed in on a computer, checked against `config/owners` (a new rule lets
+  only someone on that list read it), and only after that account's tasks are loaded; it switches off at sign-out
+  or for any other account, and a sync that started for one account never lands in another. `?reminders=off`
+  still turns it off in one browser.
+
 ## Open items
 
 - The owner's main Google account can have **Apple connected**: sign in with Apple → gear → Delete account (the

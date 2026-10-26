@@ -62,6 +62,12 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // The owners list (the Reminders bridge on the owner's Mac): readable only by someone on it.
+    match /config/owners {
+      allow get: if request.auth != null && request.auth.uid in resource.data.uids;
+      allow list, write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

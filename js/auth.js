@@ -9,7 +9,7 @@ import * as dates from './dates.js';
 import { createEmptyDoc } from './store.js';
 import { createLocalAdapter } from './storage/local.js';
 import { createCloudAdapter } from './storage/cloud.js';
-import { lastSyncAgo, remindersEnabled, syncWithReminders } from './reminders.js';
+import { lastSyncAgo, remindersEnabled, setRemindersOwner, syncWithReminders } from './reminders.js';
 import { createBilling, VoucherError } from './billing.js';
 import { capturePayReturn, checkoutUrl, REDEEM_EVENT, REFUND_POLICY_EVENT, setBuyer, SIGNIN_FOR_PRO_EVENT, takePendingCheckout } from './billing-links.js';
 import { isPro, onPlanChange } from './plan.js';
@@ -429,6 +429,7 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
 
   async function connect(user) {
     const current = ++generation;
+    setRemindersOwner(false); // until this account is known to be the owner's, with its own tasks loaded
     view.showSignedIn(user, 'syncing');
     setSignedIn(true);
     const cloud = createCloudAdapter({
@@ -477,10 +478,25 @@ async function startSession({ sdk, config, store, ui, i18n, view, setSignedIn })
     const period = takePendingCheckout();
     if (period) window.location.assign(checkoutUrl(period));
     cloud.reconcile(store.get());
+    checkOwner(user.uid, current);
+  }
+
+  /** The owner's own account turns on the Reminders bridge. config/owners can be read only by an owner,
+   *  so for everyone else the read is refused and nothing changes. */
+  async function checkOwner(uid, current) {
+    let owner = false;
+    try {
+      const snapshot = await sdk.getDoc(sdk.doc(db, 'config', 'owners'));
+      owner = Boolean(snapshot.exists?.() && snapshot.data()?.uids?.includes(uid));
+    } catch {
+      owner = false;
+    }
+    if (current === generation) setRemindersOwner(owner);
   }
 
   async function disconnect() {
     generation += 1;
+    setRemindersOwner(false); // before the board turns into the guest's
     billing?.dispose();
     billing = null;
     setBuyer(null);

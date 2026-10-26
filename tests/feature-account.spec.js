@@ -51,12 +51,12 @@ async function signInGoogle(page) {
  * Re-mounts the account slot with the real auth module and a fake Firebase SDK (window.__fake holds
  * the fake's state; window.__store the store the session syncs). Resolves once initAuth resolved.
  */
-async function startFakeSession(page, { remote = REMOTE_ENVELOPE, signedIn = false, failLoads = 0, photoURL = null } = {}) {
+async function startFakeSession(page, { remote = REMOTE_ENVELOPE, signedIn = false, failLoads = 0, photoURL = null, owners = [] } = {}) {
   // The app's own initAuth() (free mode) renders the Google button asynchronously after boot; wait
   // for it so it cannot overwrite the slot after the fake session has taken it over.
   await signInBtn(page).waitFor();
   return page.evaluate(
-    async ({ remote, signedIn, failLoads, photoURL }) => {
+    async ({ remote, signedIn, failLoads, photoURL, owners }) => {
       const [{ initAuth }, { createStore }, { createLocalAdapter }, ui, i18n] = await Promise.all([
         import('./js/auth.js'),
         import('./js/store.js'),
@@ -173,7 +173,14 @@ async function startFakeSession(page, { remote = REMOTE_ENVELOPE, signedIn = fal
         orderBy: () => null,
         limit: () => null,
         doc: (db, ...segments) => ({ path: segments.join('/') }),
-        getDoc: async () => snapshot(fake.remote, { hasPendingWrites: false, fromCache: false }),
+        getDoc: async (ref) => {
+          // config/owners: readable only by an account on the list (as the rules say); refused for anyone else.
+          if (ref?.path === 'config/owners') {
+            if (!owners.includes(fake.current?.uid)) throw Object.assign(new Error('Missing or insufficient permissions.'), { code: 'permission-denied' });
+            return snapshot({ uids: owners }, { hasPendingWrites: false, fromCache: false });
+          }
+          return snapshot(fake.remote, { hasPendingWrites: false, fromCache: false });
+        },
         // An account's months: users/{uid}/months/{YYYY-MM} → tasks (kept per account, so accounts never mix).
         getDocs: async (ref) => ({
           docs: Object.entries(fake.months[ref.path] ?? {}).map(([id, tasks]) => ({ id, data: () => ({ tasks }) })),
@@ -254,7 +261,7 @@ async function startFakeSession(page, { remote = REMOTE_ENVELOPE, signedIn = fal
         },
       });
     },
-    { remote, signedIn, failLoads, photoURL },
+    { remote, signedIn, failLoads, photoURL, owners },
   );
 }
 
@@ -614,7 +621,7 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     expect(await fakeValue(page, 'fake.linkEmail')).toBe('andreas@example.com');
   });
 
-  test('Sync with Reminders (personal Mac bridge, opt-in with ?reminders=on): sends tasks, imports, ticks, links', async ({ page }) => {
+  test("Sync with Reminders (the owner's own account, on a computer): sends tasks, imports, ticks, links", async ({ page }) => {
     await seed(page, { ui: UI_STATE, doc: LOCAL_DOC });
     await page.addInitScript(() => localStorage.setItem('escape-the-matrix:owner', 'u1')); // this browser's copy is the account's own
     const calls = [];
@@ -627,10 +634,8 @@ test.describe('Google mode (fake Firebase SDK)', () => {
         : { linked: 1 };
       await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(body) });
     });
-    await page.goto('/?reminders=on');
-    await expect(page.locator('.toast', { hasText: 'Reminders sync is on in this browser' })).toBeVisible();
-    await expect.poll(() => page.evaluate(() => location.search)).toBe('');
-    await startFakeSession(page, { signedIn: true });
+    await page.goto('/');
+    await startFakeSession(page, { signedIn: true, owners: ['u1'] });
     const accountBtn = page.locator('#account .account-btn');
     await expect(accountBtn).toBeVisible();
     await accountBtn.click();
@@ -647,8 +652,9 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     expect(calls[1]).toEqual({ pathname: '/link', body: { links: [{ reminderId: 'x-apple-reminder://R1', taskId: imported.id, title: 'Buy milk', rDate: '2026-03-12', lDate: '2026-03-12', quadrant: null }] } });
   });
 
-  test('with the opt-in on, the sync runs by itself — nothing to press', async ({ page }) => {
+  test("on the owner's account the sync runs by itself, nothing to press", async ({ page }) => {
     await seed(page, { ui: UI_STATE, doc: LOCAL_DOC });
+    await page.addInitScript(() => localStorage.setItem('escape-the-matrix:owner', 'u1'));
     const calls = [];
     await page.route('http://127.0.0.1:47827/**', async (route) => {
       const pathname = new URL(route.request().url()).pathname;
@@ -660,7 +666,8 @@ test.describe('Google mode (fake Firebase SDK)', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(body) });
     });
 
-    await page.goto('/?reminders=on'); // no menu, no click — the shell starts syncing on its own
+    await page.goto('/');
+    await startFakeSession(page, { signedIn: true, owners: ['u1'] }); // no menu, no click: it starts syncing on its own
     await expect(page.locator('.toast', { hasText: 'Reminders synced' })).toBeVisible({ timeout: 20000 });
     expect(calls[0]).toBe('/sync');
     await expect
@@ -670,6 +677,7 @@ test.describe('Google mode (fake Firebase SDK)', () => {
 
   test('when both sides changed the same task, it asks which one stands and sends the answer', async ({ page }) => {
     await seed(page, { ui: UI_STATE, doc: LOCAL_DOC });
+    await page.addInitScript(() => localStorage.setItem('escape-the-matrix:owner', 'u1'));
     const calls = [];
     await page.route('http://127.0.0.1:47827/**', async (route) => {
       const request = route.request();
@@ -684,7 +692,8 @@ test.describe('Google mode (fake Firebase SDK)', () => {
       await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ ...empty, conflicts }) });
     });
 
-    await page.goto('/?reminders=on');
+    await page.goto('/');
+    await startFakeSession(page, { signedIn: true, owners: ['u1'] });
     const dialog = page.getByRole('dialog', { name: 'Changed in both places' });
     await expect(dialog).toBeVisible({ timeout: 20000 });
     await expect(dialog).toContainText('Local task');
@@ -701,12 +710,49 @@ test.describe('Google mode (fake Firebase SDK)', () => {
     await page.route('http://127.0.0.1:47827/**', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ created: 0, updated: 0, deleted: 0, completedInReminders: [], imports: [] }) }),
     );
-    await page.goto('/?reminders=on');
-    await startFakeSession(page, { signedIn: true });
+    await page.goto('/');
+    await startFakeSession(page, { signedIn: true, owners: ['u1'] });
     await page.locator('#account .account-btn').click();
     await page.getByRole('menuitem', { name: 'Sync with Reminders' }).click();
     await expect(page.locator('.toast', { hasText: 'older version' })).toBeVisible();
     await expect(page.locator('.toast', { hasText: 'Reminders synced' })).toHaveCount(0);
+  });
+
+  test('Reminders stays out of sight and silent for any other account, signed out, and after sign-out', async ({ page }) => {
+    await seed(page, { ui: UI_STATE, doc: LOCAL_DOC });
+    const calls = [];
+    await page.route('http://127.0.0.1:47827/**', (route) => (calls.push(route.request().url()), route.abort()));
+    await page.goto('/?reminders=on'); // an old opt-in link changes nothing on its own
+    await page.waitForTimeout(6500); // past the first automatic run
+    expect(calls).toEqual([]);
+
+    await startFakeSession(page, { signedIn: true, owners: ['someone-else'] }); // not on the owners list
+    await page.locator('#account .account-btn').click();
+    await expect(page.locator('.popover--account')).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: /Reminders/ })).toHaveCount(0);
+    await page.waitForTimeout(6500);
+    expect(calls).toEqual([]);
+  });
+
+  test("the owner's sync stops the moment the account signs out", async ({ page }) => {
+    await seed(page, { ui: UI_STATE, doc: LOCAL_DOC });
+    await page.addInitScript(() => localStorage.setItem('escape-the-matrix:owner', 'u1'));
+    const calls = [];
+    const empty = { created: 0, updated: 0, deleted: 0, completedInReminders: [], reopenedInReminders: [], changedInReminders: [], deletedInReminders: [], imports: [] };
+    await page.route('http://127.0.0.1:47827/**', (route) => {
+      calls.push(new URL(route.request().url()).pathname);
+      return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(empty) });
+    });
+    await page.goto('/');
+    await startFakeSession(page, { signedIn: true, owners: ['u1'] });
+    await expect.poll(() => calls.length, { timeout: 15000 }).toBeGreaterThan(0);
+    await page.locator('#account .account-btn').click();
+    await page.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
+    await expect(signInBtn(page)).toBeVisible();
+    const after = calls.length;
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange'))); // would run a sync if it were on
+    await page.waitForTimeout(2500);
+    expect(calls.length).toBe(after);
   });
 
   test('Go Pro in the account menu offers both plans, each to its checkout, and the code box for a code', async ({ page }) => {
