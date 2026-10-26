@@ -126,7 +126,13 @@ Public repository — no secrets, passwords, keys or customer data here.
   (the record handing its reminder to the copy), `known` and `resolve`, so every pull made a new reminder and left
   the old one. Fixed in tools/reminders-bridge (syncRequest); a dry run on the owner's real data showed the next
   sync removes exactly 9 leftover duplicates (3 on 25 Oct, 6 on 12 Oct) and creates nothing. In Levelix the old
-  day keeps its record (history), as before. Drop-box tasks are never offered by "Pull them here" (by design).
+  day keeps its record (history), as before. Drop-box tasks were not offered by "Pull them here" (changed the same day, below).
+
+- **2026-10-26 — The pull carries all four boxes (v=125).** The owner's decision, after the reasoning was
+  explained (Drop = "I am letting this go"; it had been left out of the pull since the pull was built on 12 Sep,
+  with no recorded request from the owner): "Pull them here" now offers unfinished tasks from Drop too, exactly
+  like the other three (same ×n counter); a pulled Drop task stays in Drop. Waiting-list tasks and records are
+  still never pulled.
 
 ## Open items
 

@@ -194,7 +194,7 @@ test('moveTaskToDate + undo', () => {
   assert.throws(() => store.moveTaskToDate(task.id, 'nope'));
 });
 
-test('pull (unfinishedBefore) carries forward only placed, unfinished work — never waiting-list tasks', () => {
+test('pull (unfinishedBefore) carries forward placed, unfinished work from all four boxes, never waiting-list tasks', () => {
   const past = '2026-03-10';
   const today = '2026-03-11';
   const { store } = makeStore();
@@ -204,8 +204,8 @@ test('pull (unfinishedBefore) carries forward only placed, unfinished work — n
   store.addTask({ title: 'Dropped', date: past, quadrant: 'delete' });
   store.addTask({ title: 'Left in the waiting list', date: past }); // quadrant === null
 
-  // Only the placed, unfinished task is offered to "Pull them here".
-  assert.deepEqual(store.unfinishedBefore(today).map((t) => t.title), ['Placed, not done']);
+  // The placed, unfinished tasks are offered to "Pull them here", Drop too; not done ones, not the waiting list.
+  assert.deepEqual(store.unfinishedBefore(today).map((t) => t.title).sort(), ['Dropped', 'Placed, not done']);
 
   // Pulling copies it onto today (attempt 2) with the priority it was in, and the old day keeps the
   // record of what was left undone — Levelix's own history, which never reaches Reminders.
@@ -217,8 +217,13 @@ test('pull (unfinishedBefore) carries forward only placed, unfinished work — n
   assert.equal(copy.carriedFrom, placed.id);
   assert.equal(store.findTask(placed.id).carriedTo, today);
 
-  // Unfinished on today, so a later day can pull it on again.
-  assert.deepEqual(store.unfinishedBefore('2026-03-12').map((t) => t.title), ['Placed, not done']);
+  // Unfinished on today, so a later day can pull it on again (with the Drop task still waiting on its day).
+  assert.deepEqual(store.unfinishedBefore('2026-03-12').map((t) => t.title).sort(), ['Dropped', 'Placed, not done']);
+
+  // A Drop task pulled forward stays in Drop on the new day.
+  const dropped = store.unfinishedBefore('2026-03-12').find((t) => t.title === 'Dropped');
+  store.carryOver([dropped.id], '2026-03-12');
+  assert.equal(store.tasksForDate('2026-03-12').find((t) => t.title === 'Dropped').quadrant, 'delete');
 });
 
 test('pulling the same task from several days leaves ONE entry on the new day, counting the attempts', () => {

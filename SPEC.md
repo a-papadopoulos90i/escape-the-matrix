@@ -230,9 +230,9 @@ hovered or focused (touch devices always show them). They are on hold: the `Next
 carries the "· N waiting" count.
 
 **Pulling unfinished tasks forward.** Pull carries forward only **committed, unfinished work** —
-tasks that were **placed in a quadrant** (`do` / `plan` / `delegate`) on an earlier day and are not
-done. It never pulls a task still sitting in a **waiting list** (`quadrant === null`), nor one in
-**DELETE** (Drop), nor a record already pulled. So a task you merely wrote and left unsorted stays on
+tasks that were **placed in a quadrant** (any of the four: `do` / `plan` / `delegate` / `delete`, Drop included
+since 2026-10-26) on an earlier day and are not done. It never pulls a task still sitting in a **waiting list**
+(`quadrant === null`), nor a record already pulled. So a task you merely wrote and left unsorted stays on
 its own day, and — because a pulled copy lands in the waiting list — once something is in a waiting
 list it is never pulled again. When such tasks exist on earlier days, stages 2 and 4 show a strip
 "N unfinished tasks left on Mon 9 Mar, Tue 10 Mar — Pull them here"; you can go days without pulling
