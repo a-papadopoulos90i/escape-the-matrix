@@ -7,7 +7,7 @@ import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promise
 import { homedir, tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { planSync, priorityForQuadrant } from './plan.mjs';
+import { planSync, priorityForQuadrant, syncRequest } from './plan.mjs';
 
 const PORT = Number(process.env.LEVELIX_BRIDGE_PORT || 47827);
 const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'reminders.jxa.js');
@@ -61,10 +61,10 @@ async function saveState(state) {
   await rename(`${STATE_FILE}.tmp`, STATE_FILE);
 }
 
-async function sync({ tasks = [], deleted = [], today }) {
+async function sync(body) {
   const state = await loadState();
   const reminders = await runJxa('read', {});
-  const plan = planSync({ tasks, deleted, reminders, state, today });
+  const plan = planSync({ ...syncRequest(body), reminders, state });
   if (plan.ops.length) await runJxa('apply', { ops: plan.ops });
   await saveState(plan.state);
   return plan.result;

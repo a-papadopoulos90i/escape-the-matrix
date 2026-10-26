@@ -121,6 +121,13 @@ Public repository — no secrets, passwords, keys or customer data here.
   or for any other account, and a sync that started for one account never lands in another. `?reminders=off`
   still turns it off in one browser.
 
+- **2026-10-26 — Pulled tasks move in Reminders, no new copies.** Calendar showed a pulled task on both the
+  old and the new day. Cause: the bridge server passed only tasks/deleted to the planner and dropped `relink`
+  (the record handing its reminder to the copy), `known` and `resolve`, so every pull made a new reminder and left
+  the old one. Fixed in tools/reminders-bridge (syncRequest); a dry run on the owner's real data showed the next
+  sync removes exactly 9 leftover duplicates (3 on 25 Oct, 6 on 12 Oct) and creates nothing. In Levelix the old
+  day keeps its record (history), as before. Drop-box tasks are never offered by "Pull them here" (by design).
+
 ## Open items
 
 - The owner's main Google account can have **Apple connected**: sign in with Apple → gear → Delete account (the

@@ -18,6 +18,12 @@ const PRIORITY_OF = { do: 1, plan: 5, delegate: 9, delete: 0 };
 export const quadrantForPriority = (priority) => (priority >= 1 && priority <= 4 ? 'do' : priority === 5 ? 'plan' : priority >= 6 ? 'delegate' : null);
 export const priorityForQuadrant = (quadrant) => PRIORITY_OF[quadrant] ?? 0;
 
+/** What a /sync request carries into planSync. Every field is passed on: until 2026-10-26 the server
+ *  dropped relink, known and resolve, so a pulled task got a new reminder and the old one stayed behind. */
+export function syncRequest({ tasks = [], deleted = [], relink = [], known = null, resolve = {}, today } = {}) {
+  return { tasks, deleted, relink, known, resolve, today };
+}
+
 /**
  * tasks:     [{ id, title, date, placed, quadrant, done, updatedAt }]  (what Levelix syncs)
  * known:     [taskId] | null                                 (every id Levelix has; others are leftovers)

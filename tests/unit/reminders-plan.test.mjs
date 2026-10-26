@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { planSync } from '../../tools/reminders-bridge/plan.mjs';
+import { readFileSync } from 'node:fs';
+import { planSync, syncRequest } from '../../tools/reminders-bridge/plan.mjs';
 
 const TODAY = '2026-09-15';
 const OLD = Date.parse('2026-09-10T10:00:00Z');
@@ -283,4 +284,26 @@ test('a reminder the bridge never made (someone typed it in Reminders) is import
   });
   assert.deepEqual(ops, []);
   assert.deepEqual(result.imports.map((item) => item.title), ['Buy milk']);
+});
+
+test('a whole /sync request reaches the planner: a pulled task moves its reminder, nothing new is made', () => {
+  // What the browser sends after a pull: the record a is history, its copy b carries the work now.
+  const body = { tasks: [task('b', { placed: true, quadrant: 'do', date: '2026-09-15' })], deleted: [], relink: [{ from: 'a', to: 'b' }], known: ['a', 'b'], today: TODAY };
+  const plan = planSync({ ...syncRequest(body), reminders: [reminder('a', { date: '2026-09-14', priority: 1 })], state: { a: agreed({ rDate: '2026-09-14', lDate: '2026-09-14', placed: true, quadrant: 'do', priority: 1 }) } });
+  assert.equal(plan.result.created, 0);
+  assert.deepEqual(plan.ops.find((op) => op.op === 'retag'), { op: 'retag', id: 'R-a', taskId: 'b' });
+  assert.equal(plan.ops.find((op) => op.op === 'update' && op.id === 'R-a')?.date, '2026-09-15'); // onto the new day
+});
+
+test('a reminder left behind by an earlier pull goes once its copy has its own', () => {
+  const body = { tasks: [task('b', { placed: true, quadrant: 'do', date: '2026-09-15' })], relink: [{ from: 'a', to: 'b' }], known: ['a', 'b'], today: TODAY };
+  const plan = planSync({ ...syncRequest(body), reminders: [reminder('a', { date: '2026-09-14' }), reminder('b', { date: '2026-09-15', priority: 1 })], state: {} });
+  assert.deepEqual(plan.ops.filter((op) => op.op === 'delete'), [{ op: 'delete', id: 'R-a' }]);
+  assert.equal(plan.result.created, 0);
+});
+
+test('the bridge server hands the whole request to the planner (relink, known and resolve were once dropped)', () => {
+  const source = readFileSync(new URL('../../tools/reminders-bridge/server.mjs', import.meta.url), 'utf8');
+  assert.match(source, /planSync\(\{ \.\.\.syncRequest\(body\)/);
+  assert.deepEqual(Object.keys(syncRequest({ relink: [1], known: [2], resolve: { x: 'levelix' } })).sort(), ['deleted', 'known', 'relink', 'resolve', 'tasks', 'today']);
 });
