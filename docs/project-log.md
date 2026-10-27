@@ -134,6 +134,10 @@ Public repository — no secrets, passwords, keys or customer data here.
   like the other three (same ×n counter); a pulled Drop task stays in Drop. Waiting-list tasks and records are
   still never pulled.
 
+- **2026-10-27 — Owner's second account is Pro.** At the owner's request his second Google account (his work
+  account in the tool) got Pro with no end: `billing/{uid}` = plan pro, `currentPeriodEnd` null, source/period
+  `owner`, written as admin. No sale behind it, so there is nothing to refund. (Email and uid not recorded here.)
+
 ## Open items
 
 - The owner's main Google account can have **Apple connected**: sign in with Apple → gear → Delete account (the
