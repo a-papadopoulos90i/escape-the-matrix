@@ -20,16 +20,68 @@ test('a new open task becomes a reminder; a day only when it is placed', () => {
   assert.deepEqual(state.b, { title: 'Task b', rDate: '2026-09-12', lDate: '2026-09-12', placed: true, done: false, priority: 0, quadrant: null });
 });
 
-test('removing the day in Reminders sends a waiting task to today', () => {
+test('a task sent back to the waiting list loses its day in Reminders, so Calendar shows what the board shows', () => {
+  // On the board on the 12th at the last sync; now in the waiting list.
   const { ops, result, state } = planSync({
-    tasks: [task('a', { date: '2026-09-23' })],
-    reminders: [reminder('a', { date: null })],
-    state: { a: agreed({ rDate: '2026-09-23', lDate: '2026-09-23' }) },
+    tasks: [task('a')],
+    reminders: [reminder('a', { date: '2026-09-12' })],
+    state: { a: agreed({ rDate: '2026-09-12', placed: true }) },
     today: TODAY,
   });
-  assert.deepEqual(ops, []);
-  assert.deepEqual(result.changedInReminders, [{ id: 'a', date: TODAY }]);
-  assert.deepEqual(state.a, { title: 'Task a', rDate: null, lDate: TODAY, placed: false, done: false, priority: 0, quadrant: null });
+  assert.deepEqual(ops, [{ op: 'update', id: 'R-a', date: null }]);
+  assert.deepEqual(result.changedInReminders, []);
+  assert.equal(state.a.rDate, null);
+});
+
+test('a waiting task that kept a day under the older rule loses it on the next sync, finished or not', () => {
+  const open = planSync({ tasks: [task('a')], reminders: [reminder('a', { date: '2026-09-12' })], state: { a: agreed({ rDate: '2026-09-12' }) }, today: TODAY });
+  assert.deepEqual(open.ops, [{ op: 'update', id: 'R-a', date: null }]);
+  assert.deepEqual(open.result.conflicts, []); // neither side moved: Levelix decides, nobody is asked
+
+  const done = planSync({
+    tasks: [task('a', { done: true })],
+    reminders: [reminder('a', { date: '2026-09-12', completed: true })],
+    state: { a: agreed({ rDate: '2026-09-12', done: true }) },
+    today: TODAY,
+  });
+  assert.deepEqual(done.ops, [{ op: 'update', id: 'R-a', date: null }]);
+
+  // Once it has no day, nothing more happens.
+  const settled = planSync({ tasks: [task('a')], reminders: [reminder('a')], state: open.state, today: TODAY });
+  assert.deepEqual(settled.ops, []);
+});
+
+test('pulled to today and sent straight to the waiting list: the reminder follows the task and carries no day', () => {
+  // The record a (on the 12th, in Do now) handed the work to b, which the owner then dropped into the waiting list.
+  const body = { tasks: [task('b', { title: 'Task a', date: TODAY })], relink: [{ from: 'a', to: 'b' }], known: ['a', 'b'], today: TODAY };
+  const { ops, result } = planSync({
+    ...syncRequest(body),
+    reminders: [reminder('a', { date: '2026-09-12', priority: 1 })],
+    state: { a: agreed({ rDate: '2026-09-12', placed: true, quadrant: 'do', priority: 1 }) },
+  });
+  assert.deepEqual(ops, [
+    { op: 'retag', id: 'R-a', taskId: 'b' },
+    { op: 'update', id: 'R-a', date: null, priority: 0 },
+  ]);
+  assert.equal(result.created, 0);
+});
+
+test('a day given in Reminders to a waiting task puts it on that day\'s board', () => {
+  // No priority: Schedule, like a new dated reminder; the reminder takes that box's priority.
+  const plain = planSync({ tasks: [task('a')], reminders: [reminder('a', { date: '2026-09-20' })], state: { a: agreed() }, today: TODAY });
+  assert.deepEqual(plain.result.changedInReminders, [{ id: 'a', date: '2026-09-20', quadrant: 'plan' }]);
+  assert.deepEqual(plain.ops, [{ op: 'update', id: 'R-a', priority: 5 }]);
+  assert.deepEqual(plain.state.a, { title: 'Task a', rDate: '2026-09-20', lDate: '2026-09-20', placed: true, done: false, priority: 5, quadrant: 'plan' });
+
+  // High priority: Do now, and nothing to tidy.
+  const high = planSync({ tasks: [task('a')], reminders: [reminder('a', { date: '2026-09-20', priority: 1 })], state: { a: agreed({ priority: 1 }) }, today: TODAY });
+  assert.deepEqual(high.result.changedInReminders, [{ id: 'a', date: '2026-09-20', quadrant: 'do' }]);
+  assert.deepEqual(high.ops, []);
+
+  // The next sync finds the task placed there and changes nothing.
+  const next = planSync({ tasks: [task('a', { placed: true, quadrant: 'plan', date: '2026-09-20' })], reminders: [reminder('a', { date: '2026-09-20', priority: 5 })], state: plain.state, today: TODAY });
+  assert.deepEqual(next.ops, []);
+  assert.deepEqual(next.result.changedInReminders, []);
 });
 
 test('removing the day of a placed task in Reminders unplaces it too', () => {
@@ -126,8 +178,8 @@ test('a task deleted in Levelix deletes its reminder', () => {
 
 test('without a saved state: a reminder edited after the task wins, one the bridge just created does not', () => {
   const edited = reminder('a', { date: null, created: OLD, modified: Date.parse('2026-09-15T08:00:00Z') });
-  const before = planSync({ tasks: [task('a', { date: '2026-09-23' })], reminders: [edited], today: TODAY });
-  assert.deepEqual(before.result.changedInReminders, [{ id: 'a', date: TODAY }]);
+  const before = planSync({ tasks: [task('a', { date: '2026-09-23', placed: true })], reminders: [edited], today: TODAY });
+  assert.deepEqual(before.result.changedInReminders, [{ id: 'a', date: TODAY, unplace: true }]); // its day was taken off there
 
   const justCreated = reminder('b', { date: '2026-09-01', created: Date.parse('2026-09-15T08:00:00Z'), modified: Date.parse('2026-09-15T08:00:02Z') });
   const fresh = planSync({ tasks: [task('b', { placed: true })], reminders: [justCreated], today: TODAY });
@@ -306,4 +358,48 @@ test('the bridge server hands the whole request to the planner (relink, known an
   const source = readFileSync(new URL('../../tools/reminders-bridge/server.mjs', import.meta.url), 'utf8');
   assert.match(source, /planSync\(\{ \.\.\.syncRequest\(body\)/);
   assert.deepEqual(Object.keys(syncRequest({ relink: [1], known: [2], resolve: { x: 'levelix' } })).sort(), ['deleted', 'known', 'relink', 'resolve', 'tasks', 'today']);
+});
+
+test('in every combination, after a sync a reminder has a day exactly when its task is on a board, and the next sync changes nothing', () => {
+  const D1 = '2026-09-12';
+  const D2 = '2026-09-20';
+  const bases = [null];
+  for (const rDate of [null, D1, D2]) for (const placed of [true, false]) for (const lDate of [D1, D2]) bases.push({ rDate, placed, lDate });
+  let checked = 0;
+  for (const placed of [true, false]) {
+    for (const rDate of [null, D1, D2]) {
+      for (const base of bases) {
+        for (const answer of [null, 'levelix', 'reminders']) for (const rPriority of [0, 1, 5]) {
+          const quadrant = placed ? 'do' : null;
+          const now = { ...task('a', { placed, quadrant, date: D1 }) };
+          const rem = reminder('a', { date: rDate, priority: rPriority });
+          const state = base ? { a: agreed({ ...base, quadrant: base.placed ? 'do' : null, priority: base.placed ? 1 : 0 }) } : {};
+          const label = JSON.stringify({ placed, rDate, base, answer, rPriority });
+          const first = planSync({ tasks: [now], reminders: [rem], state, resolve: answer ? { a: answer } : {}, today: TODAY });
+          if (first.result.conflicts.length) {
+            assert.equal(answer, null, `an answered clash must settle: ${label}`);
+            continue; // both sides changed the same thing: it is asked, and settled by the answer (the loops above)
+          }
+          // Carry out what the plan says, on both sides.
+          for (const op of first.ops) {
+            assert.equal(op.op, 'update', label);
+            if (op.date !== undefined) rem.date = op.date;
+            if (op.priority !== undefined) rem.priority = op.priority;
+          }
+          for (const change of first.result.changedInReminders) {
+            if (change.unplace) now.quadrant = null;
+            if (change.date) now.date = change.date;
+            if (change.quadrant !== undefined) now.quadrant = change.quadrant;
+            now.placed = now.quadrant !== null;
+          }
+          assert.equal(rem.date, now.placed ? now.date : null, `day only on a board: ${label}`);
+          assert.equal(rem.priority, { do: 1, plan: 5, delegate: 9 }[now.quadrant] ?? 0, `priority matches the box: ${label}`);
+          const second = planSync({ tasks: [now], reminders: [rem], state: first.state, today: TODAY });
+          assert.deepEqual([second.ops, second.result.changedInReminders, second.result.conflicts], [[], [], []], `settled: ${label}`);
+          checked += 1;
+        }
+      }
+    }
+  }
+  assert.ok(checked > 500, `combinations checked: ${checked}`);
 });

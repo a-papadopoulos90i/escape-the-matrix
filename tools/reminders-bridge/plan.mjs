@@ -6,9 +6,9 @@
 // Levelix wins. Without it (links made before the state existed) the reminder wins only when it was
 // edited after the task and after it was created.
 //
-// Dates: a task placed in a quadrant has its day in Reminders (so it shows in Calendar). A waiting
-// task has no day in Reminders unless the reminder already had one. Removing the day in Reminders
-// sends the task to today's waiting list; setting a day moves the task to that day.
+// Dates: a task placed in a quadrant has its day in Reminders (so it shows in Calendar); a waiting-list
+// task has none. Taking the day off in Reminders sends the task to today's waiting list; giving a day
+// there moves the task to that day (a waiting task lands on that day's board).
 export const TAG = /levelix:([A-Za-z0-9_-]+)/;
 const EDITED_AFTER_CREATION_MS = 10_000;
 
@@ -113,24 +113,42 @@ export function planSync({ tasks = [], deleted = [], relink = [], known = null, 
     let rDate = reminder.date;
     let lDate = task.date;
     let placed = task.placed;
-    // A waiting task with no day in Reminders is in sync — unless the reminder HAD a day that was removed.
-    const dayRemoved = rDate === null && (placed || lDate !== today) && (base ? base.rDate !== null : reminderNewer);
-    const inSync = rDate === lDate || (!placed && rDate === null && !dayRemoved);
-    if (!inSync) {
-      const side = decide(base && rDate !== base.rDate, base && (lDate !== base.lDate || placed !== base.placed));
+    let quadrant = task.quadrant ?? null;
+    let settledHere = false; // this sync put the task on a board, or took it off one, because of the reminder's day
+    // A reminder has a day exactly when its task sits on a day's board (placed in a box). A waiting-list
+    // task follows every day in Levelix and belongs to none, so it has no day in Reminders either, and
+    // Calendar shows what the boards show. (Until 2026-11-15 a task sent back to the waiting list kept
+    // its day in Reminders, so Calendar listed work the day's board no longer had.)
+    const wanted = placed ? lDate : null;
+    if (rDate !== wanted) {
+      const reminderChanged = base && rDate !== base.rDate;
+      const levelixChanged = base && (placed !== base.placed || (placed && lDate !== base.lDate));
+      // Neither side moved since the last sync and still they differ: a waiting task that kept its day
+      // under the older rule. Levelix decides.
+      const side = base && !answered && !reminderChanged && !levelixChanged ? 'levelix' : decide(reminderChanged, levelixChanged);
       if (side === 'reminders') {
         if (rDate === null) {
-          change.date = today;
-          if (placed) change.unplace = true;
-          lDate = today;
+          // The day was taken off in Reminders: off the board, into today's waiting list.
+          change.date = lDate = today;
+          change.unplace = true;
           placed = false;
+          quadrant = null;
+          settledHere = true;
+        } else if (!placed) {
+          // A day given in Reminders to a waiting task: onto that day's board, in the box its priority
+          // names (Schedule when it has none), exactly like a new dated reminder.
+          quadrant = quadrantForPriority(reminder.priority ?? 0) ?? 'plan';
+          change.date = lDate = rDate;
+          change.quadrant = quadrant;
+          placed = true;
+          settledHere = true;
         } else {
           change.date = lDate = rDate;
         }
       } else if (side === 'levelix') {
-        patch.date = rDate = lDate;
+        patch.date = rDate = wanted;
       } else {
-        clash.date = { levelix: lDate, reminders: rDate };
+        clash.date = { levelix: wanted, reminders: rDate };
         rDate = base.rDate;
         lDate = base.lDate;
         placed = base.placed;
@@ -139,11 +157,15 @@ export function planSync({ tasks = [], deleted = [], relink = [], known = null, 
 
     // Priority ↔ box: the side that changed it since the last sync decides where the task sits.
     let priority = reminder.priority ?? 0;
-    let quadrant = task.quadrant ?? null;
     const wantedPriority = priorityForQuadrant(quadrant);
-    if (priority !== wantedPriority) {
-      const side =
-        base?.priority === undefined
+    if (clash.date) {
+      // The day is still being asked about: the box waits for the answer too.
+      priority = base.priority;
+      quadrant = base.quadrant ?? null;
+    } else if (priority !== wantedPriority) {
+      const side = settledHere
+        ? 'levelix' // where the task sits was just settled by the reminder's day: only tidy its priority to match
+        : base?.priority === undefined
           ? reminderNewer
             ? 'reminders'
             : 'levelix'
@@ -151,6 +173,16 @@ export function planSync({ tasks = [], deleted = [], relink = [], known = null, 
       if (side === 'reminders') {
         quadrant = quadrantForPriority(priority);
         change.quadrant = quadrant;
+        // The box and the day go together, in the same sync: a priority given to a waiting task puts it
+        // on today's board; a priority taken off sends the task to the waiting list, without a day.
+        if (quadrant !== null && !placed) {
+          change.date = lDate = today;
+          patch.date = rDate = today;
+          placed = true;
+        } else if (quadrant === null && placed) {
+          patch.date = rDate = null;
+          placed = false;
+        }
       } else if (side === 'levelix') {
         patch.priority = priority = wantedPriority;
       } else {

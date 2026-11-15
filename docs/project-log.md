@@ -146,6 +146,16 @@ Public repository — no secrets, passwords, keys or customer data here.
   day, each with Restore back to its day and box (records it was pulled through come back with it); free, but a
   restore respects Free's 100.
 
+- **2026-11-15 — Calendar showed tasks the day's board did not have.** The owner pulls tasks to today and
+  sends some straight back to the waiting list; their reminders moved to the new day and kept it, so Calendar
+  listed open work on 9 and 15 Nov that the boards did not show. New rule in the bridge planner: **a reminder
+  has a day exactly when its task is placed in a box**; waiting-list tasks have none (as Levelix's own calendar
+  counts only placed tasks). Reminders lets no script clear a date (JXA and AppleScript both refuse), so the
+  reminder is made again without one. Giving a day (or a priority) in Reminders to a waiting task places it on
+  that day's (today's) board. Dry run on the real data first: 7 reminders lost their day, nothing else changed;
+  afterwards all 132 reminders matched the boards. An all-combinations test (500+) pins the rule and that a
+  second sync changes nothing. Backup of the list before: ~/Documents/Levelix-backups (owner's Mac).
+
 ## Open items
 
 - The owner's main Google account can have **Apple connected**: sign in with Apple → gear → Delete account (the
