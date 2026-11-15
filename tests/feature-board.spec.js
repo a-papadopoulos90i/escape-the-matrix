@@ -742,6 +742,7 @@ test('starting a second timer asks — in front of the picker — and can stop t
   await openTimer(page, 'Marketing Order A5');
   await popover(page).locator('.timer-picker__stopwatch').click();
   await expect(bar(page).locator('.timer-bar__title')).toHaveText('Marketing Order A5');
+  await page.keyboard.press('Escape'); // Count up keeps its picker open (it turns into Pause)
 
   await openTimer(page, 'Invoice Send');
   await popover(page).locator('.timer-picker__preset', { hasText: '15' }).click();
@@ -833,16 +834,44 @@ test('the timer never plays audio or takes the play/pause keys (it stopped when 
   expect(await page.evaluate(() => ({ actions: window.__mediaActions, played: window.__played, state: navigator.mediaSession.playbackState }))).toEqual({ actions: [], played: 0, state: 'none' });
 });
 
+test('Count up is one green button: pressed, it turns into Pause with the time running in it, then Continue', async ({ page }) => {
+  await asPro(page);
+  await seed(page, { tasks: SORTED(), stage: 3 });
+  await page.goto('/');
+  await openTimer(page, 'Marketing Order A5');
+  const button = popover(page).locator('.timer-picker__stopwatch');
+  await expect(button).toHaveText('Count up');
+  await expect(button).toHaveClass(/btn-primary/); // green
+
+  await button.click();
+  await expect(popover(page)).toBeVisible(); // stays open and turns
+  await expect(button).toHaveClass(/is-running/);
+  await expect(button.locator('.icon--pause')).toHaveCount(1);
+  await expect(button).toHaveText(/^\d{2}:\d{2}$/);
+  const first = await button.textContent();
+  await expect.poll(() => button.textContent(), { timeout: 4000 }).not.toBe(first); // the time ticks inside it
+  await expect(card(page, 'Marketing Order A5').locator('.task-card__clock')).toHaveClass(/task-card__clock--running/);
+
+  await button.click(); // Pause
+  await expect(card(page, 'Marketing Order A5').locator('.task-card__clock')).toHaveClass(/task-card__clock--paused/);
+  await expect(button).toHaveText(/^Continue \d{2}:\d{2}$/);
+  await button.click(); // Continue
+  await expect(button).toHaveClass(/is-running/);
+  await expect(card(page, 'Marketing Order A5').locator('.task-card__clock')).toHaveClass(/task-card__clock--running/);
+});
+
 test('"Run both" lets two tasks be timed side by side', async ({ page }) => {
   await asPro(page);
   await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
   await openTimer(page, 'Marketing Order A5');
   await popover(page).locator('.timer-picker__stopwatch').click();
+  await page.keyboard.press('Escape');
 
   await openTimer(page, 'Invoice Send');
   await popover(page).locator('.timer-picker__stopwatch').click();
   await page.locator('[role="dialog"].modal').getByRole('button', { name: 'Run both' }).click();
+  await page.keyboard.press('Escape');
 
   // Both clocks keep running; the bar shows the latest, says it is not alone, and its arrows step between them.
   await expect(card(page, 'Marketing Order A5').locator('.task-card__clock')).toHaveClass(/task-card__clock--running/);

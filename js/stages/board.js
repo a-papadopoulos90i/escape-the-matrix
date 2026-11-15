@@ -1091,32 +1091,52 @@ function showTimerPicker(task, body) {
     if (!Number.isInteger(minutes) || minutes < 1) return custom.reportValidity();
     beginTimer(task, { mode: 'countdown', durationSec: minutes * 60 });
   };
+  // One green button for the clock: Count up when nothing is running, Pause with the time running in it
+  // (as on the card) while it runs, Continue with the time when it is paused. The picker stays open and
+  // turns with it. A countdown that has run out has nothing left to continue: Count up starts afresh and
+  // adds to the time already on the task.
+  const status = timer.clockState(task);
+  const hasRunLeft = task.timer?.mode !== 'countdown' || timer.remaining(task) > 0;
+  const running = status.state === 'running';
+  const paused = (status.state === 'paused' || status.state === 'done') && hasRunLeft;
+  const label = (text) => {
+    if (running) return [ui.icon('pause', { size: 16 }), ui.h('span', { class: 'timer-picker__time' }, text)];
+    if (paused) return [ui.icon('play', { size: 16 }), i18n.t('timer.continue', { time: text })];
+    return [ui.icon('play', { size: 16 }), i18n.t('timer.stopwatch')];
+  };
   const stopwatch = ui.h(
     'button',
-    { class: 'btn timer-picker__stopwatch', type: 'button', onClick: () => beginTimer(task, { mode: 'stopwatch' }) },
-    ui.icon('play', { size: 16 }),
-    i18n.t('timer.stopwatch'),
+    {
+      class: `btn btn-primary timer-picker__stopwatch${running ? ' is-running' : ''}${paused ? ' timer-picker__continue' : ''}`,
+      type: 'button',
+      'aria-label': running ? `${i18n.t('timer.pause')} ${status.text}` : null,
+      onClick: async () => {
+        if (running) ctx.store.pauseTimer(task.id);
+        else if (paused) {
+          if (!(await timer.resume(task))) return;
+        } else if (!(await timer.start(task, { mode: 'stopwatch' }))) return;
+        const fresh = findTask(task.id);
+        if (fresh && popover && body.isConnected) showTimerPicker(fresh, body);
+      },
+    },
+    ...label(status.text),
   );
-  // If this task already has time on the clock (paused or stopped), offer to CONTINUE it from where
-  // it left off — so the time is never lost — before the options that start a fresh timer.
-  const status = timer.clockState(task);
-  // A countdown that has run out has nothing left to continue: only a fresh timer makes sense, and
-  // whatever it collects is added to the time already on the task.
-  const hasRunLeft = task.timer?.mode !== 'countdown' || timer.remaining(task) > 0;
-  const continueBtn =
-    (status.state === 'paused' || status.state === 'done') && hasRunLeft
-      ? ui.h(
-          'button',
-          { class: 'btn btn-primary timer-picker__continue', type: 'button', onClick: () => resumeFromPicker(task) },
-          ui.icon('play', { size: 16 }),
-          i18n.t('timer.continue', { time: status.text }),
-        )
-      : null;
+  if (running) {
+    // The time inside the button ticks with the card's clock until the picker closes.
+    const tick = setInterval(() => {
+      const fresh = findTask(task.id);
+      if (!stopwatch.isConnected || !fresh) return clearInterval(tick);
+      const now = timer.clockState(fresh);
+      if (now.state !== 'running') return clearInterval(tick);
+      stopwatch.querySelector('.timer-picker__time').textContent = now.text;
+      stopwatch.setAttribute('aria-label', `${i18n.t('timer.pause')} ${now.text}`);
+      body.querySelector('.timer-picker__tracked')?.replaceWith(trackedButton(fresh, body)); // "Tracked so far" keeps up too
+    }, 1000);
+  }
   showView(
     body,
     [
       editableTitle(task, body, () => showTimerPicker(task, body)),
-      continueBtn,
       trackedButton(task, body),
       stopwatch,
       ui.h(
@@ -1143,7 +1163,7 @@ function showTimerPicker(task, body) {
         ),
       ),
     ].filter(Boolean),
-    continueBtn ?? stopwatch,
+    stopwatch,
   );
 }
 

@@ -924,8 +924,15 @@
   width: 100%;
 }
 
-.timer-picker__continue {
+.timer-picker__stopwatch {
   gap: var(--space-1);
+}
+
+/* Running: the time ticks inside the button, in the card clock's figures. */
+.timer-picker__time {
+  font-size: var(--text-md);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 /* A plain block fieldset (NOT display:flex — that would demote the <legend> to a normal child) so
