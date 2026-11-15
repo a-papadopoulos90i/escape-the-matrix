@@ -4,7 +4,7 @@
 // (timer / postpone / next day) opened from a task title or its clock.
 import * as timer from '../timer.js';
 import { QUADRANTS, isRecord } from '../store.js';
-import { carryStrip, attemptBadge, recordLabel, dayNav, QUAD_ICON, quadrantAxes, quadrantGlyph } from '../carry.js';
+import { carryStrip, attemptBadge, recordLabel, dayNav, dayGrid, QUAD_ICON, quadrantAxes, quadrantGlyph } from '../carry.js';
 import { fileWithTag, priorityButton, tagPlaces } from '../tags.js';
 import { canAddTask } from '../plan.js';
 import { isPro, onPlanChange, proGate, proVeil } from '../pro-lock.js';
@@ -1166,24 +1166,18 @@ function showEdit(task, body, back) {
 // ----- ⏩ Schedule picker (opened by the card ⏩): "Next day" + a calendar to postpone ------
 // Mirrors the timer picker: a primary button on top, then a bordered section below.
 function showSchedulePicker(task, body) {
-  const { ui, i18n, dates } = ctx;
-  const today = dates.todayKey();
-  const suggested = nextVisibleDay(task.date);
-  const date = ui.h('input', {
-    class: 'schedule-picker__date',
-    type: 'date',
-    min: today,
-    required: true,
-    value: suggested > today ? suggested : today,
-    'aria-label': i18n.t('popover.postpone'),
+  const { ui, i18n } = ctx;
+  // Postpone: Levelix's own month, any day, past ones too (faded: work can be filed where it was done).
+  // The task's own day is the green circle, today the blue ring, as in the day picker above the board.
+  const postpone = dayGrid(ctx, {
+    selected: task.date,
+    onPick: (key) => {
+      closePopover();
+      if (key !== task.date) moveTasks([task], key);
+    },
+    fadePast: true,
+    className: 'day-picker--inline',
   });
-  const postpone = (event) => {
-    event.preventDefault();
-    const key = date.value;
-    if (!dates.isValidKey(key) || key < today) return date.reportValidity();
-    closePopover();
-    moveTasks([task], key);
-  };
   const nextDay = ui.h(
     'button',
     { class: 'btn schedule-picker__nextday', type: 'button', onClick: () => sendToNextDay(task) },
@@ -1195,17 +1189,7 @@ function showSchedulePicker(task, body) {
     [
       editableTitle(task, body, () => showSchedulePicker(task, body)),
       nextDay,
-      ui.h(
-        'fieldset',
-        { class: 'schedule-picker' },
-        ui.h('legend', { class: 'schedule-picker__legend' }, i18n.t('schedule.postpone')),
-        ui.h(
-          'form',
-          { class: 'schedule-picker__row', onSubmit: postpone },
-          date,
-          ui.h('button', { class: 'btn btn-sm btn-primary', type: 'submit' }, i18n.t('schedule.set')),
-        ),
-      ),
+      ui.h('fieldset', { class: 'schedule-picker' }, ui.h('legend', { class: 'schedule-picker__legend' }, i18n.t('schedule.postpone')), postpone.el),
     ],
     nextDay,
   );

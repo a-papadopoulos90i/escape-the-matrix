@@ -593,6 +593,26 @@ html:not(.kbd-nav) :focus-visible:not(input, textarea, select) {
   margin-top: var(--space-2);
 }
 
+/* Days before today, in the Postpone picker: faded, still pickable (full strength under the pointer). */
+.day-picker__day.is-past:not(.is-selected) {
+  opacity: 0.4;
+}
+
+.day-picker__day.is-past:hover,
+.day-picker__day.is-past:focus-visible {
+  opacity: 1;
+}
+
+/* Inside the task popover: slightly smaller days so the month fits its width. */
+.day-picker--inline .day-picker__grid {
+  grid-template-columns: repeat(7, 30px);
+}
+
+.day-picker--inline .day-picker__day {
+  height: 30px;
+  font-size: var(--text-sm);
+}
+
 .stage-nav__day-arrow:hover {
   color: var(--ink);
 }

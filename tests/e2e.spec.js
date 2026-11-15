@@ -457,10 +457,7 @@ test('9. 📅 moves the task to the chosen date (gone here, visible there) and U
 
   const postpone = async () => {
     await openSchedule(page, TITLES[2]);
-    const input = popover(page).locator('.schedule-picker__date');
-    await expect(input).toHaveAttribute('min', TODAY);
-    await input.fill('2026-03-20');
-    await popover(page).locator('.schedule-picker button[type="submit"]').click();
+    await popover(page).locator('.day-picker--inline [data-day="2026-03-20"]').first().click(); // same month as the fixed today
     await expect(popover(page)).toHaveCount(0);
     await expect(card(page, TITLES[2])).toHaveCount(0);
     await expect(page.locator('.toast')).toContainText('Moved to Fri 20 Mar');

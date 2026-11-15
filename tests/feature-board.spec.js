@@ -63,6 +63,16 @@ const readDoc = (page) => page.evaluate((key) => JSON.parse(localStorage.getItem
 const waitForSaved = (page, predicate) => expect.poll(async () => predicate(await readDoc(page))).toBe(true);
 const taskById = (doc, id) => doc.tasks.find((t) => t.id === id);
 
+/** Postpone: Levelix's own month grid in the ⏩ popover; step months until the day is there, then pick it. */
+async function pickInPostpone(page, key) {
+  const picker = page.locator('.popover--task .day-picker--inline');
+  const today = await page.evaluate(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; });
+  for (let i = 0; i < 36 && (await picker.locator(`[data-day="${key}"]`).count()) === 0; i += 1) {
+    await picker.getByRole('button', { name: key > today ? 'Next month' : 'Previous month' }).click();
+  }
+  await picker.locator(`[data-day="${key}"]`).first().click();
+}
+
 async function openPopover(page, title) {
   await card(page, title).locator('.task-card__title').click();
   await expect(popover(page)).toBeVisible();
@@ -203,8 +213,10 @@ test('the card title opens rename in place; the ⏩ opens the schedule picker', 
   // ⏩ on the card → schedule picker: "Next day" on top, a calendar to postpone below.
   await openSchedule(page, 'Marketing Order A6');
   await expect(popover(page).locator('.schedule-picker__nextday')).toBeFocused();
-  await expect(popover(page).locator('.schedule-picker__date')).toBeVisible();
-  await expect(popover(page).locator('.schedule-picker__date')).toHaveAttribute('min', toKey(new Date()));
+  const month = popover(page).locator('.day-picker--inline');
+  await expect(month).toBeVisible(); // Levelix's own month, not the browser's date field
+  await expect(month.locator(`[data-day="${DAY}"]`).first()).toHaveClass(/is-selected/); // it opens on the task's own day, in green
+  await expect(month.locator(`[data-day="${DAY}"]`).first()).toHaveClass(/is-past/); // a day gone by: faded, still pickable
   expect(errors).toEqual([]);
 });
 
@@ -897,22 +909,35 @@ test('a countdown reaching 0 flashes the bar and shows "Time\'s up!"', async ({ 
   expect(errors).toEqual([]);
 });
 
-test('📅 postpones to the chosen date (min today) with Undo', async ({ page }) => {
+test('📅 postpones to the chosen date with Undo', async ({ page }) => {
   await asPro(page);
   await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
   const target = shiftDays(new Date(), 3);
   await openSchedule(page, 'Make - Excel Report');
-  const input = popover(page).locator('.schedule-picker__date');
-  await expect(input).toHaveAttribute('min', toKey(new Date()));
-  await input.fill(toKey(target));
-  await popover(page).locator('.schedule-picker button[type="submit"]').click();
+  await pickInPostpone(page, toKey(target));
   await expect(popover(page)).toHaveCount(0);
   await expect(card(page, 'Make - Excel Report')).toHaveCount(0);
   await expect(page.locator('.toast')).toContainText(`Moved to ${formatShort(target)}`);
   await waitForSaved(page, (doc) => taskById(doc, 't_3').date === toKey(target));
   await page.locator('.toast__action', { hasText: 'Undo' }).click();
   await expect(card(page, 'Make - Excel Report')).toHaveCount(1);
+});
+
+test('📅 a task can be filed on a past day too: past days are faded but pickable', async ({ page }) => {
+  await asPro(page);
+  const today = toKey(new Date());
+  const past = shiftDays(new Date(), -5);
+  await seed(page, { tasks: SORTED().map((item) => ({ ...item, date: today })), stage: 3, date: today });
+  await page.goto('/');
+  await openSchedule(page, 'Invoice Send');
+  const month = popover(page).locator('.day-picker--inline');
+  await expect(month.locator('[aria-current="date"]')).toHaveClass(/is-today/); // today: the blue ring
+  await expect(month.locator(`[data-day="${today}"]`)).toHaveClass(/is-selected/); // where it is now: green
+  await pickInPostpone(page, toKey(past));
+  await expect(card(page, 'Invoice Send')).toHaveCount(0);
+  await expect(page.locator('.toast')).toContainText(`Moved to ${formatShort(past)}`);
+  await waitForSaved(page, (doc) => taskById(doc, 't_2').date === toKey(past));
 });
 
 const fridayTasks = (friday) => [
@@ -960,8 +985,7 @@ test('📅 postpones a task to any day, a weekend included, and it shows on the 
   await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
   await openSchedule(page, 'Invoice Send');
-  await popover(page).locator('.schedule-picker__date').fill(toKey(saturday));
-  await popover(page).locator('.schedule-picker button[type="submit"]').click();
+  await pickInPostpone(page, toKey(saturday));
   await expect(card(page, 'Invoice Send')).toHaveCount(0);
   await expect(page.locator('.toast')).toContainText(`Moved to ${formatShort(saturday)}`);
   await waitForSaved(page, (doc) => taskById(doc, 't_2').date === toKey(saturday));
@@ -1028,7 +1052,7 @@ test('keyboard: Tab stays inside the task popover, Escape closes it', async ({ p
   await seed(page, { tasks: SORTED(), stage: 3 });
   await page.goto('/');
   await openSchedule(page, 'Marketing Order A5');
-  await popover(page).locator('.schedule-picker button[type="submit"]').focus(); // the last control
+  await popover(page).locator('.day-picker__foot button').focus(); // the last control (Today)
   await page.keyboard.press('Tab');
   await expect(popover(page)).toBeVisible();
   expect(await page.evaluate(() => document.activeElement.closest('.popover--task') !== null)).toBe(true);

@@ -53,23 +53,20 @@ export function dayNav(ctx) {
   };
 }
 
-/** Month grid under the day label (Prioritize) or the month title (Calendar): flip months, pick any day,
- *  or jump back to today. Arrow keys move the focused day (a week with ↑ ↓), Enter picks it. `month`
- *  is the month it opens on (default: the selected day's); `onPick` receives the chosen day key. */
-export function openDayPicker(ctx, anchor, { month: startMonth, onPick = (key) => ctx.setDate(key) } = {}) {
+/**
+ * A month of days to pick from: flip months, pick any day, or jump back to today. Arrow keys move the
+ * focused day (a week with ↑ ↓), Enter picks it. `selected` is the green circle, today the blue ring;
+ * `fadePast` dims the days before today (still pickable). Returns { el, focus }.
+ */
+export function dayGrid(ctx, { selected = null, month: startMonth, onPick, fadePast = false, className = '' }) {
   const { ui, dates } = ctx;
   const { h } = ui;
   const { t } = ctx.i18n;
-  const selected = ctx.getDate();
   const today = dates.todayKey();
-  let month = startMonth ?? dates.monthOfKey(selected);
-  let focusKey = dates.monthOfKey(selected) === month ? selected : `${month}-01`;
-  let api = null;
+  const anchorDay = selected ?? today;
+  let month = startMonth ?? dates.monthOfKey(anchorDay);
+  let focusKey = dates.monthOfKey(anchorDay) === month ? anchorDay : `${month}-01`;
 
-  const pick = (key) => {
-    api.close();
-    onPick(key);
-  };
   const title = h('span', { class: 'day-picker__title', 'aria-live': 'polite' });
   const grid = h('div', { class: 'day-picker__grid' });
   const render = ({ focus = false } = {}) => {
@@ -78,7 +75,13 @@ export function openDayPicker(ctx, anchor, { month: startMonth, onPick = (key) =
     grid.replaceChildren(
       ...dates.WEEKDAY_SHORT.map((day) => h('span', { class: 'day-picker__weekday', 'aria-hidden': 'true' }, day.slice(0, 2))),
       ...dates.monthGrid(year, m, true).flat().map((key) => {
-        const classes = ['day-picker__day', dates.monthOfKey(key) !== month && 'is-outside', key === today && 'is-today', key === selected && 'is-selected'];
+        const classes = [
+          'day-picker__day',
+          dates.monthOfKey(key) !== month && 'is-outside',
+          fadePast && key < today && 'is-past',
+          key === today && 'is-today',
+          key === selected && 'is-selected',
+        ];
         return h(
           'button',
           {
@@ -89,7 +92,7 @@ export function openDayPicker(ctx, anchor, { month: startMonth, onPick = (key) =
             'aria-current': key === today ? 'date' : null,
             'aria-pressed': String(key === selected),
             dataset: { day: key },
-            onClick: () => pick(key),
+            onClick: () => onPick(key),
           },
           String(Number(key.slice(8))),
         );
@@ -112,9 +115,9 @@ export function openDayPicker(ctx, anchor, { month: startMonth, onPick = (key) =
   });
 
   render();
-  const content = h(
+  const el = h(
     'div',
-    { class: 'day-picker' },
+    { class: `day-picker ${className}`.trim() },
     h(
       'div',
       { class: 'day-picker__head' },
@@ -123,10 +126,18 @@ export function openDayPicker(ctx, anchor, { month: startMonth, onPick = (key) =
       h('button', { class: 'btn-icon day-picker__month', type: 'button', 'aria-label': t('calendar.nextMonth'), onClick: () => showMonth(1) }, ui.icon('chevron-right', { size: 18 })),
     ),
     grid,
-    h('div', { class: 'day-picker__foot' }, h('button', { class: 'btn btn-sm', type: 'button', onClick: () => pick(today) }, t('calendar.today'))),
+    h('div', { class: 'day-picker__foot' }, h('button', { class: 'btn btn-sm', type: 'button', onClick: () => onPick(today) }, t('calendar.today'))),
   );
-  api = ui.popover({ anchor, content, className: 'popover--day-picker', label: t('day.pick') });
-  grid.querySelector(`[data-day="${focusKey}"]`)?.focus();
+  return { el, focus: () => grid.querySelector(`[data-day="${focusKey}"]`)?.focus() };
+}
+
+/** Month grid under the day label (Prioritize) or the month title (Calendar), in its own popover.
+ *  `month` is the month it opens on (default: the selected day's); `onPick` receives the chosen day key. */
+export function openDayPicker(ctx, anchor, { month, onPick = (key) => ctx.setDate(key) } = {}) {
+  let api = null;
+  const picker = dayGrid(ctx, { selected: ctx.getDate(), month, onPick: (key) => (api.close(), onPick(key)) });
+  api = ctx.ui.popover({ anchor, content: picker.el, className: 'popover--day-picker', label: ctx.i18n.t('day.pick') });
+  picker.focus();
   return api;
 }
 
