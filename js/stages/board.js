@@ -1047,7 +1047,7 @@ function showTrackedEdit(task, body) {
     },
   });
   const save = () => {
-    const seconds = parseTime(input.value);
+    const seconds = input.value.trim() === '' ? 0 : parseTime(input.value); // cleared and saved: no time
     if (seconds === null) {
       input.setAttribute('aria-invalid', 'true');
       return input.focus();

@@ -352,6 +352,22 @@ test('the timer picker writes the time in by hand: tap "Tracked so far", type it
   await expect(popover(page).locator('.timer-picker__tracked')).toContainText('Tracked so far: 1:30:00');
 });
 
+test('the tracked time, cleared and saved, becomes 0', async ({ page }) => {
+  await asPro(page);
+  const timer = { mode: 'stopwatch', durationSec: 0, startedAt: null, elapsedSec: 1259, baseSec: 0, running: false, stoppedAt: '2026-03-11T09:00:00.000Z' };
+  await seed(page, { tasks: [task('t_1', 'Marketing Order A5', 'do', { timer })], stage: 3 });
+  await page.goto('/');
+  await openTimer(page, 'Marketing Order A5');
+  await popover(page).locator('.timer-picker__tracked').click();
+  const input = popover(page).locator('.timer-picker__tracked-input');
+  await expect(input).toHaveValue('20:59');
+  await input.fill('');
+  await popover(page).getByRole('button', { name: 'Save' }).click();
+  await expect(popover(page)).toHaveCount(0);
+  await expect(page.locator('.toast', { hasText: 'Time set to 00:00' })).toBeVisible();
+  await waitForSaved(page, (doc) => (taskById(doc, 't_1').timer?.elapsedSec ?? 0) + (taskById(doc, 't_1').timer?.baseSec ?? 0) === 0);
+});
+
 test('a countdown that ran out offers a new timer, not "Continue", and the next one adds to the time', async ({ page }) => {
   await asPro(page);
   await page.setViewportSize({ width: 1280, height: 1000 });
