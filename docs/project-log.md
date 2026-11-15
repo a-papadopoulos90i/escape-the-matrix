@@ -138,6 +138,14 @@ Public repository — no secrets, passwords, keys or customer data here.
   account in the tool) got Pro with no end: `billing/{uid}` = plan pro, `currentPeriodEnd` null, source/period
   `owner`, written as admin. No sale behind it, so there is nothing to refund. (Email and uid not recorded here.)
 
+- **2026-11-15 — Postpone, greeklish search, Deleted (v=126/127).** Postpone (⏩) opens Levelix's own month
+  grid instead of the browser's date field: the task's day is the green circle, today the blue ring (as in the day
+  picker), past days faded but pickable, so work can be filed on the day it was done. The waiting list search also
+  understands greeklish ("xartia" finds "Χαρτιά", js/search.js). A third round button beside Done and the Time
+  report opens **Deleted**: tasks deleted in the last 30 days (tombstones are kept that long for sync anyway), by
+  day, each with Restore back to its day and box (records it was pulled through come back with it); free, but a
+  restore respects Free's 100.
+
 ## Open items
 
 - The owner's main Google account can have **Apple connected**: sign in with Apple → gear → Delete account (the

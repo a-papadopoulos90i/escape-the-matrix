@@ -933,3 +933,36 @@ body.is-signed-in .calendar__demo-row {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ---------- Deleted (js/trash.js): the Done layout, with where each task was and a Restore button ---------- */
+.trash__lead {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.trash__task .history__title {
+  text-decoration: none; /* deleted, not finished: plain, unless it was done */
+}
+
+.trash__task.is-done .history__title {
+  text-decoration: line-through;
+}
+
+.trash__where {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--muted);
+}
+
+.trash__restore {
+  flex-shrink: 0;
+  gap: 4px;
+  min-height: 28px;
+  padding: 0 10px;
+}
+
+@media (max-width: 479px) {
+  .trash__where {
+    display: none; /* the row keeps the title and Restore; where it goes back to shows in the toast */
+  }
+}

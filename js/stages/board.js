@@ -8,6 +8,7 @@ import { carryStrip, attemptBadge, recordLabel, dayNav, dayGrid, QUAD_ICON, quad
 import { fileWithTag, priorityButton, tagPlaces } from '../tags.js';
 import { canAddTask } from '../plan.js';
 import { isPro, onPlanChange, proGate, proVeil } from '../pro-lock.js';
+import { matchesSearch } from '../search.js';
 import { parseTime } from '../report.js';
 
 const PRESET_MINUTES = [5, 15, 25, 45, 60];
@@ -482,9 +483,8 @@ function foldButton(name, label, controls) {
 
 let waitingQuery = ''; // kept across re-renders, for this visit
 
-/** Lower case, accents dropped and ς read as σ: "πεμπτη" finds "Πέμπτη". */
-const searchable = (text) => String(text).normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/ς/g, 'σ');
-const matchesQuery = (task) => !waitingQuery.trim() || searchable(task.title).includes(searchable(waitingQuery.trim()));
+/** Accents, capitals and greeklish do not matter: "xartia" finds "Χαρτιά" (js/search.js). */
+const matchesQuery = (task) => matchesSearch(task.title, waitingQuery);
 
 /** A small search field in the waiting list's heading: the list below follows each key. On Free it shows
  *  with a lock, and pressing it asks to go Pro. */

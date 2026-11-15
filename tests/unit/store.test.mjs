@@ -742,3 +742,35 @@ test('dropOrphanRecords clears records whose work was deleted by an older versio
   assert.equal(store.findTask(original.id), null);
   assert.equal(store.dropOrphanRecords(), null); // nothing left on the next start
 });
+
+test('restoreTask brings a deleted task back as it was, with the records it was pulled through; undo deletes it again', () => {
+  const { store } = makeStore();
+  const first = store.addTask({ title: 'Call the bank', date: '2026-03-10', quadrant: 'do' });
+  store.carryOver([first.id], '2026-03-11');
+  const copy = store.tasksForDate('2026-03-11').find((t) => t.title === 'Call the bank');
+  store.removeTask(copy.id);
+  assert.equal(store.findTask(copy.id), null);
+  assert.equal(store.get().tasks.find((t) => t.id === first.id).deleted, true); // its record went with it
+
+  const token = store.restoreTask(copy.id);
+  const back = store.findTask(copy.id);
+  assert.equal(back.date, '2026-03-11');
+  assert.equal(back.quadrant, 'do');
+  assert.equal(back.attempt, 2);
+  assert.equal(store.get().tasks.find((t) => t.id === first.id).deleted, false); // the record is back too
+  assert.equal(back.deletedAt, null);
+
+  store.undo(token);
+  assert.equal(store.findTask(copy.id), null);
+});
+
+test('a restored task wins over the tombstone on other devices (merge by newest)', () => {
+  const { store, clock } = makeStore();
+  const task = store.addTask({ title: 'Water the plants', date: '2026-03-11', quadrant: 'plan' });
+  store.removeTask(task.id);
+  const tombstoned = store.get();
+  clock.tick(60);
+  store.restoreTask(task.id);
+  const merged = mergeDocs(tombstoned, store.get());
+  assert.equal(merged.tasks.find((t) => t.id === task.id).deleted, false);
+});

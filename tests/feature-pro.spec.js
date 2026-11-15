@@ -182,6 +182,8 @@ test('Pro: the waiting list search filters as you type, without accents or capit
   await expect(list).toContainText('Πέμπτη ραντεβού');
   await expect(search).toBeFocused(); // typing never loses the field
 
+  await search.fill('xartia'); // greeklish
+  await expect(list.locator('.waiting-card')).toHaveText([/Χαρτιά του Παντελή/]);
   await search.fill('PET');
   await expect(list.locator('.waiting-card')).toHaveText([/Pet Shop email/]);
   await search.fill('zzz');
@@ -202,4 +204,27 @@ test('Free: the waiting list search shows with a lock and asks to go Pro', async
   await pop.getByRole('button', { name: 'Go Pro' }).click();
   await expect(pop).toHaveCount(0);
   await expect(panel(page).locator('.home-pricing')).toBeInViewport();
+});
+
+test('Deleted: a task deleted with ✕ waits beside Done, and Restore puts it back where it was', async ({ page }) => {
+  await seed(page);
+  await page.goto('/');
+  await card(page, 'Invoice Send').locator('.task-card__delete').click();
+  await expect(card(page, 'Invoice Send')).toHaveCount(0);
+
+  const fabs = page.locator('.report-fabs');
+  await expect(fabs.locator('.report-fab')).toHaveCount(3); // Done, Time report, Deleted
+  await page.getByRole('button', { name: 'Deleted: bring back what you deleted' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Deleted' });
+  await expect(dialog.locator('.history__day-head h3')).toHaveText(['Deleted today']);
+  await expect(dialog.locator('.trash__task')).toHaveCount(1);
+  await expect(dialog.locator('.trash__task')).toContainText('Invoice Send');
+  await expect(dialog.locator('.trash__where')).toHaveText('was on Wed 11 Mar');
+
+  await dialog.getByRole('button', { name: 'Restore: Invoice Send' }).click();
+  await expect(dialog.locator('.history__empty')).toHaveText('Nothing deleted in the last 30 days.');
+  await expect(page.locator('.toast', { hasText: 'Restored to Wed 11 Mar' })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Close' }).last().click();
+  await expect(card(page, 'Invoice Send')).toHaveCount(1);
+  await expect(panel(page).locator('.quadrant--delegate .task-card', { hasText: 'Invoice Send' })).toHaveCount(1); // its own box
 });

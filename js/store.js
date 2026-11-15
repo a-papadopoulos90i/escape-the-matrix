@@ -580,6 +580,30 @@ export function createStore(initialDoc, { now = Date.now } = {}) {
       });
     },
 
+    /**
+     * Brings a deleted task back (the Deleted screen), as it was: its day, its box, its tick. The records
+     * of the days it had been pulled from were deleted with it and come back with it. Newer than the
+     * tombstone, so every device takes the task back too. Returns an undo token.
+     */
+    restoreTask(id) {
+      return undoable(() => {
+        const task = doc.tasks.find((item) => item.id === id && item.deleted);
+        if (!task) return;
+        const ms = now();
+        const back = new Set([id]);
+        for (let from = task.carriedFrom; from; ) {
+          const record = doc.tasks.find((item) => item.id === from && item.deleted && isRecord(item) && item.deletedAt === task.deletedAt);
+          if (!record) break;
+          back.add(record.id);
+          from = record.carriedFrom;
+        }
+        commit(
+          doc.tasks.map((item) => (back.has(item.id) ? { ...item, deleted: false, deletedAt: null, updatedAt: isoAt(ms) } : item)),
+          { reason: 'restoreTask', id },
+        );
+      });
+    },
+
     /** Deletes several tasks as one action (the Done history's day or "all"): one undo token. */
     removeTasks(ids) {
       return undoable(() => {

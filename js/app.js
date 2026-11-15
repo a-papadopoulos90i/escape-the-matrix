@@ -8,6 +8,7 @@ import * as ui from './ui.js';
 import * as i18n from './i18n.js';
 import { openDoneHistory } from './history.js';
 import { openTimeReport } from './report.js';
+import { openDeleted } from './trash.js';
 import { captureRemindersFlag, startRemindersAutoSync } from './reminders.js';
 import * as home from './stages/home.js';
 import * as calendar from './stages/calendar.js';
@@ -94,6 +95,7 @@ function renderBrand() {
   // One app-level Time report button after the stage: always last, under every task, on both pages.
   els.reportButton.hidden = !REPORT_STAGES.includes(state.stage);
   els.historyButton.hidden = !HISTORY_STAGES.includes(state.stage);
+  els.trashButton.hidden = els.historyButton.hidden; // Deleted sits with Done
   els.fabs.hidden = els.reportButton.hidden && els.historyButton.hidden;
 }
 
@@ -426,7 +428,12 @@ async function boot() {
     { class: 'report-fab', type: 'button', hidden: true, 'aria-label': t('settings.timeReport'), title: t('settings.timeReport'), onClick: () => openTimeReport({ ui, store, i18n, dates }) },
     ui.icon('clock', { size: 22 }),
   );
-  els.fabs = ui.h('div', { class: 'report-fabs', hidden: true }, els.historyButton, els.reportButton);
+  els.trashButton = ui.h(
+    'button',
+    { class: 'report-fab', type: 'button', hidden: true, 'aria-label': t('trash.button'), title: t('trash.button'), onClick: () => openDeleted({ ui, store, i18n, dates, onSeePlans: showPlans }) },
+    ui.icon('trash', { size: 21 }),
+  );
+  els.fabs = ui.h('div', { class: 'report-fabs', hidden: true }, els.historyButton, els.reportButton, els.trashButton);
   document.querySelector('.app').append(els.fabs);
 
   renderStepper();
