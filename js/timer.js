@@ -5,8 +5,8 @@
 // stamped on the timer (`alarmedAt`), so a countdown that ran out while the page was closed still
 // alarms once on the next load — and never twice.
 // Mounted once at document level by app.js at boot, so the bar shows on every stage after a reload. On
-// Prioritize it is docked in place of the stage title (dock/undock); with two or more timers going, small
-// arrows step between them, and Pause / Stop / Done act on the one shown.
+// Prioritize it is docked in place of the stage title (dock/undock). Every timer going has its own bar, one
+// under the other, each with its own Pause / Stop / Done (no arrows to step between them, 2026-11-15).
 // The timer never plays audio of its own (only the chime when a countdown ends): a page that plays even
 // silence takes over the user's headphones and their play/pause, and that stopped the clock (2026-10-25).
 import { timerElapsed, timerRemaining } from './store.js';
@@ -25,9 +25,9 @@ const CHIME_PEAK = 0.12; // quiet on purpose
 const TIMER_REASONS = new Set(['startTimer', 'pauseTimer', 'resumeTimer', 'stopTimer', 'alarmTimer']);
 
 let store = null;
-let bar = null; // { el, title, status, count, time, pause, prev, next }
-let shownId = null; // the timer the bar shows when several are going (the latest started, until stepped)
-let dockSlot = null; // where the bar sits in place of the stage title (Prioritize), or null: floating
+let stack = null; // the column of bars, one per timer going (floating at the bottom, or docked)
+const bars = new Map(); // task id → { el, title, status, time, pause }
+let dockSlot = null; // where the bars sit in place of the stage title (Prioritize), or null: floating
 let unsubscribe = null;
 let interval = null;
 let flashHandle = null;
@@ -38,26 +38,27 @@ let pageTitle = ''; // the tab's own title, put back when nothing is being timed
 
 /** Mounts the bar and starts watching the store. Idempotent. */
 export function init({ store: nextStore }) {
-  if (bar) return;
+  if (stack) return;
   store = nextStore;
   pageTitle = document.title;
-  bar = buildBar();
-  document.body.append(bar.el);
+  stack = h('div', { class: 'timer-stack', role: 'region', 'aria-label': t('timer.label'), hidden: true });
+  document.body.append(stack);
   unsubscribe = store.subscribe(sync);
   document.addEventListener('visibilitychange', onVisibilityChange);
   sync();
 }
 
 export function destroy() {
-  if (!bar) return;
+  if (!stack) return;
   if (pageTitle) document.title = pageTitle;
   setTicking(false);
   clearTimeout(flashHandle);
   unsubscribe?.();
   document.removeEventListener('visibilitychange', onVisibilityChange);
   document.body.classList.remove('has-timer-bar');
-  bar.el.remove();
-  bar = null;
+  stack.remove();
+  stack = null;
+  bars.clear();
   store = null;
 }
 
@@ -181,45 +182,28 @@ function requestNotificationPermission() {
 
 // ---------- Store sync & ticking ----------
 
-function sync(_doc, { reason } = {}) {
-  if (reason === 'startTimer') shownId = store.activeTimer()?.id ?? null; // a timer just started: show it
-  renderBar(shownTask());
+function sync() {
+  renderBars();
   tick();
   setTicking(store.activeTimers().some((task) => task.timer.running));
 }
 
-/** The timer the bar shows: the one stepped to, else the latest started. */
-function shownTask() {
-  const tasks = store?.activeTimers() ?? [];
-  return tasks.find((task) => task.id === shownId) ?? tasks[0] ?? null;
-}
-
-/** The bar's arrows: the previous / next timer going, round the list. */
-function step(by) {
-  const tasks = store.activeTimers();
-  if (tasks.length < 2) return;
-  const at = Math.max(0, tasks.findIndex((task) => task.id === shownTask()?.id));
-  shownId = tasks[(at + by + tasks.length) % tasks.length].id;
-  renderBar(shownTask());
-  tick();
-}
-
-/** Prioritize puts the bar in place of its title (`slot` is the stage header); undock floats it again. */
+/** Prioritize puts the bars in place of its title (`slot` is the stage header); undock floats them again. */
 export function dock(slot) {
-  if (!bar) return;
+  if (!stack) return;
   dockSlot = slot;
-  slot.append(bar.el);
-  bar.el.classList.add('timer-bar--docked');
-  renderBar(shownTask());
+  slot.append(stack);
+  stack.classList.add('timer-stack--docked');
+  renderBars();
 }
 
 export function undock() {
-  if (!bar || !dockSlot) return;
+  if (!stack || !dockSlot) return;
   dockSlot.classList.remove('has-timer');
   dockSlot = null;
-  bar.el.classList.remove('timer-bar--docked');
-  document.body.append(bar.el);
-  renderBar(shownTask());
+  stack.classList.remove('timer-stack--docked');
+  document.body.append(stack);
+  renderBars();
 }
 
 function setTicking(on) {
@@ -242,15 +226,17 @@ function tick() {
     const { timer } = task;
     if (timer.mode === 'countdown' && timer.running && !timer.alarmedAt && timerRemaining(timer, now) <= 0) raiseAlarm(task);
   }
-  const shown = shownTask();
-  if (shown) updateBarTime(shown, now);
+  for (const task of tasks) updateBarTime(task, now);
+  const first = tasks[0];
+  const { state, text } = clockState(first, now);
+  showInTabTitle(first, state, text); // the tab tells the latest one
 }
 
 function onVisibilityChange() {
   if (!document.hidden) tick(); // catch up after background throttling
 }
 
-// ---------- Floating bar ----------
+// ---------- The bars ----------
 
 function barButton(className, onClick) {
   return h('button', { class: `btn btn-sm ${className}`.trim(), type: 'button', onClick });
@@ -261,74 +247,66 @@ function fillButton(button, iconName, label) {
   button.setAttribute('aria-label', label);
 }
 
-function arrowButton(direction) {
-  const label = t(direction < 0 ? 'timer.previous' : 'timer.next');
-  return h(
-    'button',
-    { class: 'btn-icon timer-bar__step', type: 'button', 'aria-label': label, title: label, hidden: true, onClick: () => step(direction) },
-    icon(direction < 0 ? 'chevron-left' : 'chevron-right', { size: 18 }),
-  );
-}
-
-function buildBar() {
+/** One task's bar: its title, its time, and Pause / Stop / Done for that task. */
+function buildBar(id) {
+  const act = (action) => () => {
+    unlockAudio();
+    const task = store.activeTimers().find((item) => item.id === id);
+    if (task) action(task);
+  };
   const title = h('span', { class: 'timer-bar__title' });
   const status = h('span', { class: 'timer-bar__status' });
-  const count = h('span', { class: 'timer-bar__count' });
-  const prev = arrowButton(-1);
-  const next = arrowButton(1);
   const time = h('span', { class: 'timer-bar__time', role: 'timer' });
-  const pause = barButton('timer-bar__pause', () => withActive((task) => (task.timer.running ? store.pauseTimer(task.id) : store.resumeTimer(task.id))));
-  const stop = barButton('timer-bar__stop', () => withActive((task) => store.stopTimer(task.id)));
-  const done = barButton('btn-primary timer-bar__done', () => withActive((task) => store.toggleDone(task.id, true)));
+  const pause = barButton('timer-bar__pause', act((task) => (task.timer.running ? store.pauseTimer(task.id) : store.resumeTimer(task.id))));
+  const stop = barButton('timer-bar__stop', act((task) => store.stopTimer(task.id)));
+  const done = barButton('btn-primary timer-bar__done', act((task) => store.toggleDone(task.id, true)));
   fillButton(stop, 'stop', t('timer.stop'));
   fillButton(done, 'check', t('timer.done'));
   const el = h(
     'div',
-    { class: 'timer-bar', role: 'region', 'aria-label': t('timer.label'), hidden: true },
-    prev,
+    { class: 'timer-bar', dataset: { timerId: id } },
     icon('clock', { size: 22 }),
-    h('div', { class: 'timer-bar__info' }, title, status, count),
+    h('div', { class: 'timer-bar__info' }, title, status),
     time,
     h('div', { class: 'timer-bar__actions' }, pause, stop, done),
-    next,
   );
-  return { el, title, status, count, time, pause, prev, next };
+  return { el, title, status, time, pause };
 }
 
-function withActive(action) {
-  unlockAudio();
-  const task = shownTask();
-  if (task) action(task);
-}
-
-function renderBar(task) {
-  const visible = Boolean(task);
-  bar.el.hidden = !visible;
-  document.body.classList.toggle('has-timer-bar', visible && !dockSlot); // room at the bottom only when floating
-  dockSlot?.classList.toggle('has-timer', visible); // docked: the bar stands in for the stage title
-  if (!visible) {
-    showInTabTitle(null, 'idle', '');
-    return;
-  }
-  const running = task.timer.running;
+/** One bar per timer going, latest first; bars of timers that ended go. */
+function renderBars() {
   const tasks = store.activeTimers();
-  const several = tasks.length > 1;
-  bar.title.textContent = task.title;
-  bar.count.textContent = several ? t('timer.position', { i: tasks.findIndex((item) => item.id === task.id) + 1, n: tasks.length }) : '';
-  bar.prev.hidden = bar.next.hidden = !several;
-  bar.el.classList.toggle('timer-bar--several', several);
-  bar.el.classList.toggle('timer-bar--paused', !running);
-  fillButton(bar.pause, running ? 'pause' : 'play', t(running ? 'timer.pause' : 'timer.resume'));
+  const visible = tasks.length > 0;
+  stack.hidden = !visible;
+  document.body.classList.toggle('has-timer-bar', visible && !dockSlot); // room at the bottom only when floating
+  document.body.style.setProperty('--timer-bars', String(tasks.length)); // ...for as many bars as there are
+  dockSlot?.classList.toggle('has-timer', visible); // docked: the bars stand in for the stage title
+  if (!visible) showInTabTitle(null, 'idle', '');
+  for (const [id, bar] of bars) {
+    if (tasks.some((task) => task.id === id)) continue;
+    bar.el.remove();
+    bars.delete(id);
+  }
+  tasks.forEach((task, index) => {
+    let bar = bars.get(task.id);
+    if (!bar) bars.set(task.id, (bar = buildBar(task.id)));
+    if (stack.children[index] !== bar.el) stack.insertBefore(bar.el, stack.children[index] ?? null);
+    const running = task.timer.running;
+    bar.title.textContent = task.title;
+    bar.el.classList.toggle('timer-bar--paused', !running);
+    fillButton(bar.pause, running ? 'pause' : 'play', t(running ? 'timer.pause' : 'timer.resume'));
+  });
 }
 
 function updateBarTime(task, now) {
+  const bar = bars.get(task.id);
+  if (!bar) return;
   const { state, text } = clockState(task, now);
   const finished = state === 'finished';
   bar.time.textContent = text;
   bar.status.textContent = finished ? t('timer.finished') : '';
   bar.el.classList.toggle('timer-bar--finished', finished);
   bar.pause.hidden = finished; // a countdown that has run out has nothing to pause
-  showInTabTitle(task, state, text);
 }
 
 /** The tab says what is on the clock: "02:44 — Pay the accountant" ("⏸ 02:44 — …" while paused), and goes
@@ -344,16 +322,19 @@ function showInTabTitle(task, state, text) {
 function raiseAlarm(task) {
   store.markTimerAlarmed(task.id); // first: the store change re-enters tick(), which must not alarm again
   chime();
-  flashBar();
+  flashBar(task.id);
   notify(task);
 }
 
-function flashBar() {
+/** Time's up flashes that task's own bar. */
+function flashBar(id) {
+  const el = bars.get(id)?.el;
+  if (!el) return;
   clearTimeout(flashHandle);
-  bar.el.classList.remove('timer-bar--flash');
-  void bar.el.offsetWidth; // restart the animation when it is already running
-  bar.el.classList.add('timer-bar--flash');
-  flashHandle = setTimeout(() => bar?.el.classList.remove('timer-bar--flash'), FLASH_MS);
+  el.classList.remove('timer-bar--flash');
+  void el.offsetWidth; // restart the animation when it is already running
+  el.classList.add('timer-bar--flash');
+  flashHandle = setTimeout(() => el.classList.remove('timer-bar--flash'), FLASH_MS);
 }
 
 function notify(task) {

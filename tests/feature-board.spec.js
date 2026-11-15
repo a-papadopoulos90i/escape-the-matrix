@@ -889,22 +889,23 @@ test('"Run both" lets two tasks be timed side by side', async ({ page }) => {
   await page.locator('[role="dialog"].modal').getByRole('button', { name: 'Run both' }).click();
   await page.keyboard.press('Escape');
 
-  // Both clocks keep running; the bar shows the latest, says it is not alone, and its arrows step between them.
+  // Both clocks keep running, and each has its own bar, one under the other (the latest on top), each with its own buttons.
   await expect(card(page, 'Marketing Order A5').locator('.task-card__clock')).toHaveClass(/task-card__clock--running/);
   await expect(card(page, 'Invoice Send').locator('.task-card__clock')).toHaveClass(/task-card__clock--running/);
-  await expect(bar(page).locator('.timer-bar__title')).toHaveText('Invoice Send');
-  await expect(bar(page).locator('.timer-bar__count')).toHaveText('1 of 2 timers');
+  const bars = page.locator('.timer-stack .timer-bar');
+  await expect(bars.locator('.timer-bar__title')).toHaveText(['Invoice Send', 'Marketing Order A5']);
+  await expect(page.locator('.timer-bar__step, .timer-bar__count')).toHaveCount(0); // no arrows to step between them
+  // One under the other, once the new bar has slid in.
+  await expect.poll(async () => { const [t, b] = [await bars.nth(0).boundingBox(), await bars.nth(1).boundingBox()]; return b.y >= t.y + t.height && Math.abs(b.x - t.x) <= 1; }).toBe(true);
   await waitForSaved(page, (doc) => doc.tasks.filter((item) => item.timer?.running).length === 2);
 
-  await bar(page).getByRole('button', { name: 'Next timer' }).click();
-  await expect(bar(page).locator('.timer-bar__title')).toHaveText('Marketing Order A5');
-  await expect(bar(page).locator('.timer-bar__count')).toHaveText('2 of 2 timers');
-  await bar(page).locator('.timer-bar__pause').click(); // acts on the timer shown
+  await bars.nth(1).locator('.timer-bar__pause').click(); // Marketing's own Pause
   await expect(card(page, 'Marketing Order A5').locator('.task-card__clock')).toHaveClass(/task-card__clock--paused/);
   await expect(card(page, 'Invoice Send').locator('.task-card__clock')).toHaveClass(/task-card__clock--running/);
-  await expect(bar(page).locator('.timer-bar__title')).toHaveText('Marketing Order A5'); // stays on it
-  await bar(page).getByRole('button', { name: 'Previous timer' }).click();
-  await expect(bar(page).locator('.timer-bar__title')).toHaveText('Invoice Send');
+  await expect(bars).toHaveCount(2); // a paused timer keeps its bar
+  await page.locator('.timer-stack .timer-bar', { hasText: 'Invoice Send' }).locator('.timer-bar__stop').click(); // Invoice's own Stop
+  await expect(bars).toHaveCount(1);
+  await expect(bars.locator('.timer-bar__title')).toHaveText('Marketing Order A5');
 });
 
 test('on Prioritize the running timer takes the title\'s place; elsewhere it floats at the bottom', async ({ page }) => {
@@ -918,8 +919,6 @@ test('on Prioritize the running timer takes the title\'s place; elsewhere it flo
 
   await expect(header.locator('.timer-bar')).toBeVisible(); // in the header, where the title was
   expect((await header.locator('.stage-title').boundingBox()).width).toBeLessThanOrEqual(1); // kept for screen readers only
-  await expect(bar(page).locator('.timer-bar__step')).toHaveCount(2);
-  await expect(bar(page).locator('.timer-bar__step').first()).toBeHidden(); // one timer: no arrows
   const box = await bar(page).boundingBox();
   const nav = await panel(page).locator('.stage-nav').boundingBox();
   expect(box.y).toBeGreaterThan(nav.y + nav.height - 1); // under Back / the day / Back to calendar
@@ -927,7 +926,7 @@ test('on Prioritize the running timer takes the title\'s place; elsewhere it flo
 
   await page.locator('#stepper .step').nth(0).click(); // Calendar: the bar floats at the bottom again
   await expect(bar(page)).toBeVisible();
-  await expect(bar(page)).not.toHaveClass(/timer-bar--docked/);
+  await expect(page.locator('.timer-stack')).not.toHaveClass(/timer-stack--docked/);
   const floating = await bar(page).boundingBox();
   expect(floating.y + floating.height).toBeGreaterThan(page.viewportSize().height - 100);
 

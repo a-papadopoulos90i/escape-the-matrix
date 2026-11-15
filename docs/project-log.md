@@ -156,6 +156,11 @@ Public repository — no secrets, passwords, keys or customer data here.
   afterwards all 132 reminders matched the boards. An all-combinations test (500+) pins the rule and that a
   second sync changes nothing. Backup of the list before: ~/Documents/Levelix-backups (owner's Mac).
 
+- **2026-11-15 — Several timers: one bar each (v=130).** The owner did not want arrows to step between running
+  timers: every timer going now has its own bar, one under the other (latest on top), each with its own Pause /
+  Stop / Done; docked in place of the title on Prioritize, floating at the bottom elsewhere (the page keeps room for
+  as many bars as there are). A countdown that runs out flashes its own bar.
+
 ## Open items
 
 - The owner's main Google account can have **Apple connected**: sign in with Apple → gear → Delete account (the
